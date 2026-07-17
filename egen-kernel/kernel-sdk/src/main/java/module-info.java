@@ -14,4 +14,5 @@ module africa.civitas.egen.kernel.sdk {
     exports africa.civitas.egen.kernel.sdk.event;
     exports africa.civitas.egen.kernel.sdk.contexte;
     exports africa.civitas.egen.kernel.sdk.manifest;
+    exports africa.civitas.egen.kernel.sdk.tracabilite;
 }

@@ -21,15 +21,16 @@
     Ressources, Referentiels, Communication, Audit, Autorisation), le moteur de plugins
     et le module de composition finale (kernel-bootstrap).
 
-    Modules livres a ce jour : kernel-sdk.
+    Modules livres a ce jour : kernel-sdk, kernel-systems/identity (Systeme A1).
     Les systemes suivants seront ajoutes un par un, dans l'ordre convenu :
-    identity + reference-data, organization, affiliation, policy, module-registry,
-    resource, communication, audit, authorization, kernel-eventbus,
+    reference-data (B4), organization (A2), affiliation (A3), policy/module-registry/
+    resource (B1-B3), communication/audit/authorization (E1-E3), kernel-eventbus,
     kernel-plugin-engine, kernel-bootstrap.
   </description>
 
   <modules>
     <module>kernel-sdk</module>
+    <module>kernel-systems</module>
   </modules>
 
 </project>
