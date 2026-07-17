@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-platform</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-kernel</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Kernel</name>
+  <description>
+    Le socle Kernel d'EGEN : le minimum vital sans lequel aucun module metier ne peut
+    fonctionner. Regroupe le contrat public (kernel-sdk), le modele de domaine, les dix
+    systemes structurels (Identite, Organisationnel, Rattachements, Politique, Modules,
+    Ressources, Referentiels, Communication, Audit, Autorisation), le moteur de plugins
+    et le module de composition finale (kernel-bootstrap).
+
+    Modules livres a ce jour : kernel-sdk.
+    Les systemes suivants seront ajoutes un par un, dans l'ordre convenu :
+    identity + reference-data, organization, affiliation, policy, module-registry,
+    resource, communication, audit, authorization, kernel-eventbus,
+    kernel-plugin-engine, kernel-bootstrap.
+  </description>
+
+  <modules>
+    <module>kernel-sdk</module>
+  </modules>
+
+</project>

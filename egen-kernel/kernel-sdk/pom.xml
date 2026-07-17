@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-sdk</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel SDK</name>
+  <description>
+    Le contrat public du Kernel EGEN : annotations d'extension (@Module, @Extension),
+    le marqueur ExtensionPoint, le contrat evenementiel (EventType, EventEnvelope), le
+    contrat de Contexte (Organisation ou Cellule, jamais leur implementation), et le
+    schema du Manifeste d'Extension qu'un module metier declare pour s'accrocher au
+    Kernel. Zero dependance d'execution, zero framework — c'est la seule raison pour
+    laquelle ce module peut etre un vrai module JPMS (module-info.java) sans aucune
+    friction. C'est le seul artefact que developperont un jour les auteurs de modules
+    metier externes : il doit rester stable, minimal, et retro-compatible.
+  </description>
+
+  <dependencies>
+    <!-- Dependances de TEST uniquement — jamais presentes dans le JAR livre -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
