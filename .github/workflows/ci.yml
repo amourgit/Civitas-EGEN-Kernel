@@ -32,31 +32,44 @@ jobs:
           set -o pipefail
           mvn -B -ntp verify 2>&1 | tee /tmp/maven-build.log
 
-      # Le stockage des logs bruts GitHub Actions (Azure Blob) n'est pas atteignable
-      # depuis certains environnements de diagnostic automatise. En cas d'echec, on
-      # publie donc la fin du log Maven directement via l'API GitHub (accessible
-      # partout), sous forme de commentaire de commit — c'est la porte de diagnostic
-      # faisant foi en cas d'echec, en complement de l'onglet Actions.
-      - name: Publier le diagnostic d'echec en commentaire de commit
-        if: steps.build.outcome == 'failure'
+      - name: Publier le resume du build en commentaire de commit
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OUTCOME: ${{ steps.build.outcome }}
         run: |
           python3 - <<'PYEOF'
-          import json, os
+          import json, os, re
+
+          outcome = os.environ["OUTCOME"]
+          run_url = os.environ["RUN_URL"]
 
           with open('/tmp/maven-build.log', 'r', errors='replace') as f:
               content = f.read()
 
-          tail = content[-55000:]
-          body = (
-              "### Diagnostic automatique - echec du build Maven\n\n"
-              f"Run : {os.environ['RUN_URL']}\n\n"
-              "```\n" + tail + "\n```"
-          )
+          if outcome == "failure":
+              tail = content[-55000:]
+              body = (
+                  "### Diagnostic automatique - echec du build Maven\n\n"
+                  f"Run : {run_url}\n\n"
+                  "```\n" + tail + "\n```"
+              )
+          else:
+              lines = [
+                  l for l in content.splitlines()
+                  if "Tests run:" in l or l.strip().startswith("[INFO] Building ")
+                  or "BUILD SUCCESS" in l
+              ]
+              summary = "\n".join(lines) if lines else "(aucune ligne de synthese trouvee)"
+              body = (
+                  "### Resume automatique - build reussi\n\n"
+                  f"Run : {run_url}\n\n"
+                  "```\n" + summary + "\n```"
+              )
+
           with open('/tmp/payload.json', 'w') as f:
               json.dump({"body": body}, f)
           PYEOF
