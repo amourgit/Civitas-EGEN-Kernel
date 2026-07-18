@@ -30,6 +30,11 @@
       <artifactId>reference-data-api</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-jpa-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>io.quarkus</groupId>
