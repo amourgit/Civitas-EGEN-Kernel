@@ -28,9 +28,6 @@
     <maven-jar-plugin.version>3.4.1</maven-jar-plugin.version>
     <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
 
-    <!-- Versions des dependances de test, communes a tous les modules -->
-    <junit.version>5.10.2</junit.version>
-
     <!--
       Quarkus — runtime du Kernel (voir la decision d'architecture posee dans nos
       echanges : Quarkus heberge le Kernel, jamais l'inverse ; les contrats restent en
@@ -38,6 +35,16 @@
       2027) plutot que la derniere version non-LTS, par choix de stabilite long terme.
       A remonter vers le dernier correctif 3.33.x publie au moment de l'implementation
       reelle (non verifiable depuis ce sandbox, verifie par la CI a chaque build).
+
+      Le BOM Quarkus gere lui-meme une version coherente de JUnit 5 (jupiter + platform
+      launcher) pour tout le reacteur — y compris kernel-sdk et les modules -api qui ne
+      dependent d'aucun autre artefact Quarkus. Ne JAMAIS importer un junit-bom separe
+      en parallele : les deux BOM se disputeraient alors la gestion de version des
+      memes artefacts JUnit, avec un risque reel de version splittee entre
+      org.junit.jupiter.* (gere par le premier BOM importe) et
+      org.junit.platform:junit-platform-launcher (tire transitivement par
+      quarkus-junit5) — exactement le bug qui a fait echouer le premier essai de ce
+      module (NoSuchMethodError sur LauncherSession.getStore()).
     -->
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
@@ -50,14 +57,6 @@
 
   <dependencyManagement>
     <dependencies>
-      <!-- JUnit 5 — dependance de TEST uniquement, jamais embarquee dans un artefact livre -->
-      <dependency>
-        <groupId>org.junit</groupId>
-        <artifactId>junit-bom</artifactId>
-        <version>${junit.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
       <dependency>
         <groupId>${quarkus.platform.group-id}</groupId>
         <artifactId>${quarkus.platform.artifact-id}</artifactId>
