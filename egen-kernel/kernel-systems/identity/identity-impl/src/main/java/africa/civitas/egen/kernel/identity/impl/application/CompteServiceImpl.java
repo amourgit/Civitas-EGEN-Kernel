@@ -6,7 +6,7 @@ import africa.civitas.egen.kernel.identity.api.exception.IdentiteConflitExceptio
 import africa.civitas.egen.kernel.identity.api.exception.PersonneIntrouvableException;
 import africa.civitas.egen.kernel.identity.api.service.CompteService;
 import africa.civitas.egen.kernel.identity.impl.domain.CompteEntity;
-import africa.civitas.egen.kernel.identity.impl.domain.TracabiliteEmbeddable;
+import africa.civitas.egen.kernel.jpasupport.tracabilite.TracabiliteEmbeddable;
 import africa.civitas.egen.kernel.identity.impl.infrastructure.CompteMapper;
 import africa.civitas.egen.kernel.identity.impl.infrastructure.CompteRepository;
 import africa.civitas.egen.kernel.identity.impl.infrastructure.PersonneRepository;

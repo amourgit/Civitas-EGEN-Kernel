@@ -1,5 +1,7 @@
 package africa.civitas.egen.kernel.identity.impl.domain;
 
+import africa.civitas.egen.kernel.jpasupport.tracabilite.TracabiliteEmbeddable;
+
 import africa.civitas.egen.kernel.identity.api.domain.MethodeAuthentification;
 import africa.civitas.egen.kernel.identity.api.domain.StatutCompte;
 import africa.civitas.egen.kernel.identity.api.domain.TypeCompte;

@@ -1,5 +1,7 @@
 package africa.civitas.egen.kernel.identity.impl.domain;
 
+import africa.civitas.egen.kernel.jpasupport.tracabilite.TracabiliteEmbeddable;
+
 import africa.civitas.egen.kernel.identity.api.domain.TypeChangementIdentite;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;

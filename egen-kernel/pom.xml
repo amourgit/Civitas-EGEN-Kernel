@@ -30,6 +30,7 @@
 
   <modules>
     <module>kernel-sdk</module>
+    <module>kernel-jpa-support</module>
     <module>kernel-systems</module>
   </modules>
 

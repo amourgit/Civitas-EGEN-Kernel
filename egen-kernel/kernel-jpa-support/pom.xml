@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-jpa-support</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — JPA Support</name>
+  <description>
+    Utilitaires de mapping JPA partages par tous les systemes -impl du Kernel — au
+    premier chef, TracabiliteEmbeddable, la projection JPA du Socle de Traçabilite de
+    kernel-sdk. Ce module existe pour une raison structurelle precise : deux systemes
+    -impl (ex. identity-impl et reference-data-impl) ne doivent jamais dependre l'un
+    de l'autre, mais ils ont tous deux besoin de la meme projection JPA du Socle de
+    Traçabilite. Dupliquer cette classe dans chaque -impl serait une dette immediate
+    (dix copies a maintenir en parallele) ; la centraliser ici, en dehors de tout
+    systeme metier, respecte le DAG de dependances : kernel-jpa-support est une
+    dependance transverse de bas niveau, au meme titre que kernel-sdk, mais avec une
+    dependance JPA que kernel-sdk s'interdit volontairement de porter.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.persistence</groupId>
+      <artifactId>jakarta.persistence-api</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

@@ -1,4 +1,4 @@
-package africa.civitas.egen.kernel.identity.impl.domain;
+package africa.civitas.egen.kernel.jpasupport.tracabilite;
 
 import africa.civitas.egen.kernel.sdk.tracabilite.Acteur;
 import africa.civitas.egen.kernel.sdk.tracabilite.ActeurType;
