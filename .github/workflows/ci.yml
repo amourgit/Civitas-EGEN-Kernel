@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build-and-test:
     name: Build & Test (reactor complet)
@@ -23,12 +26,54 @@ jobs:
           cache: maven
 
       - name: Construire et tester tout le reacteur Maven
-        run: mvn -B -ntp verify
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          mvn -B -ntp verify 2>&1 | tee /tmp/maven-build.log
+
+      # Le stockage des logs bruts GitHub Actions (Azure Blob) n'est pas atteignable
+      # depuis certains environnements de diagnostic automatise. En cas d'echec, on
+      # publie donc la fin du log Maven directement via l'API GitHub (accessible
+      # partout), sous forme de commentaire de commit — c'est la porte de diagnostic
+      # faisant foi en cas d'echec, en complement de l'onglet Actions.
+      - name: Publier le diagnostic d'echec en commentaire de commit
+        if: steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+
+          with open('/tmp/maven-build.log', 'r', errors='replace') as f:
+              content = f.read()
+
+          tail = content[-55000:]
+          body = (
+              "### Diagnostic automatique - echec du build Maven\n\n"
+              f"Run : {os.environ['RUN_URL']}\n\n"
+              "```\n" + tail + "\n```"
+          )
+          with open('/tmp/payload.json', 'w') as f:
+              json.dump({"body": body}, f)
+          PYEOF
+          curl -s -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/commits/${SHA}/comments" \
+            -d @/tmp/payload.json
 
       - name: Publier les rapports de test en cas d'echec
-        if: failure()
+        if: steps.build.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: surefire-reports
           path: '**/target/surefire-reports/*.txt'
           if-no-files-found: ignore
+
+      - name: Faire echouer le job si le build a echoue
+        if: steps.build.outcome == 'failure'
+        run: exit 1
