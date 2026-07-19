@@ -29,9 +29,12 @@ egen-platform/                          (racine du reacteur Maven)
 │   │   ├── identity/                    ← Systeme A1
 │   │   │   ├── identity-api/
 │   │   │   └── identity-impl/
-│   │   └── reference-data/              ← Systeme B4
-│   │       ├── reference-data-api/
-│   │       └── reference-data-impl/
+│   │   ├── reference-data/              ← Systeme B4
+│   │   │   ├── reference-data-api/
+│   │   │   └── reference-data-impl/
+│   │   └── organization/                ← Systeme A2
+│   │       ├── organization-api/
+│   │       └── organization-impl/
 │   ├── kernel-eventbus/                  (a venir)
 │   ├── kernel-plugin-engine/             (a venir)
 │   └── kernel-bootstrap/                 (a venir)
@@ -54,7 +57,7 @@ Traçabilite — ce module la centralise sans violer le DAG de dependances.
 | `kernel-jpa-support` | ✅ Livre — TracabiliteEmbeddable, partage entre tous les `-impl` |
 | `identity` (A1) | ✅ Livre — Personne, Compte, Historique d'Identite |
 | `reference-data` (B4) | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
-| `organization` (A2) | À venir |
+| `organization` (A2) | ✅ Livre — Organisation, Lexique Organisationnel, Type de Cellule, Cellule (arbre recursif + Fermeture Transitive), Tutelle, Succession Organisationnelle |
 | `affiliation` (A3) | À venir |
 | `policy`, `module-registry`, `resource` (B1-B3) | À venir |
 | `communication`, `audit`, `authorization` (E1-E3) | À venir |

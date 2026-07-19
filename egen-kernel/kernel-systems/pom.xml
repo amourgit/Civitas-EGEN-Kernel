@@ -26,6 +26,7 @@
   <modules>
     <module>identity</module>
     <module>reference-data</module>
+    <module>organization</module>
   </modules>
 
 </project>
