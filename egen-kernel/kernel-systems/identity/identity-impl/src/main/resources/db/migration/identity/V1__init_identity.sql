@@ -1,3 +1,11 @@
+-- Convention de versionnement Flyway : les numeros de version sont uniques sur
+-- l'ensemble de la plateforme (V1 identity, V2 reference-data, V3 organization, V4
+-- affiliation...), pas seulement au sein de chaque systeme. Necessaire des que
+-- plusieurs systemes -impl combinent leurs migrations dans une meme base (voir
+-- affiliation-impl, qui a besoin des tables identity et organization pour ses tests
+-- d'integration), et de toute facon la cible finale en production (kernel-bootstrap)
+-- fait tourner tous les systemes contre une seule base partagee.
+--
 -- Systeme A1 — Identite
 -- Cree Personne, Compte, Historique d'Identite, et leurs collections d'elements.
 -- Chaque table porte integralement le Socle de Traçabilite.
