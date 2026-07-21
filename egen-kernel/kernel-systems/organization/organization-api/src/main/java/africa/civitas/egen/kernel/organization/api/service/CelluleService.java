@@ -29,4 +29,12 @@ public interface CelluleService {
      * Fermeture Transitive — une seule requete, jamais de recursion applicative.
      */
     List<Cellule> listerDescendants(UUID celluleId);
+
+    /**
+     * Liste tous les ancetres d'une Cellule, du plus proche au plus eloigne, via la
+     * Fermeture Transitive. Introduit pour le Systeme Politique (B1) : la regle de
+     * resolution d'une Derogation ("la plus proche dans l'arbre l'emporte toujours")
+     * a besoin de remonter la chaine d'ancetres dans cet ordre precis.
+     */
+    List<Cellule> listerAncetres(UUID celluleId);
 }

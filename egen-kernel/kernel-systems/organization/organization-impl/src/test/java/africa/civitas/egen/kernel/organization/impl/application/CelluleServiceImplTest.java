@@ -174,5 +174,14 @@ class CelluleServiceImplTest {
 
         // listerParOrganisation doit remonter les 4 Cellules
         assertEquals(4, service.listerParOrganisation(o.id()).size());
+
+        // listerAncetres, depuis la Classe : Departement, Faculte, Universite, dans cet ordre exact
+        // (du plus proche au plus eloigne) — la regle de resolution des Derogations (B1) en depend.
+        List<UUID> ancetresDeLaClasse = service.listerAncetres(classe.id()).stream()
+                .map(Cellule::id).toList();
+        assertEquals(List.of(departement.id(), faculte.id(), universite.id()), ancetresDeLaClasse);
+
+        // listerAncetres, depuis l'Universite (un Etablissement) : aucun ancetre
+        assertTrue(service.listerAncetres(universite.id()).isEmpty());
     }
 }

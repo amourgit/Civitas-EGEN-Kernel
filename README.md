@@ -35,9 +35,12 @@ egen-platform/                          (racine du reacteur Maven)
 │   │   ├── organization/                ← Systeme A2
 │   │   │   ├── organization-api/
 │   │   │   └── organization-impl/
-│   │   └── affiliation/                 ← Systeme A3 (premier "pont")
-│   │       ├── affiliation-api/
-│   │       └── affiliation-impl/
+│   │   ├── affiliation/                 ← Systeme A3 (premier "pont")
+│   │   │   ├── affiliation-api/
+│   │   │   └── affiliation-impl/
+│   │   └── policy/                      ← Systeme B1
+│   │       ├── policy-api/
+│   │       └── policy-impl/
 │   ├── kernel-eventbus/                  (a venir)
 │   ├── kernel-plugin-engine/             (a venir)
 │   └── kernel-bootstrap/                 (a venir)
@@ -62,7 +65,8 @@ Traçabilite — ce module la centralise sans violer le DAG de dependances.
 | `reference-data` (B4) | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
 | `organization` (A2) | ✅ Livre — Organisation, Lexique Organisationnel, Type de Cellule, Cellule (arbre recursif + Fermeture Transitive), Tutelle, Succession Organisationnelle |
 | `affiliation` (A3) | ✅ Livre — Affectation, Lexique des Mandats, Mandat, Delegation (premier pont reel A1↔A2) |
-| `policy`, `module-registry`, `resource` (B1-B3) | À venir |
+| `policy` (B1) | ✅ Livre — Politique (Contexte unifie), Derogation (regle "le plus proche l'emporte") |
+| `module-registry`, `resource` (B2-B3) | À venir |
 | `communication`, `audit`, `authorization` (E1-E3) | À venir |
 | `kernel-eventbus`, `kernel-plugin-engine`, `kernel-bootstrap` | À venir |
 
@@ -70,9 +74,9 @@ Traçabilite — ce module la centralise sans violer le DAG de dependances.
 
 Les numeros de version des migrations sont **uniques sur l'ensemble de la
 plateforme**, pas seulement au sein de chaque systeme — necessaire des qu'un systeme
-"pont" (comme `affiliation`) combine les migrations de plusieurs systemes dans ses
-tests d'integration, et de toute facon requis en production ou tous les systemes
-partagent une seule base via `kernel-bootstrap`.
+"pont" (comme `affiliation` ou `policy`) combine les migrations de plusieurs
+systemes dans ses tests d'integration, et de toute facon requis en production ou
+tous les systemes partagent une seule base via `kernel-bootstrap`.
 
 | Version | Systeme |
 |---|---|
@@ -80,8 +84,9 @@ partagent une seule base via `kernel-bootstrap`.
 | V2 | reference-data (B4) |
 | V3 | organization (A2) |
 | V4 | affiliation (A3) |
+| V5 | policy (B1) |
 
-Le prochain systeme livre doit reprendre a **V5**.
+Le prochain systeme livre doit reprendre a **V6**.
 
 ## Construire le projet
 

@@ -22,8 +22,11 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class CelluleServiceImpl implements CelluleService {
@@ -118,5 +121,21 @@ public class CelluleServiceImpl implements CelluleService {
             return List.of();
         }
         return repository.listByIds(descendantIds).stream().map(CelluleMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Cellule> listerAncetres(UUID celluleId) {
+        List<UUID> ancetreIdsOrdonnes =
+                fermetureTransitiveCelluleRepository.listerAncetreIdsOrdonnesParProximite(celluleId);
+        if (ancetreIdsOrdonnes.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, CelluleEntity> entitesParId = repository.listByIds(ancetreIdsOrdonnes).stream()
+                .collect(Collectors.toMap(e -> e.id, e -> e));
+        return ancetreIdsOrdonnes.stream()
+                .map(entitesParId::get)
+                .filter(Objects::nonNull)
+                .map(CelluleMapper::toDomain)
+                .toList();
     }
 }

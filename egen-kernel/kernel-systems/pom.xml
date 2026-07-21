@@ -28,6 +28,7 @@
     <module>reference-data</module>
     <module>organization</module>
     <module>affiliation</module>
+    <module>policy</module>
   </modules>
 
 </project>

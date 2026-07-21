@@ -54,4 +54,15 @@ public class FermetureTransitiveCelluleRepository
                 .map(f -> f.celluleDescendanteId)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * @return les identifiants de tous les ancetres d'une Cellule, du plus proche
+     *         (profondeur 1) au plus eloigne — ordre exige par la regle de resolution
+     *         des Derogations du Systeme Politique (B1).
+     */
+    public List<UUID> listerAncetreIdsOrdonnesParProximite(UUID celluleId) {
+        return list("celluleDescendanteId = ?1 and profondeur > 0 order by profondeur asc", celluleId).stream()
+                .map(f -> f.celluleAncetreId)
+                .collect(Collectors.toList());
+    }
 }
