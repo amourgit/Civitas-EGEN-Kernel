@@ -1,0 +1,22 @@
+package africa.civitas.egen.modules.business.referencedata.impl.infrastructure;
+
+import africa.civitas.egen.modules.business.referencedata.api.domain.CategorieUniteMesure;
+import africa.civitas.egen.modules.business.referencedata.impl.domain.UniteMesureEntity;
+import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@ApplicationScoped
+public class UniteMesureRepository implements PanacheRepositoryBase<UniteMesureEntity, UUID> {
+
+    public Optional<UniteMesureEntity> findByNom(String nom) {
+        return find("nom", nom).firstResultOptional();
+    }
+
+    public List<UniteMesureEntity> listByCategorie(CategorieUniteMesure categorie) {
+        return list("categorie", categorie);
+    }
+}

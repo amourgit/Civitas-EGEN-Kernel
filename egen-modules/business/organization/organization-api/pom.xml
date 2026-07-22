@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>organization</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>organization-api</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Modules — Business : Organization API</name>
+  <description>
+    Contrat public du module business Organization (Niveau 2) — fusion actee par la
+    Charte v3 (§C.1) de trois anciens artefacts du Kernel : organization-api
+    (Organisation, Cellule, Lexique, Tutelle, Succession), affiliation-api
+    (Affectation, Mandat, Delegation — desormais sous-package .api.affiliation) et
+    policy-api (Politique organisationnelle, Derogation — desormais sous-package
+    .api.politique, correction de l'etiquette "Systeme B1" qui etait erronee : voir
+    la note dans la migration V3).
+
+    Depend uniquement de kernel-sdk, zero framework. Ne depend jamais de
+    identity-provider-api ni de reference-data-api au niveau du contrat : les
+    references vers une Personne ou un Modele Sectoriel restent de simples UUID,
+    jamais des types importes — c'est organization-impl, et lui seul, qui resout
+    cette reference via identity-provider-api (voir son pom.xml).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

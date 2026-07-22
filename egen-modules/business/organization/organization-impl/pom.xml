@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>organization</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>organization-impl</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Modules — Business : Organization Impl</name>
+  <description>
+    Implementation du module business Organization (Niveau 2) : entites Panache,
+    maintenance reelle de la Fermeture Transitive de Cellule a chaque creation
+    (insertion algorithmique des lignes ancetre/descendant, jamais de recursion
+    applicative a la lecture), migrations Flyway (V1 organization, V2 affiliation,
+    V3 politique organisationnelle — une seule sequence, un seul schema), et
+    implementations CDI des interfaces de organization-api, y compris ses
+    sous-domaines affiliation et politique (fusion actee par la Charte v3, §C.1).
+
+    Seul module business a ce jour qui depend, en compile scope, du contrat d'un
+    provider system externe : identity-provider-api, pour que les services du
+    sous-domaine affiliation (AffectationServiceImpl, DelegationServiceImpl)
+    resolvent une reference Personne. identity-provider-keycloak n'est qu'une
+    dependance de scope TEST — elle fournit une vraie implementation CDI de
+    PersonneService et ses migrations Flyway pour que les tests @QuarkusTest
+    exercent une verification reelle, sans jamais embarquer ce code dans le JAR de
+    production (meme discipline que l'ancien affiliation-impl vis-a-vis de
+    identity-impl, avant le refactoring).
+
+    Limite assumee de cette premiere version : la maintenance de la Fermeture
+    Transitive couvre l'insertion (creation d'une Cellule) mais pas encore le
+    re-rattachement d'une Cellule existante a un nouveau parent — cette operation
+    demanderait de retirer puis reinserer un sous-ensemble de lignes de fermeture, et
+    sera traitee lors de l'ajout d'une operation de deplacement explicite, hors
+    perimetre de cette livraison.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>organization-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-jpa-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>identity-provider-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm-panache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-flyway</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Test-scope uniquement : voir la note de dependance ci-dessus. -->
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>identity-provider-keycloak</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-maven-plugin</artifactId>
+        <extensions>true</extensions>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate-code</goal>
+              <goal>generate-code-tests</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

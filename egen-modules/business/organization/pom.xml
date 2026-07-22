@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-modules-business</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>organization</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Modules — Business : Organization</name>
+  <description>
+    Le module business le plus riche d'EGEN — fusion actee par la Charte v3 (§C.1)
+    de trois anciens systemes du Kernel :
+
+    - Organisation, Lexique Organisationnel, Type de Cellule, Cellule (arbre
+      recursif dont l'Etablissement n'est qu'une convention — une Cellule racine),
+      Fermeture Transitive (derivee), Tutelle (relation strictement intra-instance,
+      voir la note dans V1__init_organization.sql), Succession Organisationnelle —
+      l'ancien Systeme Organisationnel (A2).
+    - Affectation, Lexique des Mandats, Mandat, Delegation (sous-package
+      .affiliation) — l'ancien Systeme Rattachements (A3).
+    - Politique organisationnelle, Derogation (sous-package .politique) — anciennement
+      etiquetee a tort "Systeme B1" ; §B.12 de la Charte v3 est explicite : ce concept
+      "vit entierement dans le module Organisation".
+
+    Reclasse Niveau 2 / business (§A.4, decision actee) : ce n'est plus un pilier du
+    Niveau 0 du Kernel comme le laissait supposer son ancien emplacement — le noyau
+    n'a besoin d'aucune de ces notions pour demarrer. Migre depuis
+    kernel-systems/{organization,affiliation,policy} lors du refactoring vers la
+    Charte v3.
+  </description>
+
+  <modules>
+    <module>organization-api</module>
+    <module>organization-impl</module>
+  </modules>
+
+</project>

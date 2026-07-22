@@ -15,17 +15,20 @@
 
   <name>EGEN Kernel</name>
   <description>
-    Le socle Kernel d'EGEN : le minimum vital sans lequel aucun module metier ne peut
-    fonctionner. Regroupe le contrat public (kernel-sdk), le modele de domaine, les dix
-    systemes structurels (Identite, Organisationnel, Rattachements, Politique, Modules,
-    Ressources, Referentiels, Communication, Audit, Autorisation), le moteur de plugins
-    et le module de composition finale (kernel-bootstrap).
+    Le socle Kernel d'EGEN au sens strict de la Charte d'Architecture v3 : Niveau 0
+    (irreductible — mecanisme de chargement et ce qui le protege) et Niveau 1
+    (primitif minimal, compile en dur, jamais retire). Rien de business, rien de
+    system/provider n'y vit plus — voir egen-modules/ pour tout le reste.
 
-    Modules livres a ce jour : kernel-sdk, kernel-systems/identity (Systeme A1).
-    Les systemes suivants seront ajoutes un par un, dans l'ordre convenu :
-    reference-data (B4), organization (A2), affiliation (A3), policy/module-registry/
-    resource (B1-B3), communication/audit/authorization (E1-E3), kernel-eventbus,
-    kernel-plugin-engine, kernel-bootstrap.
+    Livre a ce jour : kernel-sdk (le contrat public, JPMS pur) et kernel-jpa-support
+    (le Socle de Traçabilite partage). kernel-systems existe mais est vide :
+    identity/authorization/policy (les primitifs Niveau 1, point 3 de la Charte,
+    toujours ouvert) restent a concevoir — voir kernel-systems/pom.xml pour le detail
+    de ce qui a ete deplace vers egen-modules/ et pourquoi.
+
+    A venir, toujours Niveau 0 : kernel-domain/module-domain (B2),
+    kernel-systems/module-registry (B2), kernel-plugin-engine, kernel-eventbus,
+    kernel-bootstrap, kernel-test-support — voir le plan de suite de programmation.
   </description>
 
   <modules>

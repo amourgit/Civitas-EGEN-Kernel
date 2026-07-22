@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-modules</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-modules-business</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Modules — Business</name>
+  <description>
+    Les modules metier EGEN, Niveau 2, categorie business : l'equivalent des
+    applications utilisateur d'EGEN (par opposition aux providers de system/, qui sont
+    des ponts d'infrastructure). Rattaches ici parce qu'ils ont deja ete construits
+    avant la clarification de la Charte v3 — organization (fusion d'Organisation A2,
+    Rattachements A3, et Politique organisationnelle §B.12) et reference-data (B4).
+
+    Ce depot Kernel ne les etend plus au-dela de leur repositionnement : conformement
+    au README racine, les modules metier (y compris ceux a venir — Academie, RH,
+    Finance...) sont hors du scope propre du Kernel. Ils restent ici, dans ce
+    monorepo, en attendant qu'un depot ou une organisation de code dediee aux modules
+    metier soit tranchee — mais aucune nouvelle logique metier n'est plus ajoutee
+    depuis ce depot Kernel a partir de ce refactoring.
+  </description>
+
+  <modules>
+    <module>organization</module>
+    <module>reference-data</module>
+  </modules>
+
+</project>

@@ -33,7 +33,7 @@
       coordonnees). Necessaire pour que tout module -impl publie un index Jandex dans
       son JAR (META-INF/jandex.idx) — sans quoi Quarkus ne decouvre jamais ses beans
       CDI quand ce module est consomme comme dependance par un systeme-pont (ex.
-      affiliation-impl consommant identity-impl/organization-impl en scope test).
+      organization-impl consommant identity-provider-keycloak en scope test).
     -->
     <jandex-maven-plugin.version>3.6.0</jandex-maven-plugin.version>
 
@@ -62,6 +62,7 @@
 
   <modules>
     <module>egen-kernel</module>
+    <module>egen-modules</module>
   </modules>
 
   <dependencyManagement>
@@ -99,10 +100,10 @@
         </plugin>
         <!--
           maven-enforcer-plugin : impose au niveau du build le DAG de dependances du Kernel.
-          Regle activee progressivement, systeme par systeme, au fur et a mesure de leur creation
-          (voir egen-kernel/pom.xml pour la regle "banned dependencies" une fois plusieurs
-          systemes -impl presents, afin d'interdire mecaniquement toute dependance croisee
-          non autorisee entre deux systemes -impl).
+          La version est fixee ici (pluginManagement) ; l'execution reelle de la regle est
+          declaree plus bas, dans <build><plugins> (pas seulement pluginManagement), pour
+          qu'elle soit heritee et executee dans CHAQUE module du reacteur — voir cette
+          execution pour le detail de la regle.
         -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -129,6 +130,66 @@
         </plugin>
       </plugins>
     </pluginManagement>
+
+    <!--
+      Execution reelle (heritee par tous les modules du reacteur, contrairement a
+      pluginManagement ci-dessus qui ne fait que fixer des versions). Traduit
+      mecaniquement la regle de cloisonnement DAG du README/Charte v3 : aucun module
+      ne doit dependre, en scope compile/runtime, d'un artefact -impl (Systeme A/B/E
+      du Kernel, ou module business/system Niveau 2) ni d'un provider concret nomme
+      explicitement ci-dessous — seul un scope test est tolere, pour permettre des
+      tests d'integration reels avec une vraie implementation CDI (voir par exemple
+      organization-impl -> identity-provider-keycloak).
+
+      Le jour de la creation de kernel-bootstrap (seul module autorise a dependre de
+      TOUS les -impl en scope compile, par construction — voir Charte v3 §5), son
+      propre pom.xml devra desactiver ou restreindre cette execution explicitement
+      (ex. <skip>true</skip> dans une execution qui la redefinit), avec un
+      commentaire justifiant cette unique exception assumee.
+
+      Chaque nouveau provider concret (ex. authorization-provider-spicedb, un futur
+      identity-provider-<technologie>...) doit etre ajoute a la fois a <excludes>
+      (ban compile/runtime) et a <includes> (exception scope test) au moment de sa
+      creation — sans quoi la regle ne le couvre pas.
+    -->
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-niveau2-impl-isolation</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>*:*-impl</exclude>
+                    <exclude>africa.civitas.egen:identity-provider-keycloak</exclude>
+                  </excludes>
+                  <includes>
+                    <include>*:*-impl:*:*:test</include>
+                    <include>africa.civitas.egen:identity-provider-keycloak:*:*:test</include>
+                  </includes>
+                  <message>
+                    Dependance interdite par le DAG EGEN : un module ne peut jamais dependre,
+                    en scope compile ou runtime, de l'artefact -impl (ou du provider concret)
+                    d'un autre systeme/module. Seul un scope "test" est autorise, pour des
+                    tests d'integration reels avec une vraie implementation CDI. Si ce blocage
+                    concerne kernel-bootstrap, voir le commentaire dans le pom.xml racine pour
+                    l'unique exception assumee.
+                  </message>
+                </bannedDependencies>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
   </build>
 
 </project>

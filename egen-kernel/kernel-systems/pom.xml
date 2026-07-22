@@ -15,20 +15,41 @@
 
   <name>EGEN Kernel Systems</name>
   <description>
-    Les dix systemes structurels du Kernel (Identite A1, Organisationnel A2,
-    Rattachements A3, Politique B1, Modules B2, Ressources B3, Referentiels Communs B4,
-    Communication E1, Audit E2, Autorisation E3). Chaque systeme est scinde en un
-    artefact -api (contrat public : interfaces, DTO) et un artefact -impl (entites
-    JPA/Panache, logique metier, acces PostgreSQL) — voir le README racine pour la
-    regle de cloisonnement.
+    Reserve aux systemes Niveau 0 (irreductibles) et Niveau 1 (primitifs minimaux,
+    jamais retires) du Kernel — voir la Charte d'Architecture EGEN v3, Partie A. Rien
+    n'y est construit a ce jour : ce module est intentionnellement vide, et c'est un
+    etat correct, pas un oubli.
+
+    Ce qui y vivait avant le refactoring vers la Charte v3 (identity, organization,
+    affiliation, policy, reference-data) a ete deplace, parce qu'aucun de ces cinq
+    anciens systemes n'etait, en verite, du Niveau 0/1 :
+    - identity et reference-data etaient deja des Niveau 2 (respectivement provider
+      system et business) — voir egen-modules/system/identity et
+      egen-modules/business/reference-data.
+    - organization et affiliation etaient du Niveau 2 business, desormais fusionnes —
+      voir egen-modules/business/organization.
+    - policy portait en realite la Politique organisationnelle (§B.12, Niveau 2
+      business), pas la Politique-noyau (§B1, Niveau 1) — le contenu existant a migre
+      avec organization/affiliation ; la vraie Politique-noyau reste a concevoir.
+
+    Ce qui reviendra ici, une fois concu (point 3 de la Charte v3, toujours ouvert a
+    ce jour — voir le plan de suite de programmation) :
+    - identity/       — KernelSubject, le primitif Niveau 1 (sujet minimal,
+      equivalent UID/GID, indicateur de bootstrap).
+    - authorization/  — KernelCapability + KernelPermissionCheck, le primitif
+      Niveau 1 (capacites noyau fermees, verification fail-closed). N'existe pas
+      encore, meme sous une forme incorrecte.
+    - policy/         — la Politique-noyau, le vrai B1 Niveau 1 (resolution de
+      politique par defaut du Kernel lui-meme, comportement de secours avant
+      chargement d'un module de gouvernance Niveau 2). A ne jamais confondre avec
+      organization.politique (Politique organisationnelle, §B.12).
+
+    Egalement a venir dans egen-kernel/ (Niveau 0, hors de kernel-systems au sens
+    strict) : kernel-domain/module-domain (B2), module-registry (B2),
+    kernel-plugin-engine, kernel-eventbus, kernel-bootstrap, kernel-test-support.
   </description>
 
   <modules>
-    <module>identity</module>
-    <module>reference-data</module>
-    <module>organization</module>
-    <module>affiliation</module>
-    <module>policy</module>
   </modules>
 
 </project>

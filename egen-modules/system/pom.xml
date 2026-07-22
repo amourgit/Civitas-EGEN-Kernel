@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-modules</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-modules-system</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Modules — System (providers)</name>
+  <description>
+    Les providers EGEN — connecteurs Niveau 2 vers des systemes externes concrets.
+    Chaque sous-repertoire correspond a UNE capacite (identity, demain authorization,
+    communication...), jamais a UNE technologie : la technologie est le nom du module
+    -impl a l'interieur (identity-provider-keycloak), jamais du repertoire de capacite
+    lui-meme. C'est ce qui permet d'ajouter un second provider pour la meme capacite
+    sans rien casser de ce qui en depend.
+
+    Livre a ce jour : identity/ (identity-provider-api + identity-provider-keycloak,
+    migre depuis l'ancien kernel-systems/identity — voir le commit de refactoring pour
+    le contexte : ce contenu a toujours ete un provider Keycloak, jamais un primitif
+    Niveau 1 du Kernel).
+
+    A venir (voir le plan de suite de programmation) : authorization/
+    (authorization-provider-spicedb), communication/ (un ou plusieurs providers selon
+    les canaux retenus — email, SMS...), et l'adaptateur du Bus d'Evenements
+    (eventbus-kafka-adapter), qui reste toutefois physiquement rattache a
+    egen-kernel/kernel-eventbus/ plutot qu'ici, conformement a la Charte v3 (§A.6) : le
+    Bus est une infrastructure coeur que le Kernel demarre lui-meme, pas un plugin
+    metier optionnel.
+  </description>
+
+  <modules>
+    <module>identity</module>
+  </modules>
+
+</project>

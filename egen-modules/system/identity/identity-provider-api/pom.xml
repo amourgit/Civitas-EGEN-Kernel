@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>identity-provider</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>identity-provider-api</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Modules — Identity Provider API</name>
+  <description>
+    Contrat generique de la capacite Identite (Personne, Compte, Historique
+    d'Identite) : modele de lecture, commandes de creation, interfaces de service.
+    Ce module ne presuppose AUCUNE technologie concrete — le champ Compte.keycloakId
+    est aujourd'hui nomme d'apres le seul provider existant (identity-provider-keycloak)
+    ; le jour ou un second provider rejoint ce contrat, ce couplage de nommage devra
+    etre generalise (ex. identifiantFournisseurExterne) sans casser les modules qui
+    consomment deja ce contrat. Seul ce module a le droit d'etre importe par un module
+    business ou par un autre provider — jamais un module -provider-TECHNOLOGIE
+    directement. Depend uniquement de kernel-sdk (pour le Socle de Traçabilite), zero
+    framework.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

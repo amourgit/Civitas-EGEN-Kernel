@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-modules-system</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>identity-provider</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Modules — Identity Provider</name>
+  <description>
+    La capacite Identite riche d'EGEN (Personne, Compte, Historique d'Identite),
+    telle que consommee par les modules business pour resoudre "qui est cette
+    Personne" au-dela du sujet minimal que porte le Kernel (KernelSubject, Niveau 1,
+    contenu a concevoir — voir kernel-sdk).
+
+    - identity-provider-api : le contrat generique, stable, que tout module business
+      importe. Aucun autre module ne doit jamais dependre directement d'un provider
+      concret.
+    - identity-provider-keycloak : la seule implementation a ce jour. D'autres
+      pourront la rejoindre au meme niveau (identity-provider-ldap,
+      identity-provider-auth0...) sans jamais toucher identity-provider-api ni les
+      modules qui en dependent — c'est tout l'interet du contrat partage.
+
+    Migre depuis l'ancien kernel-systems/identity (Systeme A1) lors du refactoring vers
+    la Charte v3 : ce contenu a toujours ete, en verite, un provider Keycloak riche —
+    jamais le primitif Niveau 1 du Kernel que son ancien emplacement laissait supposer.
+  </description>
+
+  <modules>
+    <module>identity-provider-api</module>
+    <module>identity-provider-keycloak</module>
+  </modules>
+
+</project>

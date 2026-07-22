@@ -17,8 +17,8 @@
   <description>
     Utilitaires de mapping JPA partages par tous les systemes -impl du Kernel — au
     premier chef, TracabiliteEmbeddable, la projection JPA du Socle de Traçabilite de
-    kernel-sdk. Ce module existe pour une raison structurelle precise : deux systemes
-    -impl (ex. identity-impl et reference-data-impl) ne doivent jamais dependre l'un
+    kernel-sdk. Ce module existe pour une raison structurelle precise : deux modules
+    -impl (ex. identity-provider-keycloak et reference-data-impl) ne doivent jamais dependre l'un
     de l'autre, mais ils ont tous deux besoin de la meme projection JPA du Socle de
     Traçabilite. Dupliquer cette classe dans chaque -impl serait une dette immediate
     (dix copies a maintenir en parallele) ; la centraliser ici, en dehors de tout

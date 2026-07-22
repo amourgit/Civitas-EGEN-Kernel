@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-platform</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-modules</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Modules</name>
+  <description>
+    Tout ce qui est Niveau 2 dans le modele a trois niveaux de la Charte d'Architecture
+    EGEN (v3) : pluggable, choisi a l'installation, jamais irreductible. Deux familles
+    bien distinctes, qui ne doivent jamais etre confondues :
+
+    - system/  : les providers — l'equivalent PAM/NSS d'EGEN. Des connecteurs complets
+      et autonomes vers un systeme externe concret (Keycloak, SpiceDB, un fournisseur
+      de communication...). Chaque capacite (identite, autorisation, communication...)
+      expose un contrat generique (*-provider-api) que plusieurs implementations
+      concurrentes peuvent servir au fil du temps (*-provider-keycloak aujourd'hui,
+      potentiellement *-provider-auth0 ou *-provider-ldap demain) — exactement le
+      modele de connecteurs pluggables qu'on retrouve dans ActivePieces ou n8n. Ce
+      depot Kernel les code, parce qu'ils ne sont pas du business : ce sont des ponts
+      d'infrastructure vers l'exterieur.
+
+    - business/ : les modules metier — l'equivalent des applications utilisateur d'EGEN
+      (Organisation, Ressource, Referentiels, et demain Academie/RH/Finance...). Ce
+      depot Kernel ne les code pas au-dela de ce qui existe deja : ils sont hors du
+      scope du Kernel a proprement parler (voir README racine). Le code deja livre ici
+      (organization, reference-data) est celui herite du travail initial, repositionne
+      a son niveau correct — il n'est plus etendu depuis ce depot.
+
+    Aucun systeme Niveau 0/1 de egen-kernel/ ne doit jamais dependre d'un artefact de
+    egen-modules/, dans un sens ou dans l'autre : le Kernel ignore tout de ce qui est
+    charge par-dessus lui. C'est kernel-bootstrap (a venir) qui, seul, composera le
+    tout au demarrage.
+  </description>
+
+  <modules>
+    <module>system</module>
+    <module>business</module>
+  </modules>
+
+</project>

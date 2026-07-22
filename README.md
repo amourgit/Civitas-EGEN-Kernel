@@ -1,92 +1,153 @@
 # EGEN Kernel
 
 EGEN est une plateforme de gouvernance d'organisations souveraines et de services
-modulaires, developpee par **CIVITAS Africa**. Ce depot contient le **Kernel** :
-le minimum vital sans lequel aucun module metier (Academie, RH, Finance, Sante...)
-ne peut fonctionner.
+modulaires, developpee par **CIVITAS Africa**. Ce depot contient le **Kernel** et
+les **modules Niveau 2** (providers systeme + modules business) qui gravitent autour
+de lui — voir la Charte d'Architecture ci-dessous pour la distinction exacte entre
+ces trois notions.
 
 **Logiciel proprietaire — tous droits reserves.** Ce depot est prive et son contenu
 n'est distribue sous aucune licence open source. Toute reproduction, modification ou
 distribution en dehors de CIVITAS Africa est interdite sauf autorisation explicite.
 
+## Reference d'architecture
+
+**[`docs/architecture/charte-v3.md`](docs/architecture/charte-v3.md)** est le
+document qui fait foi pour toute decision d'architecture dans ce depot. Il fixe le
+modele a trois niveaux (Niveau 0 irreductible / Niveau 1 primitif / Niveau 2
+pluggable) qui remplace le modele "systemes plats A1-E3" utilise jusqu'au 22 juillet
+2026 — lire ce document avant de contribuer, surtout si vous arrivez avec le
+vocabulaire de l'ancienne classification (A1, A2, B4...) en tete : les numeros
+restent valables comme reference historique, mais le **Niveau** (0/1/2) de chaque
+systeme a change de sens.
+
 ## Principe directeur
 
 Le Kernel possede la verite organisationnelle (identite, souverainete, hierarchie,
-politique, ressources, audit) et delegue toujours la logique d'execution (autorisation,
-evenements, orchestration de processus, notification) a des services externes qu'il
-invoque et journalise, sans jamais la reimplementer.
+politique, ressources, audit) et delegue toujours la logique d'execution
+(autorisation, evenements, orchestration de processus, notification) a des services
+externes qu'il invoque et journalise, sans jamais la reimplementer. Le Kernel
+lui-meme (Niveau 0 + Niveau 1) ignore tout de ce qui est charge par-dessus lui — voir
+la Charte v3, Partie A.
 
-## Arborescence
+## Arborescence (etat reel au 22 juillet 2026, apres refactoring vers la Charte v3)
 
 ```
-egen-platform/                          (racine du reacteur Maven)
-├── egen-kernel/
-│   ├── kernel-sdk/                      ← contrat public (extension, event, contexte,
-│   │                                        manifest, tracabilite)
-│   ├── kernel-jpa-support/              ← TracabiliteEmbeddable (mapping JPA partage
-│   │                                        entre tous les systemes -impl)
-│   ├── kernel-systems/
-│   │   ├── identity/                    ← Systeme A1
-│   │   │   ├── identity-api/
-│   │   │   └── identity-impl/
-│   │   ├── reference-data/              ← Systeme B4
-│   │   │   ├── reference-data-api/
-│   │   │   └── reference-data-impl/
-│   │   ├── organization/                ← Systeme A2
-│   │   │   ├── organization-api/
-│   │   │   └── organization-impl/
-│   │   ├── affiliation/                 ← Systeme A3 (premier "pont")
-│   │   │   ├── affiliation-api/
-│   │   │   └── affiliation-impl/
-│   │   └── policy/                      ← Systeme B1
-│   │       ├── policy-api/
-│   │       └── policy-impl/
-│   ├── kernel-eventbus/                  (a venir)
-│   ├── kernel-plugin-engine/             (a venir)
-│   └── kernel-bootstrap/                 (a venir)
-└── egen-modules/                         (reserve — modules metier, hors scope du Kernel)
+egen-platform/                                     (racine du reacteur Maven)
+├── egen-kernel/                                    ← Niveau 0 + Niveau 1 uniquement
+│   ├── kernel-sdk/                                 ← contrat public, JPMS pur
+│   │                                                  (extension, event, contexte,
+│   │                                                  manifest, tracabilite)
+│   ├── kernel-jpa-support/                         ← TracabiliteEmbeddable (mapping
+│   │                                                  JPA partage entre tous les
+│   │                                                  modules -impl, kernel comme
+│   │                                                  egen-modules)
+│   ├── kernel-domain/                              ← reserve (module-domain, B2 —
+│   │                                                  a venir)
+│   ├── kernel-systems/                             ← VIDE a ce jour, intentionnellement
+│   │   ├── identity/                                 (primitif Niveau 1 — a concevoir,
+│   │   ├── authorization/                            point 3 de la Charte v3, ouvert)
+│   │   └── policy/                                   (Politique-noyau, idem)
+│   ├── kernel-eventbus/                            ← a venir
+│   ├── kernel-plugin-engine/                       ← a venir
+│   ├── kernel-bootstrap/                           ← a venir
+│   └── kernel-test-support/                        ← a venir
+└── egen-modules/                                   ← Niveau 2 (pluggable)
+    ├── system/                                      ← les providers (ponts vers
+    │   └── identity/                                  l'exterieur : Keycloak,
+    │       ├── identity-provider-api/                 SpiceDB, un futur fournisseur
+    │       └── identity-provider-keycloak/             de communication...)
+    └── business/                                    ← les modules metier
+        ├── organization/                              (fusion Organisation +
+        │   ├── organization-api/                      Rattachements + Politique
+        │   │   └── .../api/{affiliation,politique}/    organisationnelle)
+        │   └── organization-impl/
+        │       └── .../impl/{affiliation,politique}/
+        └── reference-data/
+            ├── reference-data-api/
+            └── reference-data-impl/
 ```
 
-Note d'architecture : le "kernel-domain" evoque initialement comme couche separee a
-ete replie dans chaque `-api` (modele de lecture + commandes) — c'est le pattern
-hexagonal standard (domaine + ports dans un seul module), qui evite de dupliquer les
-memes objets metier dans trois couches distinctes. `kernel-jpa-support` a ete
-introduit en cours de route : deux systemes `-impl` ne doivent jamais dependre l'un
-de l'autre, mais ils ont tous deux besoin de la meme projection JPA du Socle de
-Traçabilite — ce module la centralise sans violer le DAG de dependances.
+### Pourquoi ce depot n'est plus un empilement plat de "systemes A1-E3"
+
+Avant le 22 juillet 2026, `kernel-systems/` contenait `identity`, `reference-data`,
+`organization`, `affiliation` et `policy`, tous traites comme des systemes pairs du
+Kernel. Une analyse rigoureuse a la lumiere de la Charte v3 a etabli qu'aucun des
+cinq n'etait, en verite, du Niveau 0 ou 1 :
+
+- `identity` et `organization`/`affiliation`/`policy` etaient deja des implementations
+  riches, couplees a une technologie concrete (Keycloak) ou a un concept
+  intrinsequement Niveau 2 (Organisation/Cellule) — jamais le "minimum vital avant
+  qu'aucun module ne soit charge" que Niveau 0/1 designe.
+- `policy` en particulier portait a tort l'etiquette "Systeme B1" : son contenu reel
+  (Politique + Derogation sur un Contexte Organisation/Cellule, resolution "le plus
+  proche l'emporte") est la Politique **organisationnelle** (§B.12 de la Charte v3),
+  pas la Politique-**noyau** (le vrai B1). Les deux portent le meme mot dans le
+  langage courant ; ce n'est pas le meme systeme.
+
+Consequence : ce contenu a ete deplace tel quel (repackage, pas reecrit) vers
+`egen-modules/`, avec `organization` + `affiliation` + `policy` fusionnes en un seul
+module business (`organization`), conformement a la Charte v3 (§C.1). `identity` est
+devenu un provider (`egen-modules/system/identity/`), avec un contrat generique
+(`identity-provider-api`) separe de son implementation Keycloak
+(`identity-provider-keycloak`) — pour que d'autres providers de la meme capacite
+puissent le rejoindre au fil du temps sans jamais casser ce qui en depend, exactement
+le modele de connecteurs pluggables d'ActivePieces ou n8n.
+
+`kernel-systems/` reste dans le reacteur, volontairement vide : `identity`,
+`authorization` et `policy` y reviendront sous leur forme correcte de primitifs
+Niveau 1, une fois leur contenu concu (point 3 de la Charte v3, toujours ouvert —
+voir le plan de suite de programmation).
+
+## Le DAG de dependances, desormais impose mecaniquement
+
+Le reacteur Maven calcule l'ordre de construction et refuse tout cycle — ca a
+toujours ete vrai. Ce qui ne l'etait pas jusqu'au 22 juillet 2026 : rien n'empechait
+mecaniquement une dependance croisee **non cyclique** mais interdite (par exemple un
+module qui importerait directement le `-impl` d'un autre plutot que son `-api`). Le
+`pom.xml` racine porte desormais une execution `maven-enforcer-plugin` (regle
+`bannedDependencies`), heritee par tous les modules du reacteur, qui bloque
+explicitement toute dependance de scope compile/runtime vers un artefact `-impl` ou
+un provider concret — seul un scope `test` reste tolere (integration reelle avec une
+vraie implementation CDI, ex. `organization-impl` -> `identity-provider-keycloak`).
+Voir les commentaires dans le `pom.xml` racine pour le detail, y compris l'exception
+documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa creation.
 
 ## Etat d'avancement
 
-| Module | Statut |
-|---|---|
-| `kernel-sdk` | ✅ Livre — extension, event, Contexte, Manifeste d'Extension, Socle de Traçabilite |
-| `kernel-jpa-support` | ✅ Livre — TracabiliteEmbeddable, partage entre tous les `-impl` |
-| `identity` (A1) | ✅ Livre — Personne, Compte, Historique d'Identite |
-| `reference-data` (B4) | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
-| `organization` (A2) | ✅ Livre — Organisation, Lexique Organisationnel, Type de Cellule, Cellule (arbre recursif + Fermeture Transitive), Tutelle, Succession Organisationnelle |
-| `affiliation` (A3) | ✅ Livre — Affectation, Lexique des Mandats, Mandat, Delegation (premier pont reel A1↔A2) |
-| `policy` (B1) | ✅ Livre — Politique (Contexte unifie), Derogation (regle "le plus proche l'emporte") |
-| `module-registry`, `resource` (B2-B3) | À venir |
-| `communication`, `audit`, `authorization` (E1-E3) | À venir |
-| `kernel-eventbus`, `kernel-plugin-engine`, `kernel-bootstrap` | À venir |
+| Module | Niveau / Categorie | Statut |
+|---|---|---|
+| `kernel-sdk` | 0 | ✅ Livre — extension, event, Contexte, Manifeste d'Extension, Socle de Traçabilite |
+| `kernel-jpa-support` | 0 (partage) | ✅ Livre — TracabiliteEmbeddable |
+| `kernel-systems/{identity,authorization,policy}` | 1 (primitifs) | À concevoir — point 3, ouvert |
+| `kernel-domain`, `module-registry`, `kernel-plugin-engine`, `kernel-eventbus`, `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
+| `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
+| `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
+| `egen-modules/business/reference-data` | 2, business | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
+| `egen-modules/system/authorization` (SpiceDB), `egen-modules/system/communication` | 2, system | À venir |
+| `egen-modules/business/resource` | 2, business | À venir |
 
 ## Convention de versionnement Flyway
 
-Les numeros de version des migrations sont **uniques sur l'ensemble de la
-plateforme**, pas seulement au sein de chaque systeme — necessaire des qu'un systeme
-"pont" (comme `affiliation` ou `policy`) combine les migrations de plusieurs
-systemes dans ses tests d'integration, et de toute facon requis en production ou
-tous les systemes partagent une seule base via `kernel-bootstrap`.
+Chaque module gere desormais **sa propre sequence Flyway independante** (sa propre
+`quarkus.flyway.locations`, sa propre `quarkus.flyway.table`) — plus de numerotation
+globale unique sur l'ensemble de la plateforme comme avant le 22 juillet 2026. Ce
+changement accompagne directement la separation business/system/kernel : ces modules
+ne sont plus des artefacts pairs du Kernel destines a etre combines par defaut dans
+une meme base de tests.
 
-| Version | Systeme |
+| Module | Sequence |
 |---|---|
-| V1 | identity (A1) |
-| V2 | reference-data (B4) |
-| V3 | organization (A2) |
-| V4 | affiliation (A3) |
-| V5 | policy (B1) |
+| `identity-provider-keycloak` | V1 (identity) |
+| `reference-data-impl` | V1 (referencedata, deja en place) |
+| `organization-impl` | V1 (organization), V2 (affiliation), V3 (politique organisationnelle) |
 
-Le prochain systeme livre doit reprendre a **V6**.
+Quand un module a legitimement besoin des tables d'un autre pour ses tests
+d'integration reels (ex. `organization-impl` a besoin d'`identity` pour verifier une
+reference Personne), il ajoute la location Flyway de l'autre module en plus de la
+sienne dans son `application.properties`, et declare l'artefact correspondant en
+dependance de scope **test** uniquement (jamais compile/runtime — voir la regle
+Enforcer ci-dessus).
 
 ## Construire le projet
 
