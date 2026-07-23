@@ -15,9 +15,10 @@
 --
 -- Politique, Derogation. Chaque table porte integralement le Socle de Traçabilite.
 --
--- Renumerotee V3 dans la sequence propre a ce module (voir la note de convention
--- dans V1__init_organization.sql) — anciennement V5 dans la sequence globale
--- platform-wide, abandonnee lors du refactoring vers la Charte v3.
+-- Renumerotee V4 dans la sequence de ce module (voir la note de convention
+-- dans V2__init_organization.sql — ce module combine ses migrations avec celles
+-- d'identity-provider-keycloak pour ses tests, d'ou le decalage a partir de V2).
+-- Anciennement V5 dans l'ancienne sequence globale platform-wide.
 
 CREATE TABLE pol_politique (
     id                              UUID PRIMARY KEY,

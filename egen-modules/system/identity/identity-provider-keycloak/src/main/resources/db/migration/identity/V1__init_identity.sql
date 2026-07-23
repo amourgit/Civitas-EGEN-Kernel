@@ -3,16 +3,21 @@
 -- contenu a toujours ete un provider Keycloak riche, jamais le primitif Niveau 1 du
 -- Kernel (KernelSubject, encore a concevoir — point 3, toujours ouvert).
 --
--- Convention de versionnement Flyway : ce module gere sa propre sequence V1..Vn
--- (flyway.locations = db/migration/identity, table flyway_schema_history_identity),
--- independante des autres modules. L'ancienne convention platform-wide unique (V1
--- identity, V2 reference-data, V3 organization, V4 affiliation, V5 policy) est
--- abandonnee : elle ne se justifiait que tant que ces systemes etaient tous des
--- artefacts pairs du Kernel candidats a etre combines dans une meme base de tests
--- (ex. l'ancien affiliation-impl, qui declarait identity-impl en dependance de scope
--- test pour ses tests d'integration reels). Le module business Organization fusionne
--- (qui porte desormais Rattachements) reproduit ce meme besoin en declarant
--- identity-provider-keycloak en dependance de scope test — voir son pom.xml.
+-- Convention de versionnement Flyway : ce module a sa propre sequence V1..Vn
+-- (flyway.locations = db/migration/identity, table flyway_schema_history_identity).
+-- CORRECTION (suite a un premier echec CI) : cette sequence n'est "independante"
+-- que dans la mesure ou ce module reste le SEUL a occuper le numero V1 parmi tous
+-- les modules avec lesquels il peut etre combine dans une meme execution Flyway.
+-- Aujourd'hui, seul organization-impl combine ses locations avec celles-ci (pour
+-- ses tests d'integration reels du sous-domaine affiliation) ; c'est pourquoi
+-- organization-impl commence a V2 plutot qu'a V1 (voir sa propre migration
+-- V2__init_organization.sql). Un futur module qui aurait, lui aussi, besoin de
+-- combiner ses tests avec ceux-ci devra faire de meme : verifier qui d'autre est
+-- deja combine dans le meme ensemble, et reserver son propre intervalle de
+-- numeros sans collision — Flyway valide l'unicite des versions par ensemble de
+-- migrations resolu, jamais par table d'historique. reference-data-impl, qui ne se
+-- combine avec aucun autre module, n'a pas cette contrainte et garde son propre V1
+-- sans ambiguite.
 --
 -- Cree Personne, Compte, Historique d'Identite, et leurs collections d'elements.
 -- Chaque table porte integralement le Socle de Traçabilite.

@@ -3,9 +3,10 @@
 -- Affectation, Lexique des Mandats, Mandat (symetrique au Type de Cellule),
 -- Delegation. Chaque table porte integralement le Socle de Traçabilite.
 --
--- Renumerotee V2 dans la sequence propre a ce module (voir la note de convention
--- dans V1__init_organization.sql) — anciennement V4 dans la sequence globale
--- platform-wide, abandonnee lors du refactoring vers la Charte v3.
+-- Renumerotee V3 dans la sequence de ce module (voir la note de convention
+-- dans V2__init_organization.sql — ce module combine ses migrations avec celles
+-- d'identity-provider-keycloak pour ses tests, d'ou le decalage a partir de V2).
+-- Anciennement V4 dans l'ancienne sequence globale platform-wide.
 
 CREATE TABLE aff_affectation (
     id                              UUID PRIMARY KEY,

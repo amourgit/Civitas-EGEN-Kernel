@@ -129,18 +129,27 @@ documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa crea
 
 ## Convention de versionnement Flyway
 
-Chaque module gere desormais **sa propre sequence Flyway independante** (sa propre
-`quarkus.flyway.locations`, sa propre `quarkus.flyway.table`) — plus de numerotation
-globale unique sur l'ensemble de la plateforme comme avant le 22 juillet 2026. Ce
-changement accompagne directement la separation business/system/kernel : ces modules
-ne sont plus des artefacts pairs du Kernel destines a etre combines par defaut dans
-une meme base de tests.
+Chaque module gere sa propre sequence Flyway et sa propre table
+`flyway_schema_history_*` — plus de numerotation globale unique sur l'ensemble de la
+plateforme comme avant le 22 juillet 2026. **Nuance importante, corrigee apres un
+premier echec CI sur ce refactoring** : "propre sequence" ne veut pas dire "peut
+toujours reprendre a V1 sans regarder les autres modules". Flyway valide l'unicite
+des numeros de version au sein de l'**ensemble de migrations resolu pour une
+execution donnee** (les locations combinees), jamais au sein d'une seule table
+d'historique. Deux modules qui ne se combinent jamais dans une meme execution (ex.
+`reference-data-impl`, qui n'a besoin des migrations d'aucun autre module) peuvent
+chacun reprendre a V1 sans risque. Mais des qu'un module ajoute la location d'un
+autre a la sienne pour ses tests d'integration reels — ce qui est exactement le cas
+de `organization-impl`, qui a besoin des tables `identity` pour verifier une
+reference Personne — leurs numeros doivent rester mutuellement uniques dans cet
+ensemble combine, meme si leurs tables d'historique restent bien distinctes en
+production.
 
-| Module | Sequence |
-|---|---|
-| `identity-provider-keycloak` | V1 (identity) |
-| `reference-data-impl` | V1 (referencedata, deja en place) |
-| `organization-impl` | V1 (organization), V2 (affiliation), V3 (politique organisationnelle) |
+| Module | Sequence | Combine avec (tests) |
+|---|---|---|
+| `identity-provider-keycloak` | V1 (identity) | — (mais reserve V1 pour tout module qui le combinera) |
+| `reference-data-impl` | V1 (referencedata) | aucun — independance reelle |
+| `organization-impl` | V2 (organization), V3 (affiliation), V4 (politique organisationnelle) | `identity` (V1) — d'ou le decalage a partir de V2 |
 
 Quand un module a legitimement besoin des tables d'un autre pour ses tests
 d'integration reels (ex. `organization-impl` a besoin d'`identity` pour verifier une

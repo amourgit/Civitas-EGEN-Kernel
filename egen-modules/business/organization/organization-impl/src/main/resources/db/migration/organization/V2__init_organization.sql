@@ -1,21 +1,27 @@
+-- Convention de versionnement Flyway : CORRECTION apportee apres un premier echec
+-- CI (Flyway refuse deux fichiers de version 1 dans un meme jeu de migrations
+-- resolu, meme s'ils appartiennent a deux tables d'historique differentes). La
+-- premiere version de ce refactoring affirmait a tort que chaque module pouvait
+-- reprendre une sequence V1..Vn totalement independante en toutes circonstances :
+-- c'est vrai pour un module jamais combine avec un autre dans une meme execution
+-- Flyway (voir reference-data, qui n'a besoin des migrations d'aucun autre module),
+-- mais FAUX des qu'un module combine ses locations avec celles d'un autre pour ses
+-- tests d'integration reels — c'est le cas ici : organization-impl declare
+-- classpath:db/migration/identity en plus de sa propre location (voir
+-- application.properties), pour que ses tests du sous-domaine affiliation
+-- disposent de vraies tables identity. Ce module commence donc a V2, parce que V1
+-- est deja pris par identity-provider-keycloak dans cet ensemble combine — la table
+-- d'historique reste neanmoins bien distincte (flyway_schema_history_organization),
+-- et en production, ou seule la location organization est chargee, ce trou
+-- (commencer a V2) est parfaitement valide pour Flyway.
+--
 -- Module business Organization (Niveau 2) — Organisation, Cellule, Rattachements,
 -- Politique organisationnelle. Fusion actee par la Charte v3 (§C.1) de trois anciens
 -- systemes du Kernel : Organisationnel (A2, ce fichier), Rattachements (A3, voir
--- V2__init_affiliation.sql) et Politique organisationnelle (§B.12, voir
--- V3__init_politique_organisationnelle.sql — a ne jamais confondre avec la future
+-- V3__init_affiliation.sql) et Politique organisationnelle (§B.12, voir
+-- V4__init_politique_organisationnelle.sql — a ne jamais confondre avec la future
 -- Politique-noyau du Kernel, Niveau 1, qui vivra dans egen-kernel/kernel-systems/policy
 -- sous un nom distinct des lors qu'elle sera concue).
---
--- Convention de versionnement Flyway : depuis ce refactoring, ce module gere sa
--- propre sequence V1..Vn independante (flyway.locations = db/migration/organization,
--- table flyway_schema_history_organization) — il ne partage plus de numerotation
--- globale avec les autres modules (chacun a la sienne : V1 pour
--- identity-provider-keycloak, V1 pour reference-data, V1..V3 ici). L'ancienne
--- convention platform-wide unique (V1 identity, V2 reference-data, V3 organization,
--- V4 affiliation, V5 policy) est abandonnee : elle ne se justifiait que tant que
--- ces systemes etaient tous des artefacts paires du Kernel candidats a etre
--- combines dans une meme base de tests ; ce n'est plus le cas une fois la
--- separation business/system/kernel actee.
 --
 -- Organisation, Lexique Organisationnel, Type de Cellule, Cellule (arbre recursif),
 -- Fermeture Transitive (derivee, sans Socle de Traçabilite), Tutelle, Succession
