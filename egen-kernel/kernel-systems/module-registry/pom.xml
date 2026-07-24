@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>kernel-systems</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>module-registry</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Module Registry (B2, Niveau 0)</name>
+  <description>
+    Catalogue, Souscription, Activation (§B.2, §B.11) — le mecanisme qui decide quels
+    modules Niveau 2 (business comme system) ont le droit de tourner, et ou. Cascade
+    stricte imposee au niveau service : Catalogue -> Souscription -> Activation,
+    jamais dans un autre ordre. ModuleActivationResolver est la question fail-closed
+    que kernel-plugin-engine (a venir) posera avant de charger quoi que ce soit : en
+    l'absence d'Activation active, la Politique-noyau tranche, toujours par un refus.
+
+    Depend de module-domain (le vocabulaire pur : ModuleId, CatalogueEntree,
+    Souscription, Activation) et de policy (pour le refus par defaut de
+    ModuleActivationResolver). Ne depend jamais d'un module Niveau 2 : Organisation et
+    Cellule sont referencees par UUID nu dans les commandes et les tables, jamais par
+    un import du module business Organization.
+
+    Decision assumee, a expliciter si elle change : ce module ne verifie pas
+    lui-meme, via KernelPermissionCheck, que l'Acteur demandeur a le droit
+    d'administrer Souscription/Activation — aucune KernelCapability du primitif
+    Authorization ne couvre cette question business (les quatre capacites fermees
+    concernent exclusivement le mecanisme de chargement lui-meme, pas la decision de
+    Souscription). Cette gouvernance d'acces reste, pour l'instant, la responsabilite
+    de l'appelant (a terme, une interface d'administration ou un provider
+    d'autorisation riche Niveau 2).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-jpa-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>module-domain</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>policy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm-panache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-flyway</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-maven-plugin</artifactId>
+        <extensions>true</extensions>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate-code</goal>
+              <goal>generate-code-tests</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

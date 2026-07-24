@@ -138,7 +138,7 @@ egen-modules/
 |---|---|---|---|
 | `kernel-sdk` | **0** | — | Confirme |
 | `kernel-plugin-engine` (PF4J) | **0** | — | Confirme |
-| `module-registry` (B2) | **0** | — | Confirme |
+| `module-registry` (B2) | **0** | — | **Livre** le 24 juillet 2026 |
 | `kernel-bootstrap` | **0** | — | Confirme |
 | `kernel-eventbus` (API) | **0** | — | Confirme |
 | `eventbus-kafka-adapter` | **2** | system | Propose |
@@ -198,8 +198,9 @@ Trois composants, concus ensemble, aucun dependant d'un systeme Niveau 2 :
   deterministe, ce qui lui permet de fonctionner avant que PostgreSQL, Keycloak ou
   SpiceDB ne soient joignables. La Politique-noyau ne "s'assouplit" jamais ; elle
   est simplement court-circuitee, question par question, des qu'un module de
-  gouvernance Niveau 2 competent prend le relais (ex. module-registry pour
-  `ACTIVATION_NON_RESOLUE`, une fois construit).
+  gouvernance Niveau 2 competent prend le relais — c'est deja le cas pour
+  `ACTIVATION_NON_RESOLUE` : `module-registry` (§A.6bis) consulte `PolitiqueNoyau`
+  uniquement quand aucune Activation active n'est trouvee.
 
 **Ordre de dependance entre les trois** (aucun cycle) : identity et policy ne
 dependent que de kernel-sdk ; authorization depend des deux autres pour repondre
@@ -208,13 +209,47 @@ la maniere des systemes Niveau 2 : le contrat vit deja dans kernel-sdk, et il
 n'existe qu'une seule implementation possible de chaque primitif, jamais
 substituable — la separation api/impl n'aurait ici aucune fonction protectrice.
 
-**Statut** : implemente et pousse sur `main`, en attente de validation CI et de
-revue. Ce n'est pas presente comme la seule conception possible — c'est une
-proposition rigoureuse, coherente avec le reste de la plateforme, ouverte a
-revision si l'usage reel (notamment lors de la construction de module-registry et
-kernel-plugin-engine) revele un besoin non anticipe ici.
+**Statut** : implemente, pousse sur `main`, CI verte. Ce n'est pas presente comme
+la seule conception possible — c'est une proposition rigoureuse, coherente avec le
+reste de la plateforme, ouverte a revision si l'usage reel revele un besoin non
+anticipe ici. Premiere confirmation obtenue : `module-registry` (§A.6bis, livre le
+24 juillet 2026) consomme `PolitiqueNoyau` sans aucune friction ni ajustement
+necessaire. `kernel-plugin-engine`, qui devra consulter a la fois
+`KernelPermissionCheck` et `ModuleActivationResolver` avant de charger quoi que ce
+soit, reste le test le plus exigeant, encore a venir.
 
-## A.6 Arborescence noyau — mise a jour (etat reel au 22 juillet 2026)
+## A.6bis Module-registry (B2) — livre le 24 juillet 2026
+
+Premiere brique Niveau 0 construite au-dela du primitif Niveau 1 : Catalogue,
+Souscription, Activation (§B.2, §B.11), avec la cascade strictement imposee au
+niveau service — un module doit etre au Catalogue avant qu'une Organisation ne
+puisse y Souscrire ; une Organisation doit avoir une Souscription active avant
+qu'une de ses Cellules ne puisse Activer le module.
+
+`kernel-domain/module-domain` porte le vocabulaire pur (`ModuleId`,
+`CatalogueEntree`, `Souscription`, `Activation`), sans aucun framework — reserve
+explicitement a part du reste de l'implementation par la Charte (§A.6), a la
+difference des primitifs Niveau 1 qui gardent leur domaine directement dans
+`kernel-systems/`.
+
+**Decision de conception assumee** : `Souscription.organisationId` et
+`Activation.celluleId` sont des UUID nus, jamais une reference typee vers le
+module business Organization (Niveau 2). Consequence directe : module-registry ne
+verifie jamais lui-meme qu'une Cellule appartient bien a l'Organisation dont on
+affirme la Souscription — cette resolution reste la responsabilite de l'appelant
+(`ActiverModuleCommand` recoit les deux identifiants explicitement). Egalement
+assume : aucune verification `KernelPermissionCheck` ne gate les ecritures de
+Souscription/Activation dans cette premiere livraison — aucune des quatre
+`KernelCapability` fermees ne couvre cette question business, qui reste, pour
+l'instant, la responsabilite de l'appelant.
+
+`ModuleActivationResolver` est la question que `kernel-plugin-engine` (a venir)
+posera avant de charger un module dans une Cellule : fail-closed, elle retombe sur
+`PolitiqueNoyau` (`ACTIVATION_NON_RESOLUE`) des qu'aucune Activation active n'est
+trouvee — la premiere consultation reelle de la Politique-noyau par un module autre
+que ses propres tests.
+
+## A.6 Arborescence noyau — mise a jour (etat reel au 24 juillet 2026)
 
 ```
 egen-kernel/
@@ -224,7 +259,11 @@ egen-kernel/
 ├── kernel-systems/
 │   ├── identity/                        (KernelSubjectService — LIVRE, point 3)
 │   ├── authorization/                   (KernelPermissionCheckImpl, octrois — LIVRE, point 3)
-│   └── policy/                          (PolitiqueNoyauImpl — LIVRE, point 3)
+│   ├── policy/                          (PolitiqueNoyauImpl — LIVRE, point 3)
+│   └── module-registry/                 (Catalogue/Souscription/Activation — LIVRE, B2)
+├── kernel-domain/
+│   └── module-domain/                   (ModuleId, CatalogueEntree, Souscription,
+│                                          Activation — LIVRE, B2)
 ├── kernel-plugin-engine/                (a venir)
 ├── kernel-eventbus/                     (a venir)
 ├── kernel-bootstrap/                    (a venir)
@@ -310,8 +349,8 @@ aucune de ces sections n'a ete remise en cause par le refactoring du 22 juillet.
 | Personnes / Comptes | `egen-modules/system/identity/identity-provider-keycloak` | 2 | `identity-provider-api` |
 | Ressource (Locale/Souveraine) | `egen-modules/business/resource` (a venir) | 2 | `organization-api` |
 | Modeles Sectoriels | `egen-modules/business/reference-data` | 2 | — (seed data consommee par `organization` a la creation) |
-| Catalogue / mecanisme Souscription-Activation | `kernel-systems/module-registry` (B2, a venir) | 0 | — |
-| Enregistrements Souscription/Activation d'une Organisation donnee | Base du module `organization`, valides par B2 au chargement | 0 (mecanisme) + 2 (donnees) | — |
+| Catalogue / mecanisme Souscription-Activation | `kernel-systems/module-registry` (B2) — **livre** | 0 | `kernel-domain/module-domain` |
+| Enregistrements Souscription/Activation d'une Organisation donnee | Base de module-registry, valides par B2 au chargement | 0 (mecanisme) + 2 (donnees) | — |
 | Synchronisation Affectation/Delegation/Tutelle -> SpiceDB | Evenements via `kernel-eventbus` (0), consommes par `authorization-provider-spicedb` (2, a venir) | 0 + 2 | — |
 
 **C.1 — Sur la fusion Organization (A2) + Affiliation (A3)**
@@ -362,15 +401,15 @@ documentaire (voir la migration `V1__init_organization.sql`) etaient requis.
 
 ---
 
-# PARTIE E — Points ouverts restants (etat au 23 juillet 2026, apres refactoring et premiere conception du primitif Niveau 1)
+# PARTIE E — Points ouverts restants (etat au 24 juillet 2026, apres refactoring, conception du primitif Niveau 1 et livraison de module-registry)
 
 1. ~~Contenu exact du primitif Niveau 1~~ (Identity + Authorization + Policy-noyau,
    § A.5) — **une premiere proposition concrete est implementee et poussee sur
    `main`** (KernelSubject, KernelCapability/KernelPermissionCheck,
-   PolitiqueNoyau). Reste ouvert au sens ou cette conception n'a pas encore ete
-   eprouvee par un consommateur reel (module-registry, kernel-plugin-engine,
-   kernel-bootstrap — tous a venir) ; elle pourra evoluer si leur construction
-   revele un besoin non anticipe ici.
+   PolitiqueNoyau). Premiere confirmation obtenue : `module-registry` consomme
+   `PolitiqueNoyau` sans friction (§A.6bis). Reste ouvert au sens ou
+   `kernel-plugin-engine` et `kernel-bootstrap` (a venir), qui consommeront aussi
+   `KernelPermissionCheck`, n'ont pas encore eprouve cette moitie de la conception.
 2. ~~Fusion ou separation Organization/Affiliation~~ — **tranche et realise** :
    fusion en un seul module.
 3. ~~Categorie `system` vs `business` pour Reference-data~~ — **tranche et

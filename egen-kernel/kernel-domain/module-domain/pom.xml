@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>kernel-domain</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>module-domain</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Module Domain (B2)</name>
+  <description>
+    Vocabulaire metier pur du Systeme Modules (Catalogue/Souscription/Activation,
+    §B.2 et §B.11) : ModuleId (identifiant kebab-case partage avec
+    ManifesteExtension.moduleId, kernel-sdk), CatalogueEntree, Souscription,
+    Activation. Aucune dependance a un framework — ni Quarkus, ni JPA — pour rester
+    consommable directement par kernel-plugin-engine et kernel-bootstrap sans traîner
+    la couche de persistance de module-registry.
+
+    Souscription et Activation referencent une Organisation ou une Cellule par UUID
+    nu, jamais par le type Contexte ni par un import du module business Organization
+    (Niveau 2) : ce module est Niveau 0, et le Niveau 0 ne depend jamais du Niveau 2.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

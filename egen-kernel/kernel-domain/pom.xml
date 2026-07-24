@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-domain</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Kernel — Domain</name>
+  <description>
+    Modele metier pur, Niveau 0 — records/POJOs, zero framework. Reserve, dans la
+    Charte v3 (§A.6), au seul systeme dont le domaine merite d'etre factorise a part
+    du reste de son implementation : module-domain (B2, Catalogue/Souscription/
+    Activation). Les autres systemes Niveau 1 (identity, authorization, policy)
+    gardent leur domaine directement dans kernel-systems/ : ils n'ont ni la richesse
+    ni les multiples consommateurs (module-registry, kernel-plugin-engine,
+    kernel-bootstrap) qui justifient cette separation pour B2.
+  </description>
+
+  <modules>
+    <module>module-domain</module>
+  </modules>
+
+</project>

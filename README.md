@@ -44,15 +44,19 @@ egen-platform/                                     (racine du reacteur Maven)
 │   │                                                  JPA partage entre tous les
 │   │                                                  modules -impl, kernel comme
 │   │                                                  egen-modules)
-│   ├── kernel-domain/                              ← reserve (module-domain, B2 —
-│   │                                                  a venir)
+│   ├── kernel-domain/                              ← module-domain (B2) — ModuleId,
+│   │                                                  CatalogueEntree, Souscription,
+│   │                                                  Activation : vocabulaire pur
 │   ├── kernel-systems/                             ← primitifs Niveau 1 (point 3, livre)
 │   │   ├── identity/                                 KernelSubjectService — sujet
 │   │   │                                             minimal, sans persistance
 │   │   ├── authorization/                            KernelPermissionCheckImpl —
 │   │   │                                             octrois de capacites, fail-closed
-│   │   └── policy/                                   PolitiqueNoyauImpl — refuse
-│   │                                                  systematiquement, sans exception
+│   │   ├── policy/                                   PolitiqueNoyauImpl — refuse
+│   │   │                                             systematiquement, sans exception
+│   │   └── module-registry/                          Catalogue -> Souscription ->
+│   │                                                  Activation (B2, Niveau 0) —
+│   │                                                  cascade stricte, fail-closed
 │   ├── kernel-eventbus/                            ← a venir
 │   ├── kernel-plugin-engine/                       ← a venir
 │   ├── kernel-bootstrap/                           ← a venir
@@ -105,8 +109,22 @@ correcte : `identity` (`KernelSubjectService`, sujet minimal), `authorization`
 (`PolitiqueNoyauImpl`, la vraie Politique-noyau — voir `docs/architecture/
 charte-v3.md`, §A.5, pour la conception complete). Livre le 23 juillet 2026, en
 reponse au point 3 de la Charte v3 — une premiere proposition rigoureuse, pas une
-verite gravee : elle pourra evoluer une fois eprouvee par un consommateur reel
-(module-registry, kernel-plugin-engine, kernel-bootstrap).
+verite gravee. Un premier consommateur reel existe deja : `module-registry` (B2,
+Niveau 0, livre le 24 juillet 2026) consulte `PolitiqueNoyau` pour son refus par
+defaut quand aucune Activation n'existe. `kernel-plugin-engine` et
+`kernel-bootstrap`, encore a venir, eprouveront la conception a leur tour.
+
+`kernel-domain/module-domain` et `kernel-systems/module-registry` implementent la
+cascade Catalogue -> Souscription -> Activation (§B.11) : un module doit etre au
+Catalogue avant qu'une Organisation ne puisse y Souscrire, elle-meme prealable a
+toute Activation par une de ses Cellules. Chaque palier est verifie explicitement
+au niveau service, jamais suppose. `ModuleActivationResolver` est la question
+fail-closed que `kernel-plugin-engine` posera avant de charger un module : sans
+Activation active, la Politique-noyau tranche, toujours un refus. Organisation et
+Cellule y sont systematiquement des UUID nus, jamais un import du module business
+Organization (Niveau 2) — module-registry est Niveau 0, il ignore tout de la
+hierarchie des Cellules ; c'est a l'appelant de la resoudre avant d'appeler ce
+service (voir le pom.xml de module-registry pour cette decision assumee).
 
 ## Le DAG de dependances, desormais impose mecaniquement
 
@@ -131,7 +149,9 @@ documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa crea
 | `kernel-systems/identity` | 1 (primitif) | ✅ Livre — `KernelSubject` (kernel-sdk) + `KernelSubjectService`, sans persistance |
 | `kernel-systems/authorization` | 1 (primitif) | ✅ Livre — `KernelCapability` (kernel-sdk) + `KernelPermissionCheckImpl`, octrois/revocations avec Traçabilite complete |
 | `kernel-systems/policy` | 1 (primitif) | ✅ Livre — `PolitiqueNoyau` (kernel-sdk) + `PolitiqueNoyauImpl`, refuse systematiquement |
-| `kernel-domain`, `module-registry`, `kernel-plugin-engine`, `kernel-eventbus`, `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
+| `kernel-domain/module-domain` | 0 | ✅ Livre — `ModuleId`, `CatalogueEntree`, `Souscription`, `Activation` : vocabulaire pur, zero framework |
+| `kernel-systems/module-registry` | 0 | ✅ Livre — cascade Catalogue → Souscription → Activation, `ModuleActivationResolver` fail-closed |
+| `kernel-plugin-engine`, `kernel-eventbus`, `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
 | `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
 | `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
 | `egen-modules/business/reference-data` | 2, business | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
@@ -162,6 +182,7 @@ production.
 | `reference-data-impl` | V1 (referencedata) | aucun — independance reelle |
 | `organization-impl` | V2 (organization), V3 (affiliation), V4 (politique organisationnelle) | `identity` (V1) — d'ou le decalage a partir de V2 |
 | `kernel-systems/authorization` | V1 (authorization) | aucun — independance reelle |
+| `kernel-systems/module-registry` | V1 (moduleregistry) | aucun — independance reelle |
 
 Quand un module a legitimement besoin des tables d'un autre pour ses tests
 d'integration reels (ex. `organization-impl` a besoin d'`identity` pour verifier une

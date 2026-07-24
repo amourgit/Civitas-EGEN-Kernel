@@ -51,16 +51,26 @@
     propre question (conversion KernelSubject -> Acteur pour la Traçabilite ;
     refus par defaut de la Politique-noyau quand aucun octroi n'existe).
 
+    - module-registry/ — Catalogue, Souscription, Activation (B2, §B.11), desormais
+      livre. Cascade stricte : un module doit etre au Catalogue avant d'etre
+      Souscrit par une Organisation, elle-meme prealable a toute Activation par une
+      de ses Cellules. ModuleActivationResolver est la question fail-closed que
+      kernel-plugin-engine (a venir) posera avant de charger un module : en
+      l'absence d'Activation active, la Politique-noyau tranche, toujours un refus.
+      Depend de kernel-domain/module-domain (le vocabulaire pur) et de policy.
+      Organisation et Cellule y sont toujours des UUID nus, jamais un import du
+      module business Organization (Niveau 2).
+
     Egalement a venir dans egen-kernel/ (Niveau 0, hors de kernel-systems au sens
-    strict) : kernel-domain/module-domain (B2), module-registry (B2),
-    kernel-plugin-engine, kernel-eventbus, kernel-bootstrap, kernel-test-support —
-    voir le plan de suite de programmation.
+    strict) : kernel-plugin-engine, kernel-eventbus, kernel-bootstrap,
+    kernel-test-support — voir le plan de suite de programmation.
   </description>
 
   <modules>
     <module>identity</module>
     <module>policy</module>
     <module>authorization</module>
+    <module>module-registry</module>
   </modules>
 
 </project>
