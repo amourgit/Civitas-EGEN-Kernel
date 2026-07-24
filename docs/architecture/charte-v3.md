@@ -14,7 +14,9 @@ Il integre les decisions actees le 22 juillet 2026 :
 
 - **Point 1 (mono-tenant par instance)** — confirme.
 - **Point 2 (classification Policy/Resource/Reference-data)** — confirme.
-- **Point 3 (contenu exact du primitif Niveau 1)** — **toujours ouvert**, non traite ici.
+- **Point 3 (contenu exact du primitif Niveau 1)** — **une premiere proposition
+  concrete a ete conçue et implementee le 23 juillet 2026** (voir §A.5) ; toujours
+  susceptible d'evoluer a l'usage.
 - **Point 4 (structure `egen-modules/`)** — confirme, option structuree retenue.
 
 Il signale aussi une tension nee de la combinaison des deux documents sources : la
@@ -140,9 +142,9 @@ egen-modules/
 | `kernel-bootstrap` | **0** | — | Confirme |
 | `kernel-eventbus` (API) | **0** | — | Confirme |
 | `eventbus-kafka-adapter` | **2** | system | Propose |
-| Identity — primitif | **1** | — | Niveau confirme, contenu a concevoir (point 3 ouvert) |
-| Authorization — primitif | **1** | — | Niveau confirme, contenu a concevoir (point 3 ouvert) |
-| **Policy-noyau (B1)** | **1** | — | **Niveau confirme**, contenu a concevoir (point 3 ouvert) |
+| Identity — primitif | **1** | — | **Livre** le 23 juillet 2026 (`KernelSubject` + `KernelSubjectService`) |
+| Authorization — primitif | **1** | — | **Livre** le 23 juillet 2026 (`KernelCapability` + `KernelPermissionCheckImpl`) |
+| **Policy-noyau (B1)** | **1** | — | **Livre** le 23 juillet 2026 (`PolitiqueNoyauImpl`) |
 | Identity riche (Keycloak) | **2** | system | Propose — **livre** sous `identity-provider-keycloak` |
 | Authorization riche (SpiceDB) | **2** | system | Confirme |
 | Communication (E1) | **2** | system | Propose |
@@ -152,39 +154,77 @@ egen-modules/
 | **Resource (B3)** | **2** | business | **Confirme** |
 | **Reference-data (B4)** — porte les Modeles Sectoriels | **2** | business | **Confirme** (niveau et categorie — voir § C.3) |
 
-## A.5 Le primitif Niveau 1 — etat actualise, toujours ouvert (point 3)
+## A.5 Le primitif Niveau 1 — proposition concrete implementee le 23 juillet 2026 (point 3)
 
-Trois composants, a concevoir ensemble, jamais dependants d'un systeme Niveau 2 :
+Trois composants, concus ensemble, aucun dependant d'un systeme Niveau 2 :
 
-- **Identity** : `KernelSubject` — sujet minimal, l'equivalent UID/GID, avec un
-  indicateur bootstrap pour le tout premier demarrage.
-- **Authorization** : `KernelCapability` + `KernelPermissionCheck` — capacites
-  noyau fermees (charger/decharger un module, enregistrer une extension),
-  verification fail-closed.
-- **Policy-noyau** *(nouveau, ajoute suite au point 2)* : une resolution de
-  politique par defaut pour le Kernel — a minima, le comportement de secours quand
-  aucun module de gouvernance Niveau 2 n'est encore charge (Manifeste incomplet,
-  Activation non resolue, etc.). Portee exacte non detaillee — a concevoir en meme
-  temps que les deux composants ci-dessus, pas separement, puisque les trois
-  repondent a la meme question de fond : *que fait le noyau avant qu'aucun module ne
-  soit charge ?*
+- **Identity** (`kernel-sdk/permission/identity` + `kernel-systems/identity`) :
+  `KernelSubject` — sujet minimal, l'equivalent UID/GID, un simple identifiant
+  opaque (UUID) + un indicateur bootstrap. Le sujet bootstrap porte un identifiant
+  fixe et reserve (`KernelSubject.BOOTSTRAP_ID`, jamais genere) — l'equivalent
+  d'UID 0. `KernelSubjectService` ne persiste rien : reconnaitre le bootstrap est
+  une comparaison a une constante, jamais une consultation de base de donnees. Il
+  fournit aussi le seul pont assume vers le Socle de Traçabilite existant
+  (`versActeur`), toujours via `Acteur.systeme(...)` — jamais `Acteur.personne(...)` :
+  ce primitif ignore delibrement s'il correspond a une Personne reelle, cette
+  connaissance restant entierement du ressort du provider Identite riche Niveau 2.
+  *Decision de conception assumee* : `Acteur` (kernel-sdk, tracabilite) n'a pas ete
+  etendu d'une troisieme variante pour ce cas — cela aurait exige une nouvelle
+  colonne sur *toutes* les tables de toute la plateforme (chaque entite porte
+  integralement le Socle de Traçabilite), un impact disproportionne pour un besoin
+  couvert correctement par la variante SYSTEME existante avec une convention de
+  nommage claire (`kernel-bootstrap` / `kernel-sujet:<id>`).
 
-**Ce point reste ouvert au 22 juillet 2026**, y compris apres le refactoring de
-repositionnement. Rien n'a ete invente unilateralement pour le combler ; voir le plan
-de suite de programmation pour la proposition de conception a valider avant tout
-premier code.
+- **Authorization** (`kernel-sdk/permission/authorization` + `kernel-systems/authorization`) :
+  `KernelCapability` — ensemble ferme de quatre capacites noyau (`CHARGER_MODULE`,
+  `DECHARGER_MODULE`, `ENREGISTRER_EXTENSION`, `ADMINISTRER_CAPACITES_NOYAU`).
+  `KernelPermissionCheck` (contrat) + `KernelPermissionCheckImpl`, fail-closed par
+  construction : seul le sujet bootstrap est autorise sans preuve explicite ; tout
+  autre sujet doit disposer d'un `KernelCapabiliteOctroi` actif, sans quoi la
+  Politique-noyau tranche (toujours refus). Administrer les capacites d'autrui
+  exige soi-meme `ADMINISTRER_CAPACITES_NOYAU` (ou le sujet bootstrap) — verifie a
+  chaque octroi/revocation par le service lui-meme, via son propre
+  `KernelPermissionCheck`. Une revocation est toujours une suppression logique
+  (Traçabilite complete), jamais une suppression physique ; un index PostgreSQL
+  unique partiel (`WHERE supprime_le IS NULL`) empeche mecaniquement deux octrois
+  actifs simultanes pour le meme couple (sujet, capacite).
+
+- **Policy-noyau** (`kernel-sdk/permission/policy` + `kernel-systems/policy`) :
+  `PolitiqueNoyau` (contrat) + `PolitiqueNoyauImpl`. Repond a quatre questions
+  fermees (`PolitiqueNoyauQuestion`) — echec de construction d'un Manifeste,
+  Activation non resolue, capacite noyau non accordee, gouvernance Niveau 2
+  indisponible — et refuse systematiquement, sans aucune exception ni
+  configuration possible. Aucune persistance : chaque reponse est pure et
+  deterministe, ce qui lui permet de fonctionner avant que PostgreSQL, Keycloak ou
+  SpiceDB ne soient joignables. La Politique-noyau ne "s'assouplit" jamais ; elle
+  est simplement court-circuitee, question par question, des qu'un module de
+  gouvernance Niveau 2 competent prend le relais (ex. module-registry pour
+  `ACTIVATION_NON_RESOLUE`, une fois construit).
+
+**Ordre de dependance entre les trois** (aucun cycle) : identity et policy ne
+dependent que de kernel-sdk ; authorization depend des deux autres pour repondre
+completement a sa propre question. Aucun des trois n'est scinde en `-api`/`-impl` a
+la maniere des systemes Niveau 2 : le contrat vit deja dans kernel-sdk, et il
+n'existe qu'une seule implementation possible de chaque primitif, jamais
+substituable — la separation api/impl n'aurait ici aucune fonction protectrice.
+
+**Statut** : implemente et pousse sur `main`, en attente de validation CI et de
+revue. Ce n'est pas presente comme la seule conception possible — c'est une
+proposition rigoureuse, coherente avec le reste de la plateforme, ouverte a
+revision si l'usage reel (notamment lors de la construction de module-registry et
+kernel-plugin-engine) revele un besoin non anticipe ici.
 
 ## A.6 Arborescence noyau — mise a jour (etat reel au 22 juillet 2026)
 
 ```
 egen-kernel/
-├── kernel-sdk/                          (contrat, JPMS pur — inchange)
+├── kernel-sdk/                          (contrat, JPMS pur — + permission/{identity,authorization,policy})
 ├── kernel-jpa-support/                  (Socle de Tracabilite partage — inchange)
 ├── kernel-domain/                       (a venir — module-domain seul, B2, Niveau 0)
-├── kernel-systems/                      (VIDE a ce jour — voir kernel-systems/pom.xml)
-│   ├── identity/                        (a concevoir — primitif Niveau 1, point 3)
-│   ├── authorization/                   (a concevoir — primitif Niveau 1, point 3)
-│   └── policy/                          (a concevoir — Politique-noyau, Niveau 1, point 3)
+├── kernel-systems/
+│   ├── identity/                        (KernelSubjectService — LIVRE, point 3)
+│   ├── authorization/                   (KernelPermissionCheckImpl, octrois — LIVRE, point 3)
+│   └── policy/                          (PolitiqueNoyauImpl — LIVRE, point 3)
 ├── kernel-plugin-engine/                (a venir)
 ├── kernel-eventbus/                     (a venir)
 ├── kernel-bootstrap/                    (a venir)
@@ -322,11 +362,15 @@ documentaire (voir la migration `V1__init_organization.sql`) etaient requis.
 
 ---
 
-# PARTIE E — Points ouverts restants (etat au 22 juillet 2026, apres refactoring)
+# PARTIE E — Points ouverts restants (etat au 23 juillet 2026, apres refactoring et premiere conception du primitif Niveau 1)
 
-1. **Contenu exact du primitif Niveau 1** (Identity + Authorization + Policy-noyau,
-   § A.5) — **toujours ouvert**. Voir le plan de suite de programmation pour une
-   proposition de conception a valider avant tout premier code.
+1. ~~Contenu exact du primitif Niveau 1~~ (Identity + Authorization + Policy-noyau,
+   § A.5) — **une premiere proposition concrete est implementee et poussee sur
+   `main`** (KernelSubject, KernelCapability/KernelPermissionCheck,
+   PolitiqueNoyau). Reste ouvert au sens ou cette conception n'a pas encore ete
+   eprouvee par un consommateur reel (module-registry, kernel-plugin-engine,
+   kernel-bootstrap — tous a venir) ; elle pourra evoluer si leur construction
+   revele un besoin non anticipe ici.
 2. ~~Fusion ou separation Organization/Affiliation~~ — **tranche et realise** :
    fusion en un seul module.
 3. ~~Categorie `system` vs `business` pour Reference-data~~ — **tranche et

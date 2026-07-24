@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>kernel-systems</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>policy</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Policy (Politique-noyau, primitif Niveau 1)</name>
+  <description>
+    Le vrai B1 de la Charte v3 — a ne jamais confondre avec la Politique
+    organisationnelle (§B.12, egen-modules/business/organization, sous-package
+    .politique), qui portait a tort cette etiquette avant le refactoring du 22 juillet
+    2026. La Politique-noyau repond a une seule question : "que fait le Kernel par
+    defaut quand aucun module de gouvernance Niveau 2 competent n'a encore statue ?" —
+    et la reponse est toujours "refuser", sans aucune exception ni configuration. Voir
+    PolitiqueNoyauImpl et le contrat PolitiqueNoyau (kernel-sdk) pour le detail de ce
+    parti pris assume.
+
+    Aucune persistance, aucune dependance au-dela de kernel-sdk : cette rigidite
+    totale est precisement ce qui permet a ce module de fonctionner avant que
+    PostgreSQL, Keycloak ou SpiceDB ne soient joignables.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

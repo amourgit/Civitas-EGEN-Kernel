@@ -30,24 +30,29 @@ externes qu'il invoque et journalise, sans jamais la reimplementer. Le Kernel
 lui-meme (Niveau 0 + Niveau 1) ignore tout de ce qui est charge par-dessus lui — voir
 la Charte v3, Partie A.
 
-## Arborescence (etat reel au 22 juillet 2026, apres refactoring vers la Charte v3)
+## Arborescence (etat reel au 23 juillet 2026, apres refactoring vers la Charte v3 et livraison du primitif Niveau 1)
 
 ```
 egen-platform/                                     (racine du reacteur Maven)
 ├── egen-kernel/                                    ← Niveau 0 + Niveau 1 uniquement
 │   ├── kernel-sdk/                                 ← contrat public, JPMS pur
 │   │                                                  (extension, event, contexte,
-│   │                                                  manifest, tracabilite)
+│   │                                                  manifest, tracabilite,
+│   │                                                  permission/{identity,
+│   │                                                  authorization,policy})
 │   ├── kernel-jpa-support/                         ← TracabiliteEmbeddable (mapping
 │   │                                                  JPA partage entre tous les
 │   │                                                  modules -impl, kernel comme
 │   │                                                  egen-modules)
 │   ├── kernel-domain/                              ← reserve (module-domain, B2 —
 │   │                                                  a venir)
-│   ├── kernel-systems/                             ← VIDE a ce jour, intentionnellement
-│   │   ├── identity/                                 (primitif Niveau 1 — a concevoir,
-│   │   ├── authorization/                            point 3 de la Charte v3, ouvert)
-│   │   └── policy/                                   (Politique-noyau, idem)
+│   ├── kernel-systems/                             ← primitifs Niveau 1 (point 3, livre)
+│   │   ├── identity/                                 KernelSubjectService — sujet
+│   │   │                                             minimal, sans persistance
+│   │   ├── authorization/                            KernelPermissionCheckImpl —
+│   │   │                                             octrois de capacites, fail-closed
+│   │   └── policy/                                   PolitiqueNoyauImpl — refuse
+│   │                                                  systematiquement, sans exception
 │   ├── kernel-eventbus/                            ← a venir
 │   ├── kernel-plugin-engine/                       ← a venir
 │   ├── kernel-bootstrap/                           ← a venir
@@ -94,10 +99,14 @@ devenu un provider (`egen-modules/system/identity/`), avec un contrat generique
 puissent le rejoindre au fil du temps sans jamais casser ce qui en depend, exactement
 le modele de connecteurs pluggables d'ActivePieces ou n8n.
 
-`kernel-systems/` reste dans le reacteur, volontairement vide : `identity`,
-`authorization` et `policy` y reviendront sous leur forme correcte de primitifs
-Niveau 1, une fois leur contenu concu (point 3 de la Charte v3, toujours ouvert —
-voir le plan de suite de programmation).
+`kernel-systems/` porte desormais les trois primitifs Niveau 1 sous leur forme
+correcte : `identity` (`KernelSubjectService`, sujet minimal), `authorization`
+(`KernelPermissionCheckImpl`, octrois de capacites fail-closed) et `policy`
+(`PolitiqueNoyauImpl`, la vraie Politique-noyau — voir `docs/architecture/
+charte-v3.md`, §A.5, pour la conception complete). Livre le 23 juillet 2026, en
+reponse au point 3 de la Charte v3 — une premiere proposition rigoureuse, pas une
+verite gravee : elle pourra evoluer une fois eprouvee par un consommateur reel
+(module-registry, kernel-plugin-engine, kernel-bootstrap).
 
 ## Le DAG de dependances, desormais impose mecaniquement
 
@@ -119,7 +128,9 @@ documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa crea
 |---|---|---|
 | `kernel-sdk` | 0 | ✅ Livre — extension, event, Contexte, Manifeste d'Extension, Socle de Traçabilite |
 | `kernel-jpa-support` | 0 (partage) | ✅ Livre — TracabiliteEmbeddable |
-| `kernel-systems/{identity,authorization,policy}` | 1 (primitifs) | À concevoir — point 3, ouvert |
+| `kernel-systems/identity` | 1 (primitif) | ✅ Livre — `KernelSubject` (kernel-sdk) + `KernelSubjectService`, sans persistance |
+| `kernel-systems/authorization` | 1 (primitif) | ✅ Livre — `KernelCapability` (kernel-sdk) + `KernelPermissionCheckImpl`, octrois/revocations avec Traçabilite complete |
+| `kernel-systems/policy` | 1 (primitif) | ✅ Livre — `PolitiqueNoyau` (kernel-sdk) + `PolitiqueNoyauImpl`, refuse systematiquement |
 | `kernel-domain`, `module-registry`, `kernel-plugin-engine`, `kernel-eventbus`, `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
 | `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
 | `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
@@ -150,6 +161,7 @@ production.
 | `identity-provider-keycloak` | V1 (identity) | — (mais reserve V1 pour tout module qui le combinera) |
 | `reference-data-impl` | V1 (referencedata) | aucun — independance reelle |
 | `organization-impl` | V2 (organization), V3 (affiliation), V4 (politique organisationnelle) | `identity` (V1) — d'ou le decalage a partir de V2 |
+| `kernel-systems/authorization` | V1 (authorization) | aucun — independance reelle |
 
 Quand un module a legitimement besoin des tables d'un autre pour ses tests
 d'integration reels (ex. `organization-impl` a besoin d'`identity` pour verifier une

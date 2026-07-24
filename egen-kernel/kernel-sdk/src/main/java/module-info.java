@@ -6,7 +6,7 @@
  * rencontrerait un module portant du CDI, de la persistance ou de la reflexion dynamique.
  *
  * Tout ce qu'un module metier externe a le droit de connaitre du Kernel transite par
- * l'un des quatre paquets exportes ici. Rien d'autre, dans tout le Kernel, ne doit etre
+ * l'un des paquets exportes ici. Rien d'autre, dans tout le Kernel, ne doit etre
  * considere comme un contrat stable au meme titre que ce module.
  */
 module africa.civitas.egen.kernel.sdk {
@@ -15,4 +15,7 @@ module africa.civitas.egen.kernel.sdk {
     exports africa.civitas.egen.kernel.sdk.contexte;
     exports africa.civitas.egen.kernel.sdk.manifest;
     exports africa.civitas.egen.kernel.sdk.tracabilite;
+    exports africa.civitas.egen.kernel.sdk.permission.identity;
+    exports africa.civitas.egen.kernel.sdk.permission.authorization;
+    exports africa.civitas.egen.kernel.sdk.permission.policy;
 }

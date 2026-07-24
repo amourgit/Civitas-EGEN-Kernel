@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>kernel-systems</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>identity</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Identity (primitif Niveau 1)</name>
+  <description>
+    Premiere brique du point 3 de la Charte v3 (§A.5), desormais conçue : le primitif
+    Identite. Un seul type ({@code KernelSubject}, defini dans kernel-sdk) et un seul
+    service ({@code KernelSubjectService}) qui sait reconnaitre le sujet bootstrap et
+    rien de plus — aucune Personne, aucun Compte, aucun profil : cette richesse reste
+    entierement du ressort de l'Identite riche, Niveau 2, pluggable
+    (egen-modules/system/identity/identity-provider-keycloak et, demain, d'autres
+    providers de la meme capacite).
+
+    Aucune persistance : reconnaitre le sujet bootstrap est une comparaison a une
+    constante, jamais une consultation de base de donnees — voir KernelSubjectService.
+
+    Module non suffixe -api/-impl, a la difference des systemes Niveau 2 : le contrat
+    (KernelSubject) vit deja dans kernel-sdk, et il n'existe qu'une seule
+    implementation possible de ce primitif, jamais substituable — la separation
+    api/impl n'aurait ici aucune fonction protectrice a remplir.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!--
+        Publie un index Jandex (META-INF/jandex.idx) dans le JAR : indispensable pour
+        que le bean CDI @ApplicationScoped de ce module soit decouvert par Quarkus
+        quand ce module est consomme comme simple dependance par un autre module
+        Quarkus (authorization en compile scope ; a terme, kernel-bootstrap).
+      -->
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
