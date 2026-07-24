@@ -28,7 +28,7 @@ class KernelPermissionCheckImplTest {
     @TestTransaction
     void theBootstrapSubjectIsAlwaysAuthorizedForEveryCapacity() {
         for (KernelCapability capacite : KernelCapability.values()) {
-            DecisionNoyau decision = permissionCheck.verifier(KernelSubject.bootstrap(), capacite);
+            DecisionNoyau decision = permissionCheck.verifier(KernelSubject.sujetBootstrap(), capacite);
             assertTrue(decision.autorise(), "attendu autorise pour " + capacite);
         }
     }
@@ -46,7 +46,7 @@ class KernelPermissionCheckImplTest {
     void anOrdinarySubjectWithAnActiveGrantIsAuthorized() {
         KernelSubject sujet = KernelSubject.nouveau();
         octroiService.accorder(new AccorderCapaciteCommand(
-                sujet.id(), KernelCapability.CHARGER_MODULE, KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+                sujet.id(), KernelCapability.CHARGER_MODULE, KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
 
         DecisionNoyau decision = permissionCheck.verifier(sujet, KernelCapability.CHARGER_MODULE);
 
@@ -58,7 +58,7 @@ class KernelPermissionCheckImplTest {
     void aGrantOnlyAuthorizesTheSpecificCapacityItWasGrantedFor() {
         KernelSubject sujet = KernelSubject.nouveau();
         octroiService.accorder(new AccorderCapaciteCommand(
-                sujet.id(), KernelCapability.CHARGER_MODULE, KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+                sujet.id(), KernelCapability.CHARGER_MODULE, KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
 
         DecisionNoyau decision = permissionCheck.verifier(sujet, KernelCapability.DECHARGER_MODULE);
 
@@ -70,8 +70,8 @@ class KernelPermissionCheckImplTest {
     void aRevokedGrantNoLongerAuthorizesTheSubject() {
         KernelSubject sujet = KernelSubject.nouveau();
         KernelCapabiliteOctroi octroi = octroiService.accorder(new AccorderCapaciteCommand(
-                sujet.id(), KernelCapability.CHARGER_MODULE, KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
-        octroiService.revoquer(new RevoquerCapaciteCommand(octroi.id(), KernelSubject.bootstrap(), "fin de mission"));
+                sujet.id(), KernelCapability.CHARGER_MODULE, KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+        octroiService.revoquer(new RevoquerCapaciteCommand(octroi.id(), KernelSubject.sujetBootstrap(), "fin de mission"));
 
         DecisionNoyau decision = permissionCheck.verifier(sujet, KernelCapability.CHARGER_MODULE);
 

@@ -35,7 +35,7 @@ class KernelSubjectServiceImplTest {
     void resoudreBuildsTheCanonicalBootstrapSubject() {
         KernelSubject sujet = service.resoudre(KernelSubject.BOOTSTRAP_ID);
 
-        assertEquals(KernelSubject.bootstrap(), sujet);
+        assertEquals(KernelSubject.sujetBootstrap(), sujet);
     }
 
     @Test
@@ -49,7 +49,7 @@ class KernelSubjectServiceImplTest {
 
     @Test
     void versActeurAlwaysProducesASystemActorNeverAPersonActor() {
-        Acteur acteurBootstrap = service.versActeur(KernelSubject.bootstrap());
+        Acteur acteurBootstrap = service.versActeur(KernelSubject.sujetBootstrap());
         Acteur acteurOrdinaire = service.versActeur(KernelSubject.nouveau());
 
         assertEquals(ActeurType.SYSTEME, acteurBootstrap.type());
@@ -58,7 +58,7 @@ class KernelSubjectServiceImplTest {
 
     @Test
     void versActeurUsesAFixedLabelForTheBootstrapSubject() {
-        Acteur acteur = service.versActeur(KernelSubject.bootstrap());
+        Acteur acteur = service.versActeur(KernelSubject.sujetBootstrap());
 
         assertEquals("kernel-bootstrap", acteur.systemeLabel());
     }

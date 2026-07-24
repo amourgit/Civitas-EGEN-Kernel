@@ -14,7 +14,7 @@ class KernelSubjectTest {
 
     @Test
     void bootstrapAlwaysCarriesTheReservedId() {
-        KernelSubject sujet = KernelSubject.bootstrap();
+        KernelSubject sujet = KernelSubject.sujetBootstrap();
 
         assertEquals(KernelSubject.BOOTSTRAP_ID, sujet.id());
         assertTrue(sujet.bootstrap());
@@ -22,7 +22,7 @@ class KernelSubjectTest {
 
     @Test
     void bootstrapIsCanonicalAcrossCalls() {
-        assertEquals(KernelSubject.bootstrap(), KernelSubject.bootstrap());
+        assertEquals(KernelSubject.sujetBootstrap(), KernelSubject.sujetBootstrap());
     }
 
     @Test

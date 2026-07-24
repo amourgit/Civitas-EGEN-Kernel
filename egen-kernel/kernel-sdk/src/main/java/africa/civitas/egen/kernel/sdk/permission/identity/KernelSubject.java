@@ -58,7 +58,7 @@ public record KernelSubject(UUID id, boolean bootstrap) {
     }
 
     /** @return le sujet bootstrap canonique — l'unique sujet valide avant tout autre chargement. */
-    public static KernelSubject bootstrap() {
+    public static KernelSubject sujetBootstrap() {
         return new KernelSubject(BOOTSTRAP_ID, true);
     }
 

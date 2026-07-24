@@ -35,7 +35,7 @@ class KernelCapabiliteOctroiServiceImplTest {
 
         KernelCapabiliteOctroi octroi = service.accorder(new AccorderCapaciteCommand(
                 beneficiaire, KernelCapability.CHARGER_MODULE,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
 
         assertEquals(beneficiaire, octroi.sujetId());
         assertTrue(octroi.actif());
@@ -47,11 +47,11 @@ class KernelCapabiliteOctroiServiceImplTest {
         UUID beneficiaire = UUID.randomUUID();
         service.accorder(new AccorderCapaciteCommand(
                 beneficiaire, KernelCapability.CHARGER_MODULE,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
 
         assertThrows(OctroiDejaActifException.class, () -> service.accorder(new AccorderCapaciteCommand(
                 beneficiaire, KernelCapability.CHARGER_MODULE,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE)));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE)));
     }
 
     @Test
@@ -70,7 +70,7 @@ class KernelCapabiliteOctroiServiceImplTest {
         KernelSubject administrateur = KernelSubject.nouveau();
         service.accorder(new AccorderCapaciteCommand(
                 administrateur.id(), KernelCapability.ADMINISTRER_CAPACITES_NOYAU,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
 
         UUID beneficiaire = UUID.randomUUID();
         KernelCapabiliteOctroi octroi = service.accorder(new AccorderCapaciteCommand(
@@ -85,10 +85,10 @@ class KernelCapabiliteOctroiServiceImplTest {
         UUID beneficiaire = UUID.randomUUID();
         KernelCapabiliteOctroi octroi = service.accorder(new AccorderCapaciteCommand(
                 beneficiaire, KernelCapability.ENREGISTRER_EXTENSION,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
 
         service.revoquer(new RevoquerCapaciteCommand(
-                octroi.id(), KernelSubject.bootstrap(), "fin de mission"));
+                octroi.id(), KernelSubject.sujetBootstrap(), "fin de mission"));
 
         List<KernelCapabiliteOctroi> historique = service.listerPourSujet(beneficiaire);
         assertEquals(1, historique.size());
@@ -99,7 +99,7 @@ class KernelCapabiliteOctroiServiceImplTest {
     @TestTransaction
     void revokingAnUnknownGrantIsRejected() {
         assertThrows(OctroiIntrouvableException.class, () -> service.revoquer(
-                new RevoquerCapaciteCommand(UUID.randomUUID(), KernelSubject.bootstrap(), "motif")));
+                new RevoquerCapaciteCommand(UUID.randomUUID(), KernelSubject.sujetBootstrap(), "motif")));
     }
 
     @Test
@@ -108,11 +108,11 @@ class KernelCapabiliteOctroiServiceImplTest {
         UUID beneficiaire = UUID.randomUUID();
         KernelCapabiliteOctroi octroi = service.accorder(new AccorderCapaciteCommand(
                 beneficiaire, KernelCapability.CHARGER_MODULE,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
-        service.revoquer(new RevoquerCapaciteCommand(octroi.id(), KernelSubject.bootstrap(), "premiere revocation"));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+        service.revoquer(new RevoquerCapaciteCommand(octroi.id(), KernelSubject.sujetBootstrap(), "premiere revocation"));
 
         assertThrows(OctroiIntrouvableException.class, () -> service.revoquer(
-                new RevoquerCapaciteCommand(octroi.id(), KernelSubject.bootstrap(), "seconde tentative")));
+                new RevoquerCapaciteCommand(octroi.id(), KernelSubject.sujetBootstrap(), "seconde tentative")));
     }
 
     @Test
@@ -121,12 +121,12 @@ class KernelCapabiliteOctroiServiceImplTest {
         UUID beneficiaire = UUID.randomUUID();
         KernelCapabiliteOctroi premier = service.accorder(new AccorderCapaciteCommand(
                 beneficiaire, KernelCapability.CHARGER_MODULE,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
-        service.revoquer(new RevoquerCapaciteCommand(premier.id(), KernelSubject.bootstrap(), "revoque"));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+        service.revoquer(new RevoquerCapaciteCommand(premier.id(), KernelSubject.sujetBootstrap(), "revoque"));
 
         KernelCapabiliteOctroi second = service.accorder(new AccorderCapaciteCommand(
                 beneficiaire, KernelCapability.CHARGER_MODULE,
-                KernelSubject.bootstrap(), OrigineDonnee.SAISIE_MANUELLE));
+                KernelSubject.sujetBootstrap(), OrigineDonnee.SAISIE_MANUELLE));
 
         assertTrue(second.actif());
         assertEquals(2, service.listerPourSujet(beneficiaire).size());
