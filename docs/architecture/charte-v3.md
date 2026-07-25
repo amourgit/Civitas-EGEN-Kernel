@@ -137,7 +137,7 @@ egen-modules/
 | Systeme | Niveau | Categorie | Statut |
 |---|---|---|---|
 | `kernel-sdk` | **0** | — | Confirme |
-| `kernel-plugin-engine` (PF4J) | **0** | — | Confirme |
+| `kernel-plugin-engine` (PF4J) | **0** | — | **Livre** le 25 juillet 2026 |
 | `module-registry` (B2) | **0** | — | **Livre** le 24 juillet 2026 |
 | `kernel-bootstrap` | **0** | — | Confirme |
 | `kernel-eventbus` (API) | **0** | — | Confirme |
@@ -212,11 +212,11 @@ substituable — la separation api/impl n'aurait ici aucune fonction protectrice
 **Statut** : implemente, pousse sur `main`, CI verte. Ce n'est pas presente comme
 la seule conception possible — c'est une proposition rigoureuse, coherente avec le
 reste de la plateforme, ouverte a revision si l'usage reel revele un besoin non
-anticipe ici. Premiere confirmation obtenue : `module-registry` (§A.6bis, livre le
-24 juillet 2026) consomme `PolitiqueNoyau` sans aucune friction ni ajustement
-necessaire. `kernel-plugin-engine`, qui devra consulter a la fois
-`KernelPermissionCheck` et `ModuleActivationResolver` avant de charger quoi que ce
-soit, reste le test le plus exigeant, encore a venir.
+anticipe ici. Deux confirmations obtenues : `module-registry` (§A.6bis, 24 juillet)
+consomme `PolitiqueNoyau` sans friction ; `kernel-plugin-engine` (§A.6ter, 25
+juillet) consulte a la fois `KernelPermissionCheck` ET `ModuleActivationResolver`
+avant tout chargement — le test le plus exigeant envisage pour cette conception,
+reussi sans ajustement necessaire.
 
 ## A.6bis Module-registry (B2) — livre le 24 juillet 2026
 
@@ -243,28 +243,62 @@ Souscription/Activation dans cette premiere livraison — aucune des quatre
 `KernelCapability` fermees ne couvre cette question business, qui reste, pour
 l'instant, la responsabilite de l'appelant.
 
-`ModuleActivationResolver` est la question que `kernel-plugin-engine` (a venir)
+`ModuleActivationResolver` est la question que `kernel-plugin-engine` (§A.6ter, livre)
 posera avant de charger un module dans une Cellule : fail-closed, elle retombe sur
 `PolitiqueNoyau` (`ACTIVATION_NON_RESOLUE`) des qu'aucune Activation active n'est
 trouvee — la premiere consultation reelle de la Politique-noyau par un module autre
 que ses propres tests.
 
-## A.6 Arborescence noyau — mise a jour (etat reel au 24 juillet 2026)
+## A.6ter kernel-plugin-engine — livre le 25 juillet 2026
+
+Le mecanisme d'accueil (§1 de l'anatomie du Kernel), avec trois points
+d'extensibilite deliberes : `ManifestSource` (d'ou viennent les donnees brutes d'un
+Manifeste — `PropertiesFileManifestSource` livree), `PluginLoader` (comment un
+plugin est physiquement charge — `Pf4jPluginLoader`, adossee a PF4J, livree), et
+`ExtensionRegistry` (le registre vivant des extensions chargees, thread-safe).
+
+`PluginLifecycleManager` est le seul point d'entree, avec un ordre de verification
+strict pour `charger(...)` : `KernelPermissionCheck` (capacite administrative du
+sujet) → lecture/validation du Manifeste (echec → `PolitiqueNoyau`, toujours un
+refus) → `ModuleActivationResolver` (le module doit-il tourner ici ?) →
+verification des dependances declarees → chargement physique. `decharger(...)`
+refuse tant qu'un module charge en depend encore.
+
+**Decision de conception assumee** : PF4J recherche sa propre annotation
+d'extension par defaut (`org.pf4j.Extension`), jamais celle d'EGEN
+(`africa.civitas.egen.kernel.sdk.extension.Extension`). `Pf4jPluginLoader` ne
+detourne donc jamais le mecanisme natif de PF4J vers l'annotation d'EGEN : apres que
+PF4J a charge et isole le plugin (classloader dedie), `Pf4jPluginLoader` balaie
+elle-meme le JAR a la recherche des classes annotees `@Extension` d'EGEN et les
+verifie contre le point qu'elles declarent servir.
+
+**Limite assumee et documentee** : `Pf4jPluginLoader` — la seule classe de ce
+module qui touche reellement PF4J — n'est pas couverte par un test d'integration
+reel dans ce depot, faute d'un premier plugin JAR physique a charger. Toute la
+logique de decision (`PluginLifecycleManager`, `ManifestReader`,
+`ExtensionRegistry`) est en revanche couverte a 100% par des tests unitaires purs,
+sans Quarkus ni Docker : `PluginLifecycleManager` est un bean CDI a injection par
+constructeur, instanciable a la main avec un `PluginLoader` de test entierement en
+memoire — la preuve, par construction, que la logique de decision est independante
+du mecanisme physique concret qui la sert.
+
+## A.6 Arborescence noyau — mise a jour (etat reel au 25 juillet 2026)
 
 ```
 egen-kernel/
 ├── kernel-sdk/                          (contrat, JPMS pur — + permission/{identity,authorization,policy})
 ├── kernel-jpa-support/                  (Socle de Tracabilite partage — inchange)
-├── kernel-domain/                       (a venir — module-domain seul, B2, Niveau 0)
+├── kernel-domain/
+│   └── module-domain/                   (ModuleId, CatalogueEntree, Souscription,
+│                                          Activation — LIVRE, B2, zero framework)
 ├── kernel-systems/
 │   ├── identity/                        (KernelSubjectService — LIVRE, point 3)
 │   ├── authorization/                   (KernelPermissionCheckImpl, octrois — LIVRE, point 3)
 │   ├── policy/                          (PolitiqueNoyauImpl — LIVRE, point 3)
 │   └── module-registry/                 (Catalogue/Souscription/Activation — LIVRE, B2)
-├── kernel-domain/
-│   └── module-domain/                   (ModuleId, CatalogueEntree, Souscription,
-│                                          Activation — LIVRE, B2)
-├── kernel-plugin-engine/                (a venir)
+├── kernel-plugin-engine/                (ManifestReader, ExtensionRegistry,
+│                                          PluginLifecycleManager, PluginLoader +
+│                                          Pf4jPluginLoader — LIVRE)
 ├── kernel-eventbus/                     (a venir)
 ├── kernel-bootstrap/                    (a venir)
 └── kernel-test-support/                 (a venir)
@@ -401,15 +435,17 @@ documentaire (voir la migration `V1__init_organization.sql`) etaient requis.
 
 ---
 
-# PARTIE E — Points ouverts restants (etat au 24 juillet 2026, apres refactoring, conception du primitif Niveau 1 et livraison de module-registry)
+# PARTIE E — Points ouverts restants (etat au 25 juillet 2026, apres refactoring, conception du primitif Niveau 1, livraison de module-registry et de kernel-plugin-engine)
 
 1. ~~Contenu exact du primitif Niveau 1~~ (Identity + Authorization + Policy-noyau,
    § A.5) — **une premiere proposition concrete est implementee et poussee sur
    `main`** (KernelSubject, KernelCapability/KernelPermissionCheck,
-   PolitiqueNoyau). Premiere confirmation obtenue : `module-registry` consomme
-   `PolitiqueNoyau` sans friction (§A.6bis). Reste ouvert au sens ou
-   `kernel-plugin-engine` et `kernel-bootstrap` (a venir), qui consommeront aussi
-   `KernelPermissionCheck`, n'ont pas encore eprouve cette moitie de la conception.
+   PolitiqueNoyau). Deux confirmations obtenues : `module-registry` consomme
+   `PolitiqueNoyau` sans friction (§A.6bis), et `kernel-plugin-engine` consulte a la
+   fois `KernelPermissionCheck` et `ModuleActivationResolver` avant tout chargement
+   (§A.6ter) — le test le plus exigeant envisage pour cette conception, reussi.
+   Seul `kernel-bootstrap` (a venir), qui composera tout ce qui precede, reste a
+   eprouver la conception dans son ensemble.
 2. ~~Fusion ou separation Organization/Affiliation~~ — **tranche et realise** :
    fusion en un seul module.
 3. ~~Categorie `system` vs `business` pour Reference-data~~ — **tranche et

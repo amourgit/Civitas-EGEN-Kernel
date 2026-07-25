@@ -58,7 +58,9 @@ egen-platform/                                     (racine du reacteur Maven)
 │   │                                                  Activation (B2, Niveau 0) —
 │   │                                                  cascade stricte, fail-closed
 │   ├── kernel-eventbus/                            ← a venir
-│   ├── kernel-plugin-engine/                       ← a venir
+│   ├── kernel-plugin-engine/                       ← ManifestReader, ExtensionRegistry,
+│   │                                                  PluginLifecycleManager (orchestrateur),
+│   │                                                  PluginLoader + Pf4jPluginLoader
 │   ├── kernel-bootstrap/                           ← a venir
 │   └── kernel-test-support/                        ← a venir
 └── egen-modules/                                   ← Niveau 2 (pluggable)
@@ -109,22 +111,65 @@ correcte : `identity` (`KernelSubjectService`, sujet minimal), `authorization`
 (`PolitiqueNoyauImpl`, la vraie Politique-noyau — voir `docs/architecture/
 charte-v3.md`, §A.5, pour la conception complete). Livre le 23 juillet 2026, en
 reponse au point 3 de la Charte v3 — une premiere proposition rigoureuse, pas une
-verite gravee. Un premier consommateur reel existe deja : `module-registry` (B2,
-Niveau 0, livre le 24 juillet 2026) consulte `PolitiqueNoyau` pour son refus par
-defaut quand aucune Activation n'existe. `kernel-plugin-engine` et
-`kernel-bootstrap`, encore a venir, eprouveront la conception a leur tour.
+verite gravee. Deux consommateurs reels confirment desormais la conception :
+`module-registry` (B2, 24 juillet) consulte `PolitiqueNoyau`, et
+`kernel-plugin-engine` (25 juillet) consulte a la fois `KernelPermissionCheck` ET
+`ModuleActivationResolver` avant tout chargement — le test le plus exigeant, reussi.
+`kernel-bootstrap`, encore a venir, sera la composition finale de tout ce qui
+precede.
 
 `kernel-domain/module-domain` et `kernel-systems/module-registry` implementent la
 cascade Catalogue -> Souscription -> Activation (§B.11) : un module doit etre au
 Catalogue avant qu'une Organisation ne puisse y Souscrire, elle-meme prealable a
 toute Activation par une de ses Cellules. Chaque palier est verifie explicitement
 au niveau service, jamais suppose. `ModuleActivationResolver` est la question
-fail-closed que `kernel-plugin-engine` posera avant de charger un module : sans
-Activation active, la Politique-noyau tranche, toujours un refus. Organisation et
-Cellule y sont systematiquement des UUID nus, jamais un import du module business
-Organization (Niveau 2) — module-registry est Niveau 0, il ignore tout de la
-hierarchie des Cellules ; c'est a l'appelant de la resoudre avant d'appeler ce
+fail-closed que `kernel-plugin-engine` consulte desormais reellement avant de
+charger un module : sans Activation active, la Politique-noyau tranche, toujours un
+refus. Organisation et Cellule y sont systematiquement des UUID nus, jamais un
+import du module business Organization (Niveau 2) — module-registry est Niveau 0, il
+ignore tout de la hierarchie des Cellules ; c'est a l'appelant de la resoudre avant
+d'appeler ce
 service (voir le pom.xml de module-registry pour cette decision assumee).
+
+## kernel-plugin-engine — l'orchestrateur, livre le 25 juillet 2026
+
+Le mecanisme d'accueil des modules (§1 de l'anatomie du Kernel), avec trois points
+d'extensibilite deliberes :
+
+- **`ManifestSource`** (`manifest/`) — d'ou viennent les donnees brutes d'un
+  Manifeste. `PropertiesFileManifestSource` lit un fichier `.properties` (meme
+  format de base que le descripteur natif de PF4J) ; `ManifestReader` construit un
+  `ManifesteExtension` (kernel-sdk) a partir de n'importe quelle source respectant
+  ce contrat.
+- **`PluginLoader`** (`loader/`) — comment un plugin est physiquement charge et
+  decharge. `Pf4jPluginLoader` est adossee a PF4J (`org.pf4j`, Apache 2.0, le choix
+  technologique acte pour EGEN en remplacement d'OSGi) pour l'isolation de
+  classloader et le cycle de vie physique. PF4J recherchant sa **propre** annotation
+  d'extension par defaut, jamais celle d'EGEN, `Pf4jPluginLoader` fait elle-meme,
+  apres chargement, le balayage du JAR a la recherche des classes annotees
+  `@Extension` (kernel-sdk) et les verifie contre le point qu'elles declarent
+  servir.
+- **`ExtensionRegistry`** (`registry/`) — le registre vivant des extensions
+  chargees, thread-safe, independant du mecanisme physique qui les a decouvertes.
+
+**`PluginLifecycleManager`** (`lifecycle/`) est le seul point d'entree, avec un
+ordre de verification strict et jamais permute pour `charger(...)` :
+`KernelPermissionCheck` (le sujet a-t-il le droit administratif de declencher un
+chargement ?) → lecture et validation du Manifeste (echec → `PolitiqueNoyau`,
+toujours un refus) → `ModuleActivationResolver` (ce module doit-il tourner dans
+cette Cellule ?) → verification des dependances declarees → alors seulement,
+chargement physique. `decharger(...)` refuse tant qu'un autre module charge declare
+encore en dependre — jamais de cascade implicite.
+
+Cette classe est un bean CDI a injection **par constructeur**, deliberement
+instanciable a la main dans les tests, sans conteneur ni Docker : toute la logique
+de decision — l'essentiel de la valeur de ce module — est couverte par des tests
+unitaires purs, avec un `PluginLoader` de test entierement en memoire
+(`FakePluginLoader`) qui prouve, par sa seule existence, que
+`PluginLifecycleManager` ne se comporte pas differemment selon le mecanisme physique
+qui le sert. Seule `Pf4jPluginLoader`, qui touche reellement PF4J, n'est pas encore
+couverte par un test d'integration reel, faute d'un premier plugin JAR dans ce
+depot — voir son javadoc pour le detail de cette limite assumee.
 
 ## Le DAG de dependances, desormais impose mecaniquement
 
@@ -151,7 +196,8 @@ documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa crea
 | `kernel-systems/policy` | 1 (primitif) | ✅ Livre — `PolitiqueNoyau` (kernel-sdk) + `PolitiqueNoyauImpl`, refuse systematiquement |
 | `kernel-domain/module-domain` | 0 | ✅ Livre — `ModuleId`, `CatalogueEntree`, `Souscription`, `Activation` : vocabulaire pur, zero framework |
 | `kernel-systems/module-registry` | 0 | ✅ Livre — cascade Catalogue → Souscription → Activation, `ModuleActivationResolver` fail-closed |
-| `kernel-plugin-engine`, `kernel-eventbus`, `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
+| `kernel-plugin-engine` | 0 | ✅ Livre — `ManifestReader`, `ExtensionRegistry`, `PluginLifecycleManager` (orchestrateur), `PluginLoader` + `Pf4jPluginLoader` |
+| `kernel-eventbus`, `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
 | `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
 | `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
 | `egen-modules/business/reference-data` | 2, business | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |

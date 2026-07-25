@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-plugin-engine</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Plugin Engine</name>
+  <description>
+    Le mecanisme d'accueil des modules Niveau 2 (§1 de l'anatomie du Kernel) : lit et
+    valide un Manifeste d'Extension (manifest/), decide s'il faut charger le module
+    correspondant en consultant, dans cet ordre strict, KernelPermissionCheck puis
+    ModuleActivationResolver (lifecycle/PluginLifecycleManager), et delegue le
+    chargement physique a une abstraction (loader/PluginLoader) dont
+    Pf4jPluginLoader est la seule implementation livree.
+
+    Trois points d'extensibilite deliberes :
+    - ManifestSource (manifest/) : d'ou viennent les donnees brutes d'un Manifeste.
+      PropertiesFileManifestSource lit un fichier .properties (meme format de base
+      que le descripteur natif de PF4J) ; toute autre source future implemente le
+      meme contrat sans toucher ManifestReader.
+    - PluginLoader (loader/) : comment un plugin est physiquement charge/decharge.
+      Pf4jPluginLoader est adossee a PF4J (org.pf4j, Apache 2.0) pour l'isolation de
+      classloader et le cycle de vie physique ; PluginLifecycleManager ne connait
+      jamais PF4J directement.
+    - ExtensionRegistry (registry/) : le registre vivant des extensions chargees,
+      independant du mecanisme physique qui les a decouvertes.
+
+    PluginLifecycleManager (lifecycle/) lui-meme est un simple bean CDI a injection
+    par constructeur — instanciable a la main dans les tests, sans conteneur ni
+    Docker : toute la logique de decision (l'essentiel de la valeur de ce module) est
+    couverte par des tests unitaires purs, avec un PluginLoader de test. Seule
+    Pf4jPluginLoader, qui touche reellement PF4J, n'est pas couverte par un test
+    d'integration ici, faute d'un premier plugin JAR reel dans ce depot — voir son
+    javadoc pour le detail de cette limite assumee.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>module-domain</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>module-registry</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.pf4j</groupId>
+      <artifactId>pf4j</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      Scope test uniquement : PluginLifecycleManager ne depend, en compile, que du
+      contrat PolitiqueNoyau (kernel-sdk). Ce module concret n'est tire qu'ici, pour
+      tester la logique de decision contre la VRAIE implementation plutot que contre
+      une reimplementation de test qui pourrait diverger silencieusement — sans
+      aucun cout, puisque policy n'a besoin ni de Docker ni de conteneur CDI (voir
+      son propre pom.xml).
+    -->
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>policy</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

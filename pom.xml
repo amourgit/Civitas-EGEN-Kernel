@@ -58,6 +58,15 @@
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.33.2</quarkus.platform.version>
+
+    <!--
+      PF4J (Apache 2.0) — le mecanisme de plugins choisi pour EGEN en remplacement
+      d'OSGi (decision d'architecture posee des le debut). Utilise uniquement par
+      kernel-plugin-engine/Pf4jPluginLoader, isole derriere l'interface PluginLoader.
+      Version non verifiable depuis ce sandbox (Maven Central injoignable) — a
+      confirmer par la CI, qui y a acces reel, et a corriger si necessaire.
+    -->
+    <pf4j.version>3.12.0</pf4j.version>
   </properties>
 
   <modules>
@@ -73,6 +82,11 @@
         <version>${quarkus.platform.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.pf4j</groupId>
+        <artifactId>pf4j</artifactId>
+        <version>${pf4j.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
