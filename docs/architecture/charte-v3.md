@@ -484,3 +484,529 @@ documentaire (voir la migration `V1__init_organization.sql`) etaient requis.
    realise** : `business`.
 4. ~~Resolution de la tension Tutelle inter-organisation~~ — **tranche
    definitivement** : intra-instance uniquement, aucune federation (Partie D).
+
+
+# PARTIE F — Le Modèle Réseau : philosophie, gouvernance et articulation avec le Kernel
+
+> Suite logique de la Charte v3 (Parties A à E). Ce document résout une tension nouvelle,
+> distincte de celle déjà tranchée en Partie D, et pose le paradigme complet du Réseau —
+> strictement métier, sans détail d'implémentation.
+
+## F.0 — Résoudre la tension avec la Partie D avant toute chose
+
+La Partie D a tranché que la **Tutelle** reste strictement intra-instance : aucune fédération
+inter-instances n'est prévue, et un cas de rattachement multi-organisations réel se traiterait
+« par une intégration API ponctuelle hors plateforme — pas par une extension du modèle de
+Tutelle lui-même ».
+
+Le Réseau n'est **pas** une extension du modèle de Tutelle. C'est cette « intégration hors
+plateforme » que la Partie D avait anticipée — mais formalisée, généralisée, et faite citoyenne
+de première classe de la plateforme plutôt que traitée au cas par cas. Il faut donc bien
+distinguer deux mécanismes qui ne se ressemblent qu'en apparence :
+
+| | Tutelle | Réseau |
+|---|---|---|
+| Portée | Intra-instance (une seule Organisation, ses filiales/établissements) | Inter-instance (plusieurs Organisations, potentiellement sur des déploiements distincts) |
+| Nature du lien | Hiérarchique (rattachement, subordination) | Horizontal (fédération entre pairs souverains) |
+| Ce qui est partagé | Structure organisationnelle interne | Ressources explicitement publiées |
+| Moteur d'autorisation | Un seul, unifié, pour toute l'instance | Un par Organisation, jamais fusionné |
+
+Une Organisation reste donc, comme la Partie A.3 (Point 1) l'a acté, **un déploiement complet
+et autonome**. Le Réseau n'y change rien : il ne fusionne jamais deux Organisations, il les
+met en relation depuis l'extérieur.
+
+## F.1 — Le paradigme repris tel quel : l'Organisation est un réseau, le Réseau est le tissu qui les relie
+
+Le principe directeur de cette partie : **ne rien réinventer**. Le vocabulaire des réseaux
+informatiques décrit déjà exactement ce dont on a besoin.
+
+| Concept EGEN | Équivalent réseau informatique |
+|---|---|
+| Organisation | Réseau local privé (LAN), système autonome |
+| Cellule | Segment / sous-réseau interne |
+| Ressource Locale / Souveraine | Service hébergé en interne |
+| **Passerelle** (nouveau concept, voir F.3) | Routeur de bordure / pare-feu |
+| **Réseau** (le nouveau système) | Tissu d'interconnexion (WAN, extranet, peering) — jamais un LAN de plus |
+| Publication d'une ressource | Exposition d'un service via la Passerelle |
+| Consommation | Requête sortante, toujours résolue chez l'Organisation propriétaire |
+| Ressource héritée | Route apprise, intégrée à la table locale |
+| Identifiant composé (F.5) | Adresse hiérarchique, à la manière d'un nom pleinement qualifié |
+| Révocation en cascade (F.9) | Retrait de route, propagé jusqu'aux sessions dépendantes |
+| Capacité Réseau (F.7) | Habilitation d'exploitation, adossée à un abonnement |
+
+Une seule règle gouverne tout le reste : **rien ne traverse la frontière d'une Organisation
+sans passer explicitement par sa Passerelle**. Tout le paradigme découle de cette phrase.
+
+## F.2 — L'Organisation : un système autonome souverain, complet en lui-même
+
+Rien ne change au modèle déjà établi (Charte v3, Partie B) : Organisation racine
+souveraine, Cellules récursives, Personnes affectées via Affectation/Mandat/Delegation,
+Ressources Locales et Souveraines, Politique organisationnelle avec Dérogation en cascade.
+Ce modèle reste entièrement intact — c'est précisément parce qu'il est déjà complet et
+cohérent en vase clos qu'il peut devenir un nœud d'un réseau plus large sans être modifié.
+
+Une seule nuance à ajouter, qui préexistait implicitement mais qu'il faut maintenant rendre
+explicite : **seule l'Organisation publie, jamais une Cellule directement.** Que la ressource
+candidate à la publication soit une Ressource Locale (rattachée à une Cellule précise) ou une
+Ressource Souveraine (rattachée directement à l'Organisation), l'acte de publication est
+toujours un acte organisationnel — exercé via la Passerelle, jamais initié par la Cellule
+elle-même. C'est la continuité directe du principe déjà posé : « l'organisation reste
+toujours souveraine ».
+
+À l'intérieur de la frontière organisationnelle, rien n'est visible depuis l'extérieur par
+défaut — exactement comme un réseau privé n'expose rien tant qu'aucune règle de routage ne
+le décide explicitement.
+
+## F.3 — La Passerelle : le seul point de passage légitime
+
+C'est la pièce manquante qu'il faut introduire formellement. La Passerelle est le point de
+bordure unique d'une Organisation — l'équivalent fonctionnel du routeur de périphérie d'un
+réseau local. Aucune ressource ne sort, aucune ressource n'entre, sans passer par elle.
+
+Ses responsabilités, et rien d'autre :
+
+- **Vers l'extérieur** — exposer les ressources que l'Organisation a explicitement choisi de
+  publier, jamais plus ; appliquer les Capacités Réseau (F.7) avant d'autoriser toute
+  publication.
+- **Vers l'intérieur** — recevoir les ressources consommées depuis un Réseau, les convertir
+  en ressources héritées, et les remettre à la Politique de redistribution interne (F.10)
+  avant qu'aucune Cellule n'en ait connaissance.
+- **Traçabilité** — porter à elle seule la responsabilité de la chaîne de provenance (F.11) :
+  c'est le point unique où l'identifiant composé d'une ressource distante est résolu et
+  conservé.
+- **Ce qu'elle ne fait jamais** — elle n'exécute rien, ne stocke aucune donnée métier, et ne
+  laisse jamais une Cellule dialoguer directement avec un Réseau. Une Cellule ne sait même
+  pas qu'un Réseau existe ; elle ne voit que des ressources, locales ou héritées, déjà
+  unifiées par le moteur d'autorisation interne — exactement le principe déjà posé dans la
+  philosophie d'origine.
+
+## F.4 — Le Réseau : tissu d'interconnexion, jamais un troisième silo
+
+Le Réseau reste fidèle à la philosophie initiale, avec une précision supplémentaire rendue
+nécessaire par le modèle mono-tenant : **un Réseau relie des Organisations qui peuvent être
+sur des déploiements entièrement distincts.** Ce n'est donc jamais un module qui vivrait « à
+l'intérieur » d'une instance parmi d'autres — c'est un système à part, positionné entre les
+Passerelles de plusieurs Organisations.
+
+Ce qu'un Réseau possède réellement, et rien de plus :
+
+- un **registre des membres** (quelles Organisations en font partie, avec quel rôle) ;
+- un **annuaire des publications** (quelles ressources ont été publiées, par qui, sous quel
+  identifiant composé) ;
+- des **règles de fonctionnement du réseau lui-même** (qui peut y publier, qui peut
+  administrer les adhésions, la republication y est-elle autorisée par défaut — voir F.8).
+
+Ce qu'un Réseau ne possède jamais :
+
+- aucune donnée métier — consommer une ressource se traduit toujours par un aller-retour vers
+  la Passerelle de l'Organisation propriétaire, jamais par une lecture dans le Réseau
+  lui-même ;
+- aucun utilisateur, aucune Cellule, aucun moteur d'autorisation propre — l'autorisation reste
+  entièrement du ressort de chaque Organisation, à chaque bout de la chaîne.
+
+
+## F.5 — L'adressage : l'identifiant composé comme clé de voûte (répond au point 4)
+
+Toute ressource circulant dans un Réseau porte une adresse à trois niveaux, jamais une
+seule :
+
+```text
+Réseau  ›  Organisation source  ›  Ressource
+```
+
+Par exemple :
+
+```text
+Réseau-Ministère › Université-Libreville › Catalogue-Formations
+```
+
+Cette adresse composée n'est pas un identifiant technique parmi d'autres : c'est la **clé de
+voûte de tout le modèle de traçabilité**. Elle rend la provenance intrinsèque à l'adresse
+elle-même plutôt que dépendante d'une métadonnée séparée qu'on pourrait perdre ou désynchroniser.
+Elle évite aussi tout conflit de nommage : deux Réseaux différents peuvent chacun exposer un
+« Annuaire » sans jamais se percuter, puisque l'adresse complète les distingue par
+construction — exactement comme un nom hiérarchique évite les collisions dans un espace de
+noms partagé.
+
+Chaque ressource héritée, une fois entrée chez l'Organisation réceptrice, conserve cette
+adresse complète comme étiquette d'origine — invisible pour les Cellules, mais toujours
+disponible pour la Passerelle et pour l'audit.
+
+## F.6 — Le cycle de vie complet d'une ressource en réseau
+
+En reprenant la chaîne déjà posée dans la philosophie initiale, enrichie de la Passerelle,
+des Capacités et de l'adressage :
+
+1. **Souveraineté par défaut** — la ressource naît chez son Organisation, invisible de
+   l'extérieur.
+2. **Vérification de Capacité** — l'Organisation doit détenir la Capacité Réseau adéquate
+   (F.7) avant que sa Passerelle n'accepte d'agir.
+3. **Publication volontaire, ressource par ressource** — jamais un lot, jamais une catégorie
+   entière ; un acte, une ressource.
+4. **Adressage** — la ressource publiée reçoit son identifiant composé (F.5) dans le registre
+   du Réseau.
+5. **Consommation conditionnée** — une autre Organisation, via sa propre Passerelle, consomme
+   la ressource si elle est publiée, si elle dispose des autorisations nécessaires, et dans le
+   respect des politiques du propriétaire.
+6. **Héritage** — la ressource entre, côté Organisation réceptrice, dans le même moteur
+   d'autorisation que ses ressources locales — aucune différence de traitement, seule
+   l'étiquette d'origine change.
+7. **Redistribution interne, ressource par ressource** (F.10) — l'Organisation réceptrice
+   décide, ressource héritée par ressource héritée, quelles Cellules puis quels utilisateurs y
+   accèdent.
+8. **Révocation en cascade** (F.9) — à tout moment, si la ressource est retirée à la source,
+   tout ce qui en dépendait, jusqu'à l'utilisateur final, perd l'accès.
+
+## F.7 — Les Capacités Réseau, adossées à l'abonnement (répond au point 1)
+
+Ceci répond aussi à une question restée ouverte précédemment sur la nature du grade
+« Organisation Fédératrice » : ce n'est ni un simple indicateur binaire ni une table de rôles
+ad hoc — c'est une **Capacité Réseau** parmi un ensemble fermé d'autres, gérée par un mécanisme
+d'octroi explicite et adossée à la Souscription commerciale de l'Organisation. Même
+philosophie que celle déjà posée ailleurs dans le Kernel : refus par défaut, seule une
+habilitation active autorise l'action.
+
+Ensemble fermé proposé :
+
+| Capacité Réseau | Autorise |
+|---|---|
+| **Fédératrice** | Créer un nouveau Réseau et en devenir l'Organisation administratrice |
+| **Membre** | Rejoindre un Réseau existant (sous réserve d'acceptation, voir F.12) |
+| **Publication** | Publier une ressource dans un Réseau dont l'Organisation est membre |
+| **Consommation** | Consommer une ressource publiée par une autre Organisation membre |
+| **Administration** | Gérer un Réseau qu'on a fondé : accepter/exclure des membres, dissoudre |
+
+**Point de vigilance terminologique**, dans le même esprit que celui déjà posé pour la
+Politique (Politique-noyau vs Politique organisationnelle) : cette Capacité Réseau n'a rien
+à voir avec la Capacité-noyau existante (Niveau 1, ensemble fermé des quatre capacités
+techniques gouvernant le chargement de modules). Les deux portent le même mot dans le langage
+courant ; ce ne sont pas le même système, et il faudra les nommer distinctement le jour de la
+conception détaillée, exactement comme cela a déjà été fait pour Policy.
+
+**Distinction importante à ne pas confondre** : la Capacité Réseau est un plafond commercial —
+ce que l'abonnement de l'Organisation autorise en général. Le droit de republication (F.8),
+lui, n'est jamais accordé par un abonnement : c'est une licence accordée ressource par
+ressource, par le propriétaire d'origine, à une Organisation précise. Une Organisation peut
+très bien détenir la Capacité Consommation sans jamais recevoir le moindre droit de
+republication — ce sont deux niveaux de gouvernance différents, l'un vertical (plateforme →
+Organisation), l'autre horizontal (Organisation → Organisation).
+
+## F.8 — La republication : une licence explicite, jamais un héritage automatique (répond au point 2)
+
+Par défaut, une ressource héritée ne peut jamais être republiée par l'Organisation qui l'a
+reçue. C'est le principe de neutralité par défaut : sans autorisation explicite du
+propriétaire d'origine, une ressource consommée s'arrête là où elle a été consommée.
+
+Le propriétaire d'origine peut accorder un **droit de republication**, comparable à une
+licence :
+
+- il est toujours accordé pour une ressource précise, jamais globalement ;
+- il peut être révoqué à tout moment, indépendamment du droit de consommation initial ;
+- son exercice ne rompt jamais la chaîne de provenance : si l'Organisation B republie dans un
+  second Réseau une ressource reçue de l'Organisation A, l'adresse complète conservée reste
+  celle d'origine (Réseau A › Organisation A › Ressource), jamais réécrite comme si B en était
+  la source.
+
+Ce mécanisme protège exactement ce que la philosophie initiale visait : le propriétaire garde
+la visibilité sur qui consomme réellement sa ressource, même après plusieurs sauts.
+
+## F.9 — Révocation en cascade, jusqu'à l'utilisateur final (répond au point 3)
+
+Décision actée sans réserve : la perte d'accès à une ressource se propage intégralement,
+jamais partiellement. Le déclencheur peut être :
+
+- le retrait de publication par l'Organisation propriétaire ;
+- le départ (ou l'exclusion) d'une Organisation du Réseau ;
+- la révocation d'un droit de republication.
+
+Dans tous les cas, la chaîne de propagation est la même et ne s'arrête jamais en cours de
+route : registre du Réseau → Passerelle de chaque Organisation consommatrice → moteur
+d'autorisation interne (la ressource héritée disparaît) → politiques de redistribution
+appliquées aux Cellules concernées → accès effectif de chaque utilisateur. Aucune étape
+intermédiaire n'est un point d'arrêt légitime — c'est la même posture fail-closed déjà retenue
+ailleurs dans le Kernel : l'absence de droit actif signifie absence d'accès, immédiatement,
+sans période de grâce implicite.
+
+## F.10 — La politique de redistribution interne, ressource par ressource (répond au point 5)
+
+Décision actée : la granularité est **ressource par ressource**, jamais par catégorie ni par
+Réseau source — plus sûre, plus explicite, même si plus lourde à administrer à grande échelle.
+
+Rien de nouveau à inventer ici : ce choix se branche directement sur le mécanisme de Politique
+organisationnelle et Dérogation déjà établi dans le modèle organisationnel. Une ressource
+héritée, une fois entrée chez l'Organisation réceptrice, devient simplement un nouvel objet
+gouverné par ce même moteur — au même titre qu'une politique de mot de passe l'est aujourd'hui.
+L'Organisation fixe la visibilité par défaut d'une ressource héritée donnée ; une Cellule peut,
+si elle en a le droit, y déroger — exactement le même principe d'autonomie en cascade déjà
+posé pour toute autre politique organisationnelle.
+
+## F.11 — Traçabilité de bout en bout (répond au point 6)
+
+Chaque accès effectif à une ressource, à n'importe quel niveau, doit pouvoir remonter
+intégralement sa chaîne de provenance :
+
+```text
+Organisation propriétaire
+   → Réseau (identifiant composé)
+      → Organisation réceptrice
+         → droit de republication éventuel
+            → politique de redistribution appliquée
+               → Cellule autorisée
+                  → utilisateur final
+```
+
+Là encore, rien de nouveau à concevoir : c'est la même discipline que le Socle de Traçabilité
+déjà en place partout ailleurs dans le Kernel (rien n'est jamais écrasé, tout est journalisé) —
+simplement étendue à un objet de plus, la ressource réseau. Un administrateur doit pouvoir
+répondre à « pourquoi cet utilisateur voit cette ressource ? » en remontant cette chaîne sans
+jamais avoir à la reconstituer à la main.
+
+## F.12 — Gouvernance d'un Réseau : qui décide quoi
+
+Deux rôles distincts au sein d'un Réseau, jamais confondus :
+
+- **Organisation Fédératrice** — celle qui a créé le Réseau (Capacité Fédératrice) et qui, par
+  défaut, en détient l'Administration : elle accepte ou refuse les adhésions, elle peut
+  dissoudre le Réseau.
+- **Organisation Membre** — elle a rejoint le Réseau (Capacité Membre) mais n'a aucune autorité
+  sur son fonctionnement global ; elle ne gouverne que ce qu'elle publie elle-même.
+
+L'adhésion à un Réseau est toujours un **accord à deux sens**, jamais unilatéral : l'Organisation
+candidate doit vouloir rejoindre (elle en fait la demande, ou y est invitée) et l'Organisation
+Fédératrice doit accepter. Aucune adhésion automatique, même si l'Organisation candidate
+détient la Capacité Membre — la Capacité ouvre la possibilité, elle ne force jamais l'entrée.
+
+## F.13 — Où cela se situe dans l'architecture, sans entrer dans le détail technique
+
+Deux natures d'objets, à ne pas mélanger :
+
+- **La Passerelle** est un concept qui vit à l'intérieur d'une Organisation, au même niveau que
+  Ressource dans la classification déjà établie (Charte v3, Partie A) : dépendant d'un concept
+  intrinsèquement organisationnel, donc du même niveau que le reste du modèle organisationnel.
+  Chaque instance déployée porte la sienne.
+- **Le Réseau** lui-même — le registre, l'adressage, les règles de fonctionnement — ne vit à
+  l'intérieur d'aucune instance en particulier. Il se situe entre les Passerelles de plusieurs
+  Organisations, potentiellement déployées séparément, exactement comme le mécanisme déjà
+  décrit en Partie D pour tout besoin réellement inter-instances : une intégration explicite,
+  pas une extension du modèle interne d'une seule instance.
+
+## F.14 — Schéma de synthèse
+
+```text
+Organisation A (système autonome complet)          Organisation B (système autonome complet)
+├── Cellules, Ressources, Politiques                ├── Cellules, Ressources, Politiques
+└── Passerelle A ──────────┐          ┌────────── Passerelle B
+                            │          │
+                            ▼          ▼
+                        ┌─────────────────┐
+                        │      RÉSEAU      │
+                        │  (registre +      │
+                        │   adressage +     │
+                        │   règles)         │
+                        │  — aucune donnée  │
+                        │    métier —       │
+                        └─────────────────┘
+                            ▲          ▲
+                            │          │
+                    Passerelle C ──────┘
+Organisation C (système autonome complet)
+├── Cellules, Ressources, Politiques
+```
+
+## F.15 — Lexique Réseau (extension du B.2)
+
+| Terme | Définition |
+|---|---|
+| **Passerelle** | Le point de bordure unique d'une Organisation ; seul canal légitime vers un Réseau. |
+| **Réseau** | Le tissu d'interconnexion entre Organisations membres ; ne possède ni ne stocke de données métier. |
+| **Organisation Fédératrice** | L'Organisation qui a créé un Réseau et en détient l'Administration par défaut. |
+| **Organisation Membre** | Une Organisation qui a rejoint un Réseau existant. |
+| **Capacité Réseau** | Habilitation d'exploitation réseau (Fédératrice, Membre, Publication, Consommation, Administration), adossée à la Souscription. |
+| **Identifiant composé** | Adresse hiérarchique à trois niveaux (Réseau › Organisation source › Ressource) garantissant l'unicité et la provenance. |
+| **Droit de republication** | Licence explicite, accordée ressource par ressource par le propriétaire d'origine, autorisant une republication en aval. |
+| **Ressource héritée** | Une ressource consommée depuis un Réseau, unifiée dans le moteur d'autorisation local de l'Organisation réceptrice. |
+
+## F.16 — Points encore ouverts
+
+1. **Qui opère techniquement un Réseau ?** — L'Organisation Fédératrice l'héberge-t-elle
+   elle-même, ou s'agit-il d'un service neutre fourni par la plateforme EGEN/CIVITAS pour tous
+   les Réseaux ? C'est une question de gouvernance et de confiance, pas seulement
+   d'hébergement — à trancher avant la conception détaillée.
+2. **Survie d'un Réseau si l'Organisation Fédératrice disparaît ou se retire.** Faut-il prévoir
+   un mécanisme de transfert d'Administration vers une autre Organisation Membre, ou le Réseau
+   est-il dissous par défaut ?
+3. **Réversibilité d'un droit de republication déjà exercé.** Si une republication a déjà eu
+   lieu et que le droit est ensuite révoqué, la révocation en cascade (F.9) s'applique-t-elle
+   aussi au Réseau secondaire, ou seulement au premier saut ? La cohérence avec F.9 suggère que
+   oui, mais ça mérite d'être acté explicitement.
+4. **Litige de politique de publication.** Si le Réseau lui-même impose une règle (ex.
+   republication interdite par défaut) et qu'une Organisation Membre définit une politique
+   locale contradictoire, quelle règle l'emporte ? Probablement le Réseau, par analogie avec le
+   principe « le plus proche l'emporte » déjà retenu pour la Politique organisationnelle — mais
+   dans le sens inverse ici, puisque c'est une règle externe qui s'impose à l'interne.
+
+
+
+Voici les quatre décisions intégrées à la Partie F, sous forme d'amendements datés — même logique que la Charte v3 (« décision actée le... »). Les sections non citées ci-dessous (F.0 à F.3, F.5 à F.8, F.11, F.14) restent inchangées ; seules F.4, F.9, F.10, F.12, F.13, F.15 et F.16 sont complétées.
+
+---
+
+## F.4.1 — Qui opère le Réseau *(répond au point ouvert 1, tranché le 26 juillet 2026)*
+
+Décision actée : un Réseau n'est jamais hébergé ni exploité par l'une des Organisations qui le composent — pas même par l'Organisation Fédératrice. C'est un **service neutre, fourni et opéré directement par la plateforme EGEN (CIVITAS Africa)**, exactement comme le Catalogue de modules (§B.11) est un service de la plateforme et non la propriété d'une Organisation cliente.
+
+Cela impose une distinction à garder nette, dans le même esprit que la vigilance déjà exercée pour Policy (Politique-noyau / Politique organisationnelle) :
+
+- **Administration du Réseau** — un rôle métier, porté par l'Organisation Fédératrice : accepter ou refuser des membres, dissoudre, transférer (voir F.12.1). C'est un rôle de gouvernance, jamais de propriété technique.
+- **Opérateur du Réseau** — la plateforme EGEN elle-même. Invariable, jamais transférable, jamais une Capacité Réseau parmi celles du tableau F.7. Aucune Organisation, quel que soit son abonnement, ne peut devenir Opérateur — cette fonction n'est tout simplement pas de nature organisationnelle.
+
+Cette séparation garantit qu'aucune Organisation Membre ne puisse jamais retenir en otage l'infrastructure partagée du Réseau : quoi qu'il arrive à l'Administration (transfert, vacance temporaire à régler — voir F.12.1), le Réseau continue de fonctionner, parce que son existence technique ne dépend d'aucune des Organisations qu'il relie.
+
+---
+
+## F.9.1 — Portée de la cascade : tous les sauts, tous les Réseaux *(répond au point ouvert 3, tranché le 26 juillet 2026)*
+
+Décision actée sans réserve : la révocation en cascade ne s'arrête jamais à la première frontière organisationnelle ni au premier Réseau traversé. Que la ressource ait été republiée une fois ou dix, dans un seul Réseau ou successivement dans plusieurs Réseaux distincts (via des droits de republication accordés en chaîne, F.8), le retrait à la source se propage **intégralement jusqu'au dernier utilisateur final concerné**, quel que soit le nombre de sauts.
+
+Concrètement, la chaîne de propagation déjà décrite en F.9 doit être rejouée récursivement à chaque saut de republication : si une ressource republiée par l'Organisation B (via un droit accordé par l'Organisation A) est elle-même consommée par l'Organisation D dans un second Réseau, la révocation initiale par A déclenche la même cascade complète chez B *et* chez D, sans exception ni raccourci. Aucune republication, aussi lointaine soit-elle dans la chaîne, ne crée d'îlot d'accès protégé de la révocation d'origine.
+
+---
+
+## F.10.1 — Priorité entre règle de Réseau et politique organisationnelle *(répond au point ouvert 4, tranché le 26 juillet 2026)*
+
+Décision actée : en cas de conflit entre une règle imposée par le Réseau lui-même (F.4 — par exemple, republication interdite par défaut) et une politique organisationnelle locale qui la contredirait, **la règle du Réseau l'emporte toujours**.
+
+C'est une inversion assumée du principe « le plus proche l'emporte » qui régit par défaut la Politique organisationnelle en interne (Charte v3, §B.12) — et ce n'est pas une incohérence : ce principe de proximité arbitre entre Paliers d'une même hiérarchie souveraine (Organisation → Cellule → sous-Cellule), où chaque Palier appartient à la même autorité. La relation entre un Réseau et une Organisation Membre n'est pas hiérarchique de cette façon — c'est un accord d'adhésion entre pairs (F.12), où le Réseau fixe le cadre commun que chaque membre a accepté en le rejoignant.
+
+Le partage de compétence reste donc strictement borné :
+
+- **Ce que le Réseau gouverne** — les règles qui touchent la circulation de la ressource *entre* Organisations : republication autorisée ou non par défaut, conditions d'adhésion, règles de fonctionnement communes. Aucune politique organisationnelle locale ne peut assouplir une de ces règles.
+- **Ce que l'Organisation réceptrice gouverne seule** — tout ce qui se passe *après* réception, à l'intérieur de sa propre frontière : la politique de redistribution interne ressource par ressource (F.10), qui reste entièrement de son ressort, et sur laquelle le Réseau n'a, à l'inverse, aucune autorité.
+
+Le Réseau fixe le plafond de ce qui est possible entre Organisations ; l'Organisation reste seule maîtresse de ce qui est possible en dessous d'elle-même.
+
+---
+
+## F.12.1 — Continuité obligatoire de l'Administration *(répond au point ouvert 2, tranché le 26 juillet 2026)*
+
+Décision actée : une Organisation Fédératrice ne peut jamais quitter un Réseau, ni renoncer à son rôle d'Administration, sans avoir **au préalable transféré cette Administration** à une autre Organisation Membre. Un Réseau sans Administration n'est jamais un état transitoire acceptable — il n'existe que deux issues légitimes, jamais une troisième :
+
+1. **Transférer l'Administration** à une autre Organisation Membre du même Réseau — à la condition stricte que cette Organisation successrice détienne *déjà*, avant le transfert, sa propre Capacité Fédératrice (F.7). Il ne suffit donc pas d'être Membre pour hériter de l'Administration : l'aptitude à fédérer doit préexister au transfert, jamais être accordée en urgence à cette occasion. Le transfert reste un acte à deux sens, symétrique à l'adhésion (F.12) : l'ancienne Fédératrice le déclenche, la nouvelle doit l'accepter.
+2. **Dissoudre explicitement le Réseau** — un acte assumé, qui déclenche la révocation en cascade complète (F.9, F.9.1) pour toutes les ressources publiées, jusqu'au dernier utilisateur final, dans chacune des Organisations Membres.
+
+Ce que ce principe exclut formellement, c'est une troisième voie : une Organisation Fédératrice qui se retirerait simplement — perte de sa Capacité Fédératrice (changement d'abonnement), cessation d'activité, retrait unilatéral — sans avoir accompli l'une des deux issues ci-dessus. Un Réseau reste donc toujours administré par une Organisation qui en a explicitement la charge, ou il cesse formellement d'exister ; il n'est jamais laissé à l'abandon.
+
+**Nuance non résolue par cette décision, à garder en tête** : que se passe-t-il si, au moment où l'Organisation Fédératrice souhaite se retirer, *aucune* autre Organisation Membre ne détient encore la Capacité Fédératrice ? La décision actée ferme alors la voie du transfert — il ne resterait que la dissolution. C'est cohérent avec le principe posé, mais ça mérite d'être tranché explicitement plutôt que déduit (voir F.16, point 5).
+
+---
+
+## F.13 — complément
+
+Ajouter en fin de section : *voir aussi F.4.1 pour la distinction entre Administration (portée par l'Organisation Fédératrice, un rôle métier) et Opération (portée exclusivement par la plateforme EGEN, jamais par une Organisation, quel que soit son abonnement).*
+
+---
+
+## F.15 — Lexique Réseau, compléments
+
+| Terme | Définition |
+|---|---|
+| **Opérateur du Réseau** | La plateforme EGEN elle-même — héberge et exploite le Réseau. Jamais une Organisation, jamais une Capacité Réseau parmi celles de F.7. |
+| **Continuité d'Administration** | Le principe selon lequel un Réseau ne reste jamais sans Administration : transfert obligatoire vers une Organisation successrice déjà Fédératrice, ou dissolution explicite. |
+| **Priorité de Réseau** | Le principe selon lequel une règle imposée par le Réseau prévaut toujours sur une politique organisationnelle locale contradictoire. |
+
+---
+
+## F.16 — Points encore ouverts *(mis à jour le 26 juillet 2026)*
+
+1. ~~Qui opère techniquement un Réseau ?~~ — **tranché** : toujours la plateforme EGEN, en tant que tiers neutre ; jamais une Organisation Membre, pas même la Fédératrice (§F.4.1).
+2. ~~Survie d'un Réseau si l'Organisation Fédératrice disparaît ou se retire.~~ — **tranché** : transfert obligatoire de l'Administration vers une Organisation Membre déjà Fédératrice, ou dissolution explicite — jamais d'abandon (§F.12.1).
+3. ~~Réversibilité d'un droit de republication déjà exercé.~~ — **tranché** : la révocation en cascade s'applique intégralement, quel que soit le nombre de sauts ou de Réseaux traversés (§F.9.1).
+4. ~~Litige de politique de publication.~~ — **tranché** : la règle du Réseau l'emporte toujours sur une politique organisationnelle locale contradictoire (§F.10.1).
+5. **Nouveau, dérivé du point 2** : si, au moment où une Organisation Fédératrice souhaite transférer son Administration, aucune autre Organisation Membre ne détient encore la Capacité Fédératrice, seule la dissolution reste possible. Cohérent avec la décision actée, mais à trancher explicitement plutôt que laissé en déduction (§F.12.1).
+
+
+
+
+
+Dernier point clos. Voici l'amendement qui ferme F.16.5, dans la continuité directe de F.12.1.
+
+---
+
+## F.12.2 — Absence de successeur éligible : dissolution imminente, sans délai de grâce *(répond au point ouvert 5, tranché le 26 juillet 2026)*
+
+Décision actée : si, au moment où une Organisation Fédératrice souhaite se retirer, **aucune** autre Organisation Membre du Réseau ne détient déjà la Capacité Fédératrice, la voie du transfert (F.12.1, issue 1) est purement et simplement fermée — il ne reste que la dissolution explicite (F.12.1, issue 2), engagée **immédiatement**.
+
+Ce qui est explicitement exclu, pour que cette décision ne laisse aucune zone grise :
+
+- **Pas de délai de grâce** pour permettre à une Organisation Membre d'acquérir entretemps la Capacité Fédératrice (changement d'abonnement, par exemple) dans l'espoir de sauver le Réseau. La vérification de l'éligibilité d'un successeur se fait à l'instant où la Fédératrice engage son retrait — jamais après.
+- **Pas d'état intermédiaire** de Réseau "en sursis" ou "sans Administration active" en attendant une hypothétique relève. C'est la continuité même du principe déjà posé en F.12.1 : un Réseau n'est jamais laissé à l'abandon, ni pour un instant.
+- **Pas de rétrogradation automatique** d'une Organisation Membre ordinaire vers un rôle d'Administration temporaire, même par défaut ou par ancienneté d'adhésion. L'aptitude à fédérer doit avoir toujours préexisté au moment du retrait — jamais être improvisée pour l'occasion, exactement la même exigence que celle déjà posée pour un transfert réussi.
+
+La dissolution ainsi engagée déclenche, sans aucune variante par rapport au cas général, la révocation en cascade complète décrite en F.9 et étendue en F.9.1 : tous sauts confondus, tous Réseaux traversés en aval par republication, jusqu'au dernier utilisateur final, dans chacune des Organisations Membres concernées.
+
+**Conséquence de conception à noter pour la suite** : ce mécanisme crée une incitation métier directe — une Organisation Fédératrice a intérêt à s'assurer, tout au long de la vie du Réseau, qu'au moins une autre Organisation Membre maintient activement sa Capacité Fédératrice, sans quoi elle se retrouve mécaniquement prisonnière de l'Administration jusqu'à accepter la dissolution. C'est un effet de bord assumé, pas un défaut à corriger — il pousse naturellement vers des Réseaux gouvernés par plusieurs Organisations capables, jamais par une seule en position de dépendance unique.
+
+---
+
+## F.16 — Points ouverts *(clos le 26 juillet 2026)*
+
+1. ~~Qui opère techniquement un Réseau ?~~ — **tranché** (§F.4.1).
+2. ~~Survie d'un Réseau si l'Organisation Fédératrice disparaît ou se retire.~~ — **tranché** (§F.12.1).
+3. ~~Réversibilité d'un droit de republication déjà exercé.~~ — **tranché** (§F.9.1).
+4. ~~Litige de politique de publication.~~ — **tranché** (§F.10.1).
+5. ~~Absence de successeur éligible au moment du retrait.~~ — **tranché** : dissolution immédiate, sans délai de grâce ni état intermédiaire (§F.12.2).
+
+La Partie F est désormais entièrement actée, sans point ouvert restant — au même titre que la Partie D l'était déjà. Toute remise en cause future de l'un de ces points devra être traitée comme une décision d'architecture nouvelle, documentée et datée, jamais comme une modification silencieuse de ce qui précède — exactement la règle déjà posée en tête de la Charte v3.
+
+
+
+Bonne question — la Tutelle est un des concepts les plus faciles à mal lire dans la Charte, parce que son sens a changé en cours de route. Je reprends depuis le début.
+
+## Ce que la Tutelle modélise, concrètement
+
+Le Lexique la définit ainsi : **la relation de rattachement d'un Établissement à une ou plusieurs Organisations.**
+
+Et un Établissement, souviens-toi, n'est pas une table à part — c'est juste une convention de nommage pour désigner une Cellule de Palier 1, directement rattachée à l'Organisation (§B.2).
+
+Donc concrètement, la Tutelle sert à répondre à une question comme : *« cet Établissement-là, sous l'autorité hiérarchique de quelle(s) Organisation(s) est-il placé ? »*
+
+Les deux exemples canoniques donnés dans la Charte (Partie D) :
+
+- une **maison-mère et ses filiales** ;
+- un **ministère et les établissements sous sa tutelle**.
+
+Dans les deux cas, c'est une relation verticale, hiérarchique — pas un partenariat entre pairs. C'est la même logique qu'un ministère de l'Éducation qui a autorité sur des lycées, ou qu'un groupe qui a autorité sur ses filiales.
+
+## La tension d'origine — pourquoi ça a failli poser problème
+
+Le cas qui a mis le doigt sur la difficulté, c'est celui du **CHU rattaché à deux Organisations à la fois** (typiquement : un ministère de la Santé *et* une université, dans un système où un centre hospitalo-universitaire dépend administrativement des deux).
+
+Dans la conception initiale, on imaginait que SpiceDB arbitrerait les droits entre les deux Organisations tutélaires **« sans que les deux Organisations ne se voient mutuellement »**. Ce qui sous-entendait, implicitement, une base ou un SpiceDB *partagés* entre plusieurs Organisations — un espace commun où cette double tutelle pourrait être arbitrée en coulisses.
+
+Le problème, c'est que ça contredit frontalement le **Point 1** de la Charte v3 : le modèle mono-tenant strict par instance. Une Organisation, c'est un déploiement complet et séparé — pas de SpiceDB partagé, pas de base partagée entre deux Organisations distinctes. Si le CHU et l'Université sont deux Organisations sur deux instances EGEN différentes, il n'existe tout simplement pas d'endroit commun où cette Tutelle à deux têtes pourrait vivre.
+
+## La décision finale — Tutelle strictement intra-instance
+
+Pour trancher ça sans complexifier le modèle, la Partie D a posé une limite claire : **la Tutelle ne fonctionne qu'entre entités qui partagent le même déploiement.**
+
+Autrement dit : une instance EGEN représente toujours **une seule entreprise** au sens large. La Tutelle sert à hiérarchiser des Organisations **à l'intérieur de cette même instance** — le cas où le schéma générique permet à un déploiement d'héberger plusieurs Organisations (un groupe avec ses filiales, chacune modélisée comme une Organisation à part entière, mais toutes dans le même environnement technique).
+
+Le cas du CHU sous deux tutelles *réellement* hébergées sur deux instances distinctes ? Il **sort du modèle de données EGEN**. La Charte est explicite là-dessus : si ce besoin se présente un jour, ça se traiterait par une intégration API ponctuelle, en dehors de la plateforme — pas en tordant le modèle de Tutelle pour le faire rentrer dedans.
+
+## Le lien avec ce qu'on vient de faire (le Réseau)
+
+Et c'est là que ça devient intéressant par rapport à la conversation précédente : le **Réseau (Partie F)** qu'on vient de concevoir, c'est très exactement cette « intégration hors plateforme » que la Partie D avait anticipée sans la construire. On l'a formalisée et généralisée au lieu de la traiter au coup par coup.
+
+Le Réseau n'est donc pas une extension de la Tutelle — c'est son complément horizontal :
+
+| | Tutelle | Réseau |
+|---|---|---|
+| Relie quoi | Organisations d'une **même** instance | Organisations sur des instances **potentiellement distinctes** |
+| Nature du lien | Hiérarchique, verticale (autorité, subordination) | Horizontale, entre pairs souverains (fédération) |
+| Portée | Intra-instance uniquement | Inter-instance par construction |
+
+Donc si demain un vrai cas de CHU-sous-double-tutelle-inter-instances se présente, ce n'est plus la Tutelle qui le résout — c'est le Réseau, via une publication/consommation de ressources entre les deux Organisations, chacune restant pleinement souveraine sur son propre CHU sans jamais fusionner les deux bases.
+
+Une dernière précision pour ne pas confondre : ne mélange pas la Tutelle avec la **Succession Organisationnelle**, qui est un tout autre concept du Lexique — celui-là trace le lien entre une Cellule qui a disparu et celle(s) qui lui succède dans le temps (une réorganisation interne), alors que la Tutelle est une relation d'autorité entre entités qui existent simultanément.
+
+
