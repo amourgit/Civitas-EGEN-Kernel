@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-eventbus</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Kernel — Event Bus</name>
+  <description>
+    Le systeme nerveux du Kernel (anatomie, §4) : porte au reste de la plateforme
+    l'annonce qu'un fait s'est produit, sans jamais dicter ce qu'il faut en faire.
+
+    - eventbus-api (Niveau 0) : le contrat neutre (EventBus, EventHandler,
+      Abonnement) et son unique implementation Niveau 0, InMemoryEventBus — le repli
+      toujours disponible, sans dependance externe.
+    - eventbus-kafka-adapter (Niveau 2, "system") : l'implementation adossee a
+      Kafka. Physiquement rattachee ici, plutot que sous egen-modules/system/, par
+      decision explicite de la Charte v3 (§A.6) : le Bus est une infrastructure
+      coeur que le Kernel demarre lui-meme, pas un plugin metier optionnel.
+
+    Aucun code qui publie ou souscrit ne change selon l'implementation active —
+    c'est la garantie meme que cette separation existe pour offrir.
+  </description>
+
+  <modules>
+    <module>eventbus-api</module>
+    <module>eventbus-kafka-adapter</module>
+  </modules>
+
+</project>

@@ -57,7 +57,9 @@ egen-platform/                                     (racine du reacteur Maven)
 │   │   └── module-registry/                          Catalogue -> Souscription ->
 │   │                                                  Activation (B2, Niveau 0) —
 │   │                                                  cascade stricte, fail-closed
-│   ├── kernel-eventbus/                            ← a venir
+│   ├── kernel-eventbus/                            ← EventBus + InMemoryEventBus
+│   │                                                  (Niveau 0), KafkaEventBusAdapter
+│   │                                                  (Niveau 2, meme module)
 │   ├── kernel-plugin-engine/                       ← ManifestReader, ExtensionRegistry,
 │   │                                                  PluginLifecycleManager (orchestrateur),
 │   │                                                  PluginLoader + Pf4jPluginLoader
@@ -171,6 +173,52 @@ qui le sert. Seule `Pf4jPluginLoader`, qui touche reellement PF4J, n'est pas enc
 couverte par un test d'integration reel, faute d'un premier plugin JAR dans ce
 depot — voir son javadoc pour le detail de cette limite assumee.
 
+## kernel-eventbus — le systeme nerveux, livre le 26 juillet 2026
+
+Le Bus d'Evenements (anatomie du Kernel, §4) : porte l'annonce qu'un fait s'est
+produit, sans jamais dicter ce qu'il faut en faire, ni jamais porter la verite
+lui-meme (la verite est deja en base avant toute publication).
+
+- **`eventbus-api`** (Niveau 0) — le contrat neutre (`EventBus`, `EventHandler`,
+  `Abonnement`) et **`InMemoryEventBus`**, son unique implementation Niveau 0 :
+  thread-safe, zero dependance externe, isolation stricte des gestionnaires en echec
+  (jamais propage a l'emetteur ni aux autres souscripteurs). C'est le repli toujours
+  disponible, avant meme qu'un courtier externe ne soit joignable.
+- **`eventbus-kafka-adapter`** (Niveau 2, "system") — **`KafkaEventBusAdapter`**,
+  adossee a Kafka (le choix technologique acte pour EGEN). Rattachee physiquement a
+  `kernel-eventbus/` plutot qu'a `egen-modules/system/`, par decision explicite de
+  la Charte v3 (§A.6) : le Bus est une infrastructure coeur que le Kernel demarre
+  lui-meme, pas un plugin metier optionnel.
+
+**Convention retenue** : un topic Kafka par systeme d'origine (`egen.<systeme>`,
+ex. `egen.organisation` porte a la fois `organisation.affectation.terminee` et
+`organisation.tutelle.etablie`) plutot qu'un topic par type exact — evite une
+proliferation de topics et rend la souscription par prefixe directe. Cle de
+partition : `contexteId`, pour un ordre de livraison preserve par Contexte.
+
+**Decision de conception assumee** : la charge utile generique d'un evenement
+traverse Kafka comme une structure JSON (`EnvelopeJson`, un DTO non generique —
+un record generique introduirait une ambiguite de type a la deserialisation que
+Jackson ne resout qu'avec une information explicite). Un gestionnaire recevra
+typiquement une `java.util.Map` pour une charge utile structuree, pas l'instance
+Java d'origine — une limite reelle de cette premiere livraison, documentee dans le
+javadoc de `KafkaEventBusAdapter`, pas cachee.
+
+**Contrainte respectee** : `KafkaConsumer` n'est pas thread-safe — `subscribe` et
+`poll` doivent toujours provenir du meme thread. Les methodes de
+souscription/desabonnement, appelables depuis n'importe quel thread, ne font donc
+que mettre a jour un ensemble partage (`volatile`) ; le thread unique de
+consommation relit et applique cet ensemble lui-meme, a chaque iteration, avant de
+scruter.
+
+**Limite assumee** : comme `Pf4jPluginLoader`, `KafkaEventBusAdapter` n'est pas
+couverte par un test d'integration reel dans ce depot, faute d'un courtier Kafka
+disponible dans ce sandbox. Sa logique de correspondance et d'isolation des
+gestionnaires en echec est neanmoins identique, dans son intention, a celle
+d'`InMemoryEventBus` — entierement testee, elle, avec 20 tests couvrant chaque
+combinaison (type exact, prefixe, gestionnaires multiples, gestionnaire en echec,
+desabonnement cible et par module).
+
 ## Le DAG de dependances, desormais impose mecaniquement
 
 Le reacteur Maven calcule l'ordre de construction et refuse tout cycle — ca a
@@ -197,7 +245,8 @@ documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa crea
 | `kernel-domain/module-domain` | 0 | ✅ Livre — `ModuleId`, `CatalogueEntree`, `Souscription`, `Activation` : vocabulaire pur, zero framework |
 | `kernel-systems/module-registry` | 0 | ✅ Livre — cascade Catalogue → Souscription → Activation, `ModuleActivationResolver` fail-closed |
 | `kernel-plugin-engine` | 0 | ✅ Livre — `ManifestReader`, `ExtensionRegistry`, `PluginLifecycleManager` (orchestrateur), `PluginLoader` + `Pf4jPluginLoader` |
-| `kernel-eventbus`, `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
+| `kernel-eventbus` | 0 | ✅ Livre — `EventBus`/`InMemoryEventBus` (`eventbus-api`), `KafkaEventBusAdapter` (`eventbus-kafka-adapter`) |
+| `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
 | `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
 | `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
 | `egen-modules/business/reference-data` | 2, business | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |

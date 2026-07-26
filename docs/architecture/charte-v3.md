@@ -140,8 +140,8 @@ egen-modules/
 | `kernel-plugin-engine` (PF4J) | **0** | — | **Livre** le 25 juillet 2026 |
 | `module-registry` (B2) | **0** | — | **Livre** le 24 juillet 2026 |
 | `kernel-bootstrap` | **0** | — | Confirme |
-| `kernel-eventbus` (API) | **0** | — | Confirme |
-| `eventbus-kafka-adapter` | **2** | system | Propose |
+| `kernel-eventbus` (API) | **0** | — | **Livre** le 26 juillet 2026 |
+| `eventbus-kafka-adapter` | **2** | system | **Livre** le 26 juillet 2026 |
 | Identity — primitif | **1** | — | **Livre** le 23 juillet 2026 (`KernelSubject` + `KernelSubjectService`) |
 | Authorization — primitif | **1** | — | **Livre** le 23 juillet 2026 (`KernelCapability` + `KernelPermissionCheckImpl`) |
 | **Policy-noyau (B1)** | **1** | — | **Livre** le 23 juillet 2026 (`PolitiqueNoyauImpl`) |
@@ -282,7 +282,37 @@ constructeur, instanciable a la main avec un `PluginLoader` de test entierement 
 memoire — la preuve, par construction, que la logique de decision est independante
 du mecanisme physique concret qui la sert.
 
-## A.6 Arborescence noyau — mise a jour (etat reel au 25 juillet 2026)
+## A.6quater kernel-eventbus — livre le 26 juillet 2026
+
+Le systeme nerveux (anatomie du Kernel, §4) : `eventbus-api` (Niveau 0) porte le
+contrat neutre (`EventBus`, `EventHandler`, `Abonnement`) et `InMemoryEventBus`, son
+unique implementation Niveau 0 sans dependance externe. `eventbus-kafka-adapter`
+(Niveau 2, "system", mais physiquement rattache ici — voir §A.6) porte
+`KafkaEventBusAdapter`, adossee a Kafka.
+
+Convention retenue : un topic Kafka par systeme d'origine (`egen.<systeme>`) plutot
+qu'un topic par type exact d'evenement — evite une proliferation de topics et rend
+la souscription par prefixe directe. Cle de partition : `contexteId`, pour un ordre
+de livraison preserve par Contexte (jamais garanti globalement, ce que Kafka ne
+garantit d'ailleurs jamais au-dela d'une partition).
+
+**Decision de conception assumee** : la charge utile generique d'un evenement
+traverse Kafka comme une structure JSON (`EnvelopeJson`, DTO non generique — un
+record generique introduirait une ambiguite de type a la deserialisation que
+Jackson ne resout qu'avec une information explicite). Un gestionnaire recevra
+typiquement une `java.util.Map` pour une charge utile structuree, pas l'instance
+Java d'origine. Limite reelle de cette premiere livraison, qu'un mecanisme
+d'enregistrement avec classe cible explicite pourrait lever dans une iteration
+future, sans que le contrat `EventBus` lui-meme n'ait besoin de changer.
+
+**Limite assumee et documentee** : `KafkaEventBusAdapter`, comme `Pf4jPluginLoader`
+dans kernel-plugin-engine, n'est pas couverte par un test d'integration reel dans ce
+depot, faute d'un courtier Kafka disponible dans ce sandbox. Sa logique de dispatch
+est neanmoins identique, dans son intention, a celle d'`InMemoryEventBus` — qui,
+elle, est entierement testee (20 tests couvrant chaque combinaison de
+correspondance, d'isolation des gestionnaires en echec et de desabonnement).
+
+## A.6 Arborescence noyau — mise a jour (etat reel au 26 juillet 2026)
 
 ```
 egen-kernel/
@@ -299,7 +329,9 @@ egen-kernel/
 ├── kernel-plugin-engine/                (ManifestReader, ExtensionRegistry,
 │                                          PluginLifecycleManager, PluginLoader +
 │                                          Pf4jPluginLoader — LIVRE)
-├── kernel-eventbus/                     (a venir)
+├── kernel-eventbus/
+│   ├── eventbus-api/                    (EventBus, InMemoryEventBus — LIVRE, Niveau 0)
+│   └── eventbus-kafka-adapter/          (KafkaEventBusAdapter — LIVRE, Niveau 2)
 ├── kernel-bootstrap/                    (a venir)
 └── kernel-test-support/                 (a venir)
 
@@ -385,7 +417,7 @@ aucune de ces sections n'a ete remise en cause par le refactoring du 22 juillet.
 | Modeles Sectoriels | `egen-modules/business/reference-data` | 2 | — (seed data consommee par `organization` a la creation) |
 | Catalogue / mecanisme Souscription-Activation | `kernel-systems/module-registry` (B2) — **livre** | 0 | `kernel-domain/module-domain` |
 | Enregistrements Souscription/Activation d'une Organisation donnee | Base de module-registry, valides par B2 au chargement | 0 (mecanisme) + 2 (donnees) | — |
-| Synchronisation Affectation/Delegation/Tutelle -> SpiceDB | Evenements via `kernel-eventbus` (0), consommes par `authorization-provider-spicedb` (2, a venir) | 0 + 2 | — |
+| Synchronisation Affectation/Delegation/Tutelle -> SpiceDB | Evenements via `kernel-eventbus` (0) — **livre** — consommes par `authorization-provider-spicedb` (2, a venir) | 0 + 2 | — |
 
 **C.1 — Sur la fusion Organization (A2) + Affiliation (A3)**
 **Actee et realisee** le 22 juillet 2026 : un seul module `organization`
@@ -435,7 +467,7 @@ documentaire (voir la migration `V1__init_organization.sql`) etaient requis.
 
 ---
 
-# PARTIE E — Points ouverts restants (etat au 25 juillet 2026, apres refactoring, conception du primitif Niveau 1, livraison de module-registry et de kernel-plugin-engine)
+# PARTIE E — Points ouverts restants (etat au 26 juillet 2026, apres refactoring, conception du primitif Niveau 1, livraison de module-registry, de kernel-plugin-engine et de kernel-eventbus)
 
 1. ~~Contenu exact du primitif Niveau 1~~ (Identity + Authorization + Policy-noyau,
    § A.5) — **une premiere proposition concrete est implementee et poussee sur

@@ -37,6 +37,7 @@
     <module>kernel-domain</module>
     <module>kernel-systems</module>
     <module>kernel-plugin-engine</module>
+    <module>kernel-eventbus</module>
   </modules>
 
 </project>
