@@ -25,6 +25,11 @@ que le modele mono-tenant par instance rend non triviale. **Cette tension a ete
 tranchee le 22 juillet 2026, lors du refactoring** : la Tutelle reste strictement
 intra-instance (voir la note ajoutee a la fin de la Partie D).
 
+**Le 26 juillet 2026**, la Partie F ajoute le **Modele Reseau** : la federation
+inter-instances entre Organisations souveraines, via Passerelle et Reseau —
+strictement business (Niveau 2), sans detail d'implementation, close sans point
+ouvert restant.
+
 ---
 
 # PARTIE A — Le Noyau : philosophie et classification
@@ -515,6 +520,11 @@ Une Organisation reste donc, comme la Partie A.3 (Point 1) l'a acté, **un dépl
 et autonome**. Le Réseau n'y change rien : il ne fusionne jamais deux Organisations, il les
 met en relation depuis l'extérieur.
 
+*Ne pas confondre avec la Succession Organisationnelle (§B.2), un tout autre concept du
+Lexique : celle-ci trace le lien entre une Cellule disparue et celle(s) qui lui succède dans
+le temps (une réorganisation interne), alors que la Tutelle est une relation d'autorité entre
+entités qui existent simultanément.*
+
 ## F.1 — Le paradigme repris tel quel : l'Organisation est un réseau, le Réseau est le tissu qui les relie
 
 Le principe directeur de cette partie : **ne rien réinventer**. Le vocabulaire des réseaux
@@ -790,6 +800,10 @@ Deux natures d'objets, à ne pas mélanger :
   décrit en Partie D pour tout besoin réellement inter-instances : une intégration explicite,
   pas une extension du modèle interne d'une seule instance.
 
+*Voir aussi F.4.1 pour la distinction entre Administration (portée par l'Organisation
+Fédératrice, un rôle métier) et Opération (portée exclusivement par la plateforme EGEN,
+jamais par une Organisation, quel que soit son abonnement).*
+
 ## F.14 — Schéma de synthèse
 
 ```text
@@ -825,31 +839,9 @@ Organisation C (système autonome complet)
 | **Identifiant composé** | Adresse hiérarchique à trois niveaux (Réseau › Organisation source › Ressource) garantissant l'unicité et la provenance. |
 | **Droit de republication** | Licence explicite, accordée ressource par ressource par le propriétaire d'origine, autorisant une republication en aval. |
 | **Ressource héritée** | Une ressource consommée depuis un Réseau, unifiée dans le moteur d'autorisation local de l'Organisation réceptrice. |
-
-## F.16 — Points encore ouverts
-
-1. **Qui opère techniquement un Réseau ?** — L'Organisation Fédératrice l'héberge-t-elle
-   elle-même, ou s'agit-il d'un service neutre fourni par la plateforme EGEN/CIVITAS pour tous
-   les Réseaux ? C'est une question de gouvernance et de confiance, pas seulement
-   d'hébergement — à trancher avant la conception détaillée.
-2. **Survie d'un Réseau si l'Organisation Fédératrice disparaît ou se retire.** Faut-il prévoir
-   un mécanisme de transfert d'Administration vers une autre Organisation Membre, ou le Réseau
-   est-il dissous par défaut ?
-3. **Réversibilité d'un droit de republication déjà exercé.** Si une republication a déjà eu
-   lieu et que le droit est ensuite révoqué, la révocation en cascade (F.9) s'applique-t-elle
-   aussi au Réseau secondaire, ou seulement au premier saut ? La cohérence avec F.9 suggère que
-   oui, mais ça mérite d'être acté explicitement.
-4. **Litige de politique de publication.** Si le Réseau lui-même impose une règle (ex.
-   republication interdite par défaut) et qu'une Organisation Membre définit une politique
-   locale contradictoire, quelle règle l'emporte ? Probablement le Réseau, par analogie avec le
-   principe « le plus proche l'emporte » déjà retenu pour la Politique organisationnelle — mais
-   dans le sens inverse ici, puisque c'est une règle externe qui s'impose à l'interne.
-
-
-
-Voici les quatre décisions intégrées à la Partie F, sous forme d'amendements datés — même logique que la Charte v3 (« décision actée le... »). Les sections non citées ci-dessous (F.0 à F.3, F.5 à F.8, F.11, F.14) restent inchangées ; seules F.4, F.9, F.10, F.12, F.13, F.15 et F.16 sont complétées.
-
----
+| **Opérateur du Réseau** | La plateforme EGEN elle-même — héberge et exploite le Réseau. Jamais une Organisation, jamais une Capacité Réseau parmi celles de F.7. |
+| **Continuité d'Administration** | Le principe selon lequel un Réseau ne reste jamais sans Administration : transfert obligatoire vers une Organisation successrice déjà Fédératrice, ou dissolution explicite. |
+| **Priorité de Réseau** | Le principe selon lequel une règle imposée par le Réseau prévaut toujours sur une politique organisationnelle locale contradictoire. |
 
 ## F.4.1 — Qui opère le Réseau *(répond au point ouvert 1, tranché le 26 juillet 2026)*
 
@@ -900,38 +892,6 @@ Ce que ce principe exclut formellement, c'est une troisième voie : une Organisa
 
 ---
 
-## F.13 — complément
-
-Ajouter en fin de section : *voir aussi F.4.1 pour la distinction entre Administration (portée par l'Organisation Fédératrice, un rôle métier) et Opération (portée exclusivement par la plateforme EGEN, jamais par une Organisation, quel que soit son abonnement).*
-
----
-
-## F.15 — Lexique Réseau, compléments
-
-| Terme | Définition |
-|---|---|
-| **Opérateur du Réseau** | La plateforme EGEN elle-même — héberge et exploite le Réseau. Jamais une Organisation, jamais une Capacité Réseau parmi celles de F.7. |
-| **Continuité d'Administration** | Le principe selon lequel un Réseau ne reste jamais sans Administration : transfert obligatoire vers une Organisation successrice déjà Fédératrice, ou dissolution explicite. |
-| **Priorité de Réseau** | Le principe selon lequel une règle imposée par le Réseau prévaut toujours sur une politique organisationnelle locale contradictoire. |
-
----
-
-## F.16 — Points encore ouverts *(mis à jour le 26 juillet 2026)*
-
-1. ~~Qui opère techniquement un Réseau ?~~ — **tranché** : toujours la plateforme EGEN, en tant que tiers neutre ; jamais une Organisation Membre, pas même la Fédératrice (§F.4.1).
-2. ~~Survie d'un Réseau si l'Organisation Fédératrice disparaît ou se retire.~~ — **tranché** : transfert obligatoire de l'Administration vers une Organisation Membre déjà Fédératrice, ou dissolution explicite — jamais d'abandon (§F.12.1).
-3. ~~Réversibilité d'un droit de republication déjà exercé.~~ — **tranché** : la révocation en cascade s'applique intégralement, quel que soit le nombre de sauts ou de Réseaux traversés (§F.9.1).
-4. ~~Litige de politique de publication.~~ — **tranché** : la règle du Réseau l'emporte toujours sur une politique organisationnelle locale contradictoire (§F.10.1).
-5. **Nouveau, dérivé du point 2** : si, au moment où une Organisation Fédératrice souhaite transférer son Administration, aucune autre Organisation Membre ne détient encore la Capacité Fédératrice, seule la dissolution reste possible. Cohérent avec la décision actée, mais à trancher explicitement plutôt que laissé en déduction (§F.12.1).
-
-
-
-
-
-Dernier point clos. Voici l'amendement qui ferme F.16.5, dans la continuité directe de F.12.1.
-
----
-
 ## F.12.2 — Absence de successeur éligible : dissolution imminente, sans délai de grâce *(répond au point ouvert 5, tranché le 26 juillet 2026)*
 
 Décision actée : si, au moment où une Organisation Fédératrice souhaite se retirer, **aucune** autre Organisation Membre du Réseau ne détient déjà la Capacité Fédératrice, la voie du transfert (F.12.1, issue 1) est purement et simplement fermée — il ne reste que la dissolution explicite (F.12.1, issue 2), engagée **immédiatement**.
@@ -957,56 +917,3 @@ La dissolution ainsi engagée déclenche, sans aucune variante par rapport au ca
 5. ~~Absence de successeur éligible au moment du retrait.~~ — **tranché** : dissolution immédiate, sans délai de grâce ni état intermédiaire (§F.12.2).
 
 La Partie F est désormais entièrement actée, sans point ouvert restant — au même titre que la Partie D l'était déjà. Toute remise en cause future de l'un de ces points devra être traitée comme une décision d'architecture nouvelle, documentée et datée, jamais comme une modification silencieuse de ce qui précède — exactement la règle déjà posée en tête de la Charte v3.
-
-
-
-Bonne question — la Tutelle est un des concepts les plus faciles à mal lire dans la Charte, parce que son sens a changé en cours de route. Je reprends depuis le début.
-
-## Ce que la Tutelle modélise, concrètement
-
-Le Lexique la définit ainsi : **la relation de rattachement d'un Établissement à une ou plusieurs Organisations.**
-
-Et un Établissement, souviens-toi, n'est pas une table à part — c'est juste une convention de nommage pour désigner une Cellule de Palier 1, directement rattachée à l'Organisation (§B.2).
-
-Donc concrètement, la Tutelle sert à répondre à une question comme : *« cet Établissement-là, sous l'autorité hiérarchique de quelle(s) Organisation(s) est-il placé ? »*
-
-Les deux exemples canoniques donnés dans la Charte (Partie D) :
-
-- une **maison-mère et ses filiales** ;
-- un **ministère et les établissements sous sa tutelle**.
-
-Dans les deux cas, c'est une relation verticale, hiérarchique — pas un partenariat entre pairs. C'est la même logique qu'un ministère de l'Éducation qui a autorité sur des lycées, ou qu'un groupe qui a autorité sur ses filiales.
-
-## La tension d'origine — pourquoi ça a failli poser problème
-
-Le cas qui a mis le doigt sur la difficulté, c'est celui du **CHU rattaché à deux Organisations à la fois** (typiquement : un ministère de la Santé *et* une université, dans un système où un centre hospitalo-universitaire dépend administrativement des deux).
-
-Dans la conception initiale, on imaginait que SpiceDB arbitrerait les droits entre les deux Organisations tutélaires **« sans que les deux Organisations ne se voient mutuellement »**. Ce qui sous-entendait, implicitement, une base ou un SpiceDB *partagés* entre plusieurs Organisations — un espace commun où cette double tutelle pourrait être arbitrée en coulisses.
-
-Le problème, c'est que ça contredit frontalement le **Point 1** de la Charte v3 : le modèle mono-tenant strict par instance. Une Organisation, c'est un déploiement complet et séparé — pas de SpiceDB partagé, pas de base partagée entre deux Organisations distinctes. Si le CHU et l'Université sont deux Organisations sur deux instances EGEN différentes, il n'existe tout simplement pas d'endroit commun où cette Tutelle à deux têtes pourrait vivre.
-
-## La décision finale — Tutelle strictement intra-instance
-
-Pour trancher ça sans complexifier le modèle, la Partie D a posé une limite claire : **la Tutelle ne fonctionne qu'entre entités qui partagent le même déploiement.**
-
-Autrement dit : une instance EGEN représente toujours **une seule entreprise** au sens large. La Tutelle sert à hiérarchiser des Organisations **à l'intérieur de cette même instance** — le cas où le schéma générique permet à un déploiement d'héberger plusieurs Organisations (un groupe avec ses filiales, chacune modélisée comme une Organisation à part entière, mais toutes dans le même environnement technique).
-
-Le cas du CHU sous deux tutelles *réellement* hébergées sur deux instances distinctes ? Il **sort du modèle de données EGEN**. La Charte est explicite là-dessus : si ce besoin se présente un jour, ça se traiterait par une intégration API ponctuelle, en dehors de la plateforme — pas en tordant le modèle de Tutelle pour le faire rentrer dedans.
-
-## Le lien avec ce qu'on vient de faire (le Réseau)
-
-Et c'est là que ça devient intéressant par rapport à la conversation précédente : le **Réseau (Partie F)** qu'on vient de concevoir, c'est très exactement cette « intégration hors plateforme » que la Partie D avait anticipée sans la construire. On l'a formalisée et généralisée au lieu de la traiter au coup par coup.
-
-Le Réseau n'est donc pas une extension de la Tutelle — c'est son complément horizontal :
-
-| | Tutelle | Réseau |
-|---|---|---|
-| Relie quoi | Organisations d'une **même** instance | Organisations sur des instances **potentiellement distinctes** |
-| Nature du lien | Hiérarchique, verticale (autorité, subordination) | Horizontale, entre pairs souverains (fédération) |
-| Portée | Intra-instance uniquement | Inter-instance par construction |
-
-Donc si demain un vrai cas de CHU-sous-double-tutelle-inter-instances se présente, ce n'est plus la Tutelle qui le résout — c'est le Réseau, via une publication/consommation de ressources entre les deux Organisations, chacune restant pleinement souveraine sur son propre CHU sans jamais fusionner les deux bases.
-
-Une dernière précision pour ne pas confondre : ne mélange pas la Tutelle avec la **Succession Organisationnelle**, qui est un tout autre concept du Lexique — celui-là trace le lien entre une Cellule qui a disparu et celle(s) qui lui succède dans le temps (une réorganisation interne), alors que la Tutelle est une relation d'autorité entre entités qui existent simultanément.
-
-
