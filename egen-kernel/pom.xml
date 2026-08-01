@@ -38,6 +38,7 @@
     <module>kernel-systems</module>
     <module>kernel-plugin-engine</module>
     <module>kernel-eventbus</module>
+    <module>kernel-bootstrap</module>
   </modules>
 
 </project>

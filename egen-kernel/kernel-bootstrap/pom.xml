@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-bootstrap</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Bootstrap (composition finale)</name>
+  <description>
+    La racine de composition — l'app Quarkus reelle, le seul module de tout le
+    Kernel autorise a dependre a la fois de tous les systemes Niveau 0/1 et d'un
+    provider Niveau 2 "system" concret (identity-provider-keycloak). Aucune logique
+    metier ici : EgenKernelApplication ne fait que declencher KernelBootSequence et
+    journaliser son bilan — voir boot/ et config/.
+
+    Assemble : kernel-sdk, kernel-jpa-support, module-domain, les trois primitifs
+    Niveau 1 (identity, authorization, policy), module-registry (B2),
+    kernel-plugin-engine, kernel-eventbus (eventbus-api + eventbus-kafka-adapter), et
+    identity-provider-keycloak — le seul provider Niveau 2 disponible a ce jour,
+    traite comme une infrastructure coeur (au meme titre que eventbus-kafka-adapter)
+    plutot que comme un plugin metier charge dynamiquement, puisqu'un Kernel sans
+    aucun provider Identite fonctionnel n'a pas grand-chose a faire tourner.
+    N'assemble jamais de module business (organization, reference-data) : ceux-la
+    restent, par construction, des candidats au chargement dynamique via
+    kernel-plugin-engine, jamais des dependances Maven de ce module.
+
+    Consequence de ce large assemblage sur Flyway : identity (V1), authorization
+    (V2) et module-registry (V3) partagent desormais une seule execution Flyway de
+    production (une seule base partagee, un seul jeu de migrations resolu) — voir
+    application.properties. Chaque module garde neanmoins sa propre table
+    d'historique pour SES PROPRES tests autonomes, ou cette renumerotation n'a
+    aucune consequence.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-jpa-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>module-domain</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>identity</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>authorization</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>policy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>module-registry</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-plugin-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>eventbus-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>eventbus-kafka-adapter</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>identity-provider-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!--
+      Seule exception assumee a la regle d'isolation "*-impl"/providers concrets du
+      pom.xml racine (execution enforce-niveau2-impl-isolation) : ce module EST la
+      racine de composition, le seul endroit ou assembler un provider concret est
+      correct par construction (voir Charte v3 §5). L'override plus bas, dans
+      <build><plugins>, desactive cette regle specifiquement ici, avec la meme
+      justification que celle deja annoncee dans le pom.xml racine.
+    -->
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>identity-provider-keycloak</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm-panache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-flyway</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!--
+        Seul module du Kernel dont le but "build" est actif : c'est lui qui produit
+        l'artefact Quarkus reellement executable (java -jar ...-runner.jar). Partout
+        ailleurs dans le Kernel, seuls generate-code/generate-code-tests sont lies
+        (voir leurs pom.xml respectifs) — pas de binaire executable attendu d'un
+        systeme isole.
+      -->
+      <plugin>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-maven-plugin</artifactId>
+        <extensions>true</extensions>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build</goal>
+              <goal>generate-code</goal>
+              <goal>generate-code-tests</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <!--
+        Desactive, pour ce seul module, la regle d'isolation heritee du pom.xml
+        racine (execution enforce-niveau2-impl-isolation) — l'exception unique et
+        documentee deja annoncee la-bas : kernel-bootstrap EST la racine de
+        composition, le seul endroit ou dependre d'un provider concret
+        (identity-provider-keycloak) en scope compile est correct par construction,
+        jamais une violation du DAG.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-niveau2-impl-isolation</id>
+            <configuration>
+              <skip>true</skip>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

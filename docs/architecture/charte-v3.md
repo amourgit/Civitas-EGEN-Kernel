@@ -144,7 +144,7 @@ egen-modules/
 | `kernel-sdk` | **0** | — | Confirme |
 | `kernel-plugin-engine` (PF4J) | **0** | — | **Livre** le 25 juillet 2026 |
 | `module-registry` (B2) | **0** | — | **Livre** le 24 juillet 2026 |
-| `kernel-bootstrap` | **0** | — | Confirme |
+| `kernel-bootstrap` | **0** | — | **Livre** le 27 juillet 2026 |
 | `kernel-eventbus` (API) | **0** | — | **Livre** le 26 juillet 2026 |
 | `eventbus-kafka-adapter` | **2** | system | **Livre** le 26 juillet 2026 |
 | Identity — primitif | **1** | — | **Livre** le 23 juillet 2026 (`KernelSubject` + `KernelSubjectService`) |
@@ -317,7 +317,49 @@ est neanmoins identique, dans son intention, a celle d'`InMemoryEventBus` — qu
 elle, est entierement testee (20 tests couvrant chaque combinaison de
 correspondance, d'isolation des gestionnaires en echec et de desabonnement).
 
-## A.6 Arborescence noyau — mise a jour (etat reel au 26 juillet 2026)
+## A.6quinquies kernel-bootstrap — livre le 27 juillet 2026
+
+La composition finale (Charte v3, §5) : `EgenKernelApplication` (`@QuarkusMain`) ne
+declenche que `KernelBootSequence` et journalise son bilan, aucune logique metier —
+principe respecte a la lettre.
+
+Assemble en scope compile : tous les systemes Niveau 0/1, `kernel-plugin-engine`,
+`kernel-eventbus` (les deux modules), et **`identity-provider-keycloak`** — seule
+dependance compile-scope de tout le depot vers un provider Niveau 2 concret,
+exerçant reellement l'unique exception a la regle d'isolation `-impl`/providers deja
+annoncee au pom.xml racine (execution `enforce-niveau2-impl-isolation`, desactivee
+explicitement dans le pom.xml de ce module). N'assemble jamais de module business.
+
+**Decision de conception assumee** : `ModuleActivationResolver` verifie l'Activation
+d'un module pour une Cellule precise ; au tout premier demarrage, `KernelBootSequence`
+utilise donc une unique Cellule racine configuree (`egen.kernel.cellule-racine`,
+obligatoire, sans valeur par defaut). Le chargement pour d'autres Cellules, au fil
+de l'exploitation reelle, reste une operation administrative posterieure au
+demarrage — hors scope de cette premiere livraison, une simplification assumee et
+documentee plutot que silencieuse.
+
+**Consequence sur Flyway** : identity (V1), authorization (renumerotee V2) et
+module-registry (renumerotee V3) partagent desormais une seule execution de
+production (une seule base, un seul jeu de migrations resolu, table
+`flyway_schema_history_kernel`) — chaque module garde sa propre table pour ses
+propres tests autonomes, ou la renumerotation n'a aucune consequence. Meme
+discipline de coordination que celle deja etablie pour organization/identity.
+
+**Cablage CDI** : `ManifestReader`, `ExtensionRegistry` et `PluginLoader`
+(kernel-plugin-engine) sont des classes volontairement simples, sans annotation CDI
+propre, pour rester instanciables a la main dans leurs propres tests — trois
+producteurs `@Produces` dans `KernelBootConfig` leur donnent une portee CDI,
+jamais kernel-plugin-engine lui-meme.
+
+**Premiere verification de bout en bout** : `KernelBootSequenceTest` exerce la
+sequence complete contre de vraies implementations (`KernelPermissionCheckImpl`,
+`ModuleActivationResolverImpl` — Testcontainers — et `PolitiqueNoyauImpl`), avec un
+`FakePluginLoader` local pour le seul maillon qui necessiterait un plugin JAR
+physique. C'est la premiere fois que toute la chaine de gouvernance (capacite
+noyau, Activation, Politique-noyau) est verifiee ensemble, avec de vraies donnees
+en base plutot qu'avec des doublures de chaque cote.
+
+## A.6 Arborescence noyau — mise a jour (etat reel au 27 juillet 2026)
 
 ```
 egen-kernel/
@@ -337,7 +379,8 @@ egen-kernel/
 ├── kernel-eventbus/
 │   ├── eventbus-api/                    (EventBus, InMemoryEventBus — LIVRE, Niveau 0)
 │   └── eventbus-kafka-adapter/          (KafkaEventBusAdapter — LIVRE, Niveau 2)
-├── kernel-bootstrap/                    (a venir)
+├── kernel-bootstrap/                    (EgenKernelApplication, KernelBootSequence,
+│                                          PluginDirectoryScanner — LIVRE)
 └── kernel-test-support/                 (a venir)
 
 egen-modules/
@@ -472,17 +515,20 @@ documentaire (voir la migration `V1__init_organization.sql`) etaient requis.
 
 ---
 
-# PARTIE E — Points ouverts restants (etat au 26 juillet 2026, apres refactoring, conception du primitif Niveau 1, livraison de module-registry, de kernel-plugin-engine et de kernel-eventbus)
+# PARTIE E — Points ouverts restants (etat au 27 juillet 2026, apres refactoring, conception du primitif Niveau 1, livraison de module-registry, de kernel-plugin-engine, de kernel-eventbus et de kernel-bootstrap)
 
 1. ~~Contenu exact du primitif Niveau 1~~ (Identity + Authorization + Policy-noyau,
    § A.5) — **une premiere proposition concrete est implementee et poussee sur
    `main`** (KernelSubject, KernelCapability/KernelPermissionCheck,
-   PolitiqueNoyau). Deux confirmations obtenues : `module-registry` consomme
-   `PolitiqueNoyau` sans friction (§A.6bis), et `kernel-plugin-engine` consulte a la
-   fois `KernelPermissionCheck` et `ModuleActivationResolver` avant tout chargement
-   (§A.6ter) — le test le plus exigeant envisage pour cette conception, reussi.
-   Seul `kernel-bootstrap` (a venir), qui composera tout ce qui precede, reste a
-   eprouver la conception dans son ensemble.
+   PolitiqueNoyau), **et desormais eprouvee de bout en bout**. `module-registry`
+   consomme `PolitiqueNoyau` sans friction (§A.6bis) ; `kernel-plugin-engine`
+   consulte a la fois `KernelPermissionCheck` et `ModuleActivationResolver` avant
+   tout chargement (§A.6ter) ; `kernel-bootstrap` (§A.6quinquies) assemble tout ce
+   qui precede et le verifie ensemble, avec de vraies donnees en base
+   (Testcontainers), dans `KernelBootSequenceTest`. Ce point n'est plus ouvert au
+   sens ou aucun consommateur restant ne pourrait encore reveler un besoin non
+   anticipe — il reste neanmoins une proposition, pas un dogme : toute evolution
+   future restera documentee et datee, comme le reste de cette Charte.
 2. ~~Fusion ou separation Organization/Affiliation~~ — **tranche et realise** :
    fusion en un seul module.
 3. ~~Categorie `system` vs `business` pour Reference-data~~ — **tranche et

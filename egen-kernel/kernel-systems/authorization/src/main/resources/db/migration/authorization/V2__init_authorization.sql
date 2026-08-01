@@ -3,6 +3,19 @@
 -- gouverne les autorisations metier (Niveau 2). Voir KernelPermissionCheck
 -- (kernel-sdk) et KernelCapabiliteOctroiService pour la logique complete.
 --
+-- Convention de versionnement Flyway : renumerotee V2 (anciennement V1) parce que
+-- kernel-bootstrap, seul module a combiner les locations identity + authorization +
+-- module-registry dans une meme execution Flyway (une seule base de production,
+-- un seul jeu de migrations resolu), a besoin de numeros mutuellement uniques dans
+-- cet ensemble combine — V1 est deja reserve a identity (voir sa propre migration).
+-- Ce module garde neanmoins sa propre table d'historique
+-- (flyway_schema_history_authorization) et sa propre sequence pour ses tests
+-- autonomes, ou ce decalage n'a aucune consequence : Flyway valide l'unicite des
+-- versions par ensemble de migrations resolu, jamais par table d'historique — voir
+-- la note detaillee dans V1__init_identity.sql (identity-provider-keycloak) et
+-- V2__init_organization.sql (organization-impl) pour deux autres occurrences de la
+-- meme regle.
+--
 -- Le sujet bootstrap (KernelSubject.BOOTSTRAP_ID) n'apparait jamais dans cette table :
 -- il est autorise pour toute capacite noyau par construction, sans octroi (voir la
 -- validation du constructeur canonique de KernelCapabiliteOctroi).

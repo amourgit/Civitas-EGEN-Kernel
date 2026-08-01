@@ -63,7 +63,10 @@ egen-platform/                                     (racine du reacteur Maven)
 │   ├── kernel-plugin-engine/                       ← ManifestReader, ExtensionRegistry,
 │   │                                                  PluginLifecycleManager (orchestrateur),
 │   │                                                  PluginLoader + Pf4jPluginLoader
-│   ├── kernel-bootstrap/                           ← a venir
+│   ├── kernel-bootstrap/                           ← EgenKernelApplication,
+│   │                                                  KernelBootSequence,
+│   │                                                  PluginDirectoryScanner — l'app
+│   │                                                  Quarkus reelle
 │   └── kernel-test-support/                        ← a venir
 └── egen-modules/                                   ← Niveau 2 (pluggable)
     ├── system/                                      ← les providers (ponts vers
@@ -117,7 +120,7 @@ verite gravee. Deux consommateurs reels confirment desormais la conception :
 `module-registry` (B2, 24 juillet) consulte `PolitiqueNoyau`, et
 `kernel-plugin-engine` (25 juillet) consulte a la fois `KernelPermissionCheck` ET
 `ModuleActivationResolver` avant tout chargement — le test le plus exigeant, reussi.
-`kernel-bootstrap`, encore a venir, sera la composition finale de tout ce qui
+`kernel-bootstrap`, livre le 27 juillet 2026, est la composition finale de tout ce qui
 precede.
 
 `kernel-domain/module-domain` et `kernel-systems/module-registry` implementent la
@@ -230,8 +233,62 @@ module qui importerait directement le `-impl` d'un autre plutot que son `-api`).
 explicitement toute dependance de scope compile/runtime vers un artefact `-impl` ou
 un provider concret — seul un scope `test` reste tolere (integration reelle avec une
 vraie implementation CDI, ex. `organization-impl` -> `identity-provider-keycloak`).
-Voir les commentaires dans le `pom.xml` racine pour le detail, y compris l'exception
-documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa creation.
+Voir les commentaires dans le `pom.xml` racine pour le detail. `kernel-bootstrap`
+exerce desormais reellement l'unique exception assumee : son propre `pom.xml`
+desactive explicitement cette regle (execution `enforce-niveau2-impl-isolation`,
+`<skip>true</skip>`), avec le meme commentaire de justification que celui deja
+annonce dans le `pom.xml` racine — c'est la seule dependance compile-scope de tout
+le depot vers `identity-provider-keycloak`.
+
+## kernel-bootstrap — la composition finale, livree le 27 juillet 2026
+
+L'app Quarkus reelle. `EgenKernelApplication` (`@QuarkusMain`) ne fait que
+declencher `KernelBootSequence` et journaliser son bilan — aucune logique metier,
+conformement au principe pose des le premier jour pour ce module.
+
+Assemble, en scope compile : tous les systemes Niveau 0/1 (kernel-sdk,
+kernel-jpa-support, module-domain, identity, authorization, policy,
+module-registry), kernel-plugin-engine, kernel-eventbus (les deux modules), et
+**`identity-provider-keycloak`** — le seul provider Niveau 2 disponible a ce jour,
+traite comme une infrastructure coeur (au meme titre que
+`eventbus-kafka-adapter`) plutot que comme un plugin metier charge dynamiquement.
+N'assemble jamais de module business : ceux-la restent des candidats au
+chargement dynamique via `kernel-plugin-engine`, jamais des dependances Maven de ce
+module.
+
+**`PluginDirectoryScanner`** decouvre les candidats dans un repertoire de plugins
+(convention : `<moduleId>.jar` + `<moduleId>.properties`, en paire, directement dans
+le repertoire) — configurable (`egen.kernel.plugins-directory`, defaut `plugins`).
+**`KernelBootSequence`** scanne puis tente de charger chaque candidat trouve, pour
+le compte du sujet bootstrap.
+
+**Decision de conception assumee** : `ModuleActivationResolver` verifie l'Activation
+d'un module pour *une* Cellule precise. Au tout premier demarrage, avant qu'aucune
+hierarchie organisationnelle ne soit necessairement consultable, cette sequence
+utilise une unique Cellule racine, configuree (`egen.kernel.cellule-racine`,
+obligatoire, sans valeur par defaut — un echec de demarrage franc plutot qu'une
+valeur inventee silencieusement). Charger un module pour d'autres Cellules, au fil
+de l'exploitation reelle, reste une operation administrative posterieure au
+demarrage, hors scope de cette premiere livraison.
+
+**Consequence de ce large assemblage sur Flyway** : identity (V1), authorization
+(V2) et module-registry (V3) partagent desormais une seule execution Flyway de
+production (une seule base partagee, un seul jeu de migrations resolu, table
+`flyway_schema_history_kernel`) — chaque module garde neanmoins sa propre table pour
+SES PROPRES tests autonomes, ou cette renumerotation n'a aucune consequence.
+
+**Trois producteurs CDI necessaires** (`KernelBootConfig`) : `ManifestReader`,
+`ExtensionRegistry` et `PluginLoader` (kernel-plugin-engine) sont des classes
+volontairement simples, sans annotation CDI propre, pour rester instanciables a la
+main dans leurs propres tests — c'est kernel-bootstrap, la racine de composition,
+qui leur donne une portee CDI, jamais kernel-plugin-engine lui-meme.
+
+**Tests** : `KernelBootSequenceTest` verifie la sequence complete contre de
+**vraies** implementations (`KernelPermissionCheckImpl`, `ModuleActivationResolverImpl`
+— Testcontainers — et `PolitiqueNoyauImpl`), avec un `FakePluginLoader` local pour le
+seul maillon qui necessiterait un plugin JAR physique — la premiere verification de
+bout en bout de toute la chaine de gouvernance avec de vraies donnees en base.
+`PluginDirectoryScannerTest` couvre la decouverte de fichiers en isolation.
 
 ## Etat d'avancement
 
@@ -246,7 +303,8 @@ documentee que `kernel-bootstrap` devra assumer explicitement le jour de sa crea
 | `kernel-systems/module-registry` | 0 | ✅ Livre — cascade Catalogue → Souscription → Activation, `ModuleActivationResolver` fail-closed |
 | `kernel-plugin-engine` | 0 | ✅ Livre — `ManifestReader`, `ExtensionRegistry`, `PluginLifecycleManager` (orchestrateur), `PluginLoader` + `Pf4jPluginLoader` |
 | `kernel-eventbus` | 0 | ✅ Livre — `EventBus`/`InMemoryEventBus` (`eventbus-api`), `KafkaEventBusAdapter` (`eventbus-kafka-adapter`) |
-| `kernel-bootstrap`, `kernel-test-support` | 0 | À venir |
+| `kernel-bootstrap` | 0 | ✅ Livre — `EgenKernelApplication`, `KernelBootSequence`, `PluginDirectoryScanner` |
+| `kernel-test-support` | 0 | À venir |
 | `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
 | `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
 | `egen-modules/business/reference-data` | 2, business | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
@@ -300,3 +358,20 @@ La CI GitHub Actions (`.github/workflows/ci.yml`) reconstruit et teste l'integra
 du reacteur a chaque push sur `main` et sur chaque pull request — c'est la porte de
 validation faisant foi du projet, Docker etant disponible nativement sur les runners
 GitHub-hosted.
+
+### Lancer le Kernel localement
+
+`docker-compose.yml`, a la racine du depot, fournit Postgres, Kafka (mode KRaft),
+Keycloak et SpiceDB (ce dernier provisionne par avance ; aucun provider ne le
+consomme encore) :
+
+```bash
+docker compose up -d postgres kafka keycloak
+cp .env.example .env
+mvn -pl egen-kernel/kernel-bootstrap -am quarkus:dev
+```
+
+En mode dev, Quarkus Dev Services prend le relais pour Postgres si aucune URL n'est
+explicitement fournie — `docker-compose.yml` reste utile pour une base persistante
+entre deux redemarrages, ou pour Kafka/Keycloak/SpiceDB, qu'aucun Dev Service ne
+provisionne encore automatiquement dans ce depot.

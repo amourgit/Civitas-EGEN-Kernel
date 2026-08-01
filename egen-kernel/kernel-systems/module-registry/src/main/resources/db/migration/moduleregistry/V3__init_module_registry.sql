@@ -7,8 +7,14 @@
 -- cellule_id), jamais une reference vers les tables du module business Organization
 -- (Niveau 2) — le Niveau 0 ne depend jamais du Niveau 2, meme au niveau du schema.
 --
--- Sequence Flyway propre a ce module (V1, table flyway_schema_history_moduleregistry) —
--- aucune combinaison avec un autre module pour les tests.
+-- Sequence Flyway propre a ce module (table flyway_schema_history_moduleregistry) —
+-- aucune combinaison avec un autre module pour SES PROPRES tests. Renumerotee V3
+-- (anciennement V1) parce que kernel-bootstrap, seul module a combiner les
+-- locations identity + authorization + module-registry dans une meme execution
+-- Flyway de production, a besoin de numeros mutuellement uniques dans cet ensemble
+-- combine — V1 est reserve a identity, V2 a authorization (voir leurs migrations
+-- respectives pour le detail de cette regle, deja rencontree pour
+-- organization-impl).
 
 CREATE TABLE modreg_catalogue_entree (
     id                              UUID PRIMARY KEY,
