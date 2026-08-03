@@ -86,6 +86,19 @@
       <scope>test</scope>
     </dependency>
     <!--
+      Scope test uniquement : fournit FakeKernelPermissionCheck et
+      FakeModuleActivationResolver, canoniques. FakePluginLoader reste une copie
+      locale volontaire (voir le pom.xml de kernel-test-support pour la raison :
+      un cycle de reacteur Maven, puisque kernel-test-support depend deja de
+      module-registry, que ce module utilise aussi directement).
+    -->
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-test-support</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!--
       Scope test uniquement : PluginLifecycleManager ne depend, en compile, que du
       contrat PolitiqueNoyau (kernel-sdk). Ce module concret n'est tire qu'ici, pour
       tester la logique de decision contre la VRAIE implementation plutot que contre

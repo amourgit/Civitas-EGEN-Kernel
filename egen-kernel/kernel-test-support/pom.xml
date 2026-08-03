@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-test-support</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Test Support</name>
+  <description>
+    Fixtures et doublures de test communes — toujours en dependance de scope TEST
+    pour tout consommateur, jamais compile/runtime, meme si ce module lui-meme
+    declare certaines dependances (quarkus-test-common, testcontainers) en scope
+    compile : ses propres classes en ont besoin pour fonctionner, et Maven propage
+    correctement ce scope en TEST pour quiconque l'importe en TEST.
+
+    - fixture/TracabiliteFixtures : reduit le meme appel Tracabilite.initiale(
+      Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE) deja duplique dans des
+      dizaines de fichiers de test a travers le depot. Aucun test existant n'est
+      retouche pour l'utiliser — disponible pour tout code de test ecrit desormais.
+    - fake/FakeKernelPermissionCheck, fake/FakeModuleActivationResolver : versions
+      canoniques, partagees entre kernel-plugin-engine et kernel-bootstrap.
+      FakePluginLoader n'a volontairement PAS sa place ici : ce module devrait alors
+      dependre de kernel-plugin-engine, et les tests de kernel-plugin-engine
+      utilisant a leur tour ce module creeraient un cycle de reacteur Maven
+      (kernel-plugin-engine test -> kernel-test-support compile -> kernel-plugin-engine
+      compile). kernel-plugin-engine garde donc sa propre copie locale de
+      FakePluginLoader, et kernel-bootstrap la sienne — un petit cout de duplication
+      assume pour eviter un cycle, plutot qu'une "solution" qui casserait le build.
+    - postgres/PostgresTestResource : ressource Testcontainers explicite (postgres:16,
+      meme version que docker-compose.yml), pour les besoins qu'un Dev Services
+      automatique ne couvre pas encore. Aucun module -impl livre a ce jour ne
+      l'utilise — chacun s'appuie sur Dev Services, qui fonctionne tres bien —
+      disponible et testee, prete pour quand ce besoin different se presentera.
+
+    Deliberement absents de cette livraison, pour la meme raison que Pf4jPluginLoader
+    et KafkaEventBusAdapter n'ont pas de test d'integration reel : KeycloakTestResource
+    et SpiceDbTestResource. Aucun code de ce depot n'integre encore reellement OIDC
+    ou SpiceDB (identity-provider-keycloak ne porte a ce jour que le modele de
+    donnees ; authorization-provider-spicedb n'existe pas encore) — les construire
+    maintenant serait de la speculation non verifiable, pas de la rigueur. A ajouter
+    ici, avec le meme soin, au moment ou un premier consommateur reel existera.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>module-domain</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>module-registry</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-agroal</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

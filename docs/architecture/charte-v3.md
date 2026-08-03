@@ -359,7 +359,29 @@ physique. C'est la premiere fois que toute la chaine de gouvernance (capacite
 noyau, Activation, Politique-noyau) est verifiee ensemble, avec de vraies donnees
 en base plutot qu'avec des doublures de chaque cote.
 
-## A.6 Arborescence noyau — mise a jour (etat reel au 27 juillet 2026)
+## A.6sexies kernel-test-support — livre le 28 juillet 2026
+
+Fixtures et doublures communes, ajoutees sans jamais retoucher un test deja livre
+et vert : `TracabiliteFixtures` (reduit une construction dupliquee dans des
+dizaines de fichiers), `FakeKernelPermissionCheck` et `FakeModuleActivationResolver`
+(versions canoniques, partagees entre `kernel-plugin-engine` et `kernel-bootstrap`),
+`PostgresTestResource` (Testcontainers explicite, `postgres:16`).
+
+**Contrainte de conception respectee** : `FakePluginLoader` reste volontairement
+hors de ce module — le partager exigerait une dependance de
+`kernel-test-support` vers `kernel-plugin-engine`, et les tests de
+`kernel-plugin-engine` consommant a leur tour `kernel-test-support` fermeraient un
+cycle de reacteur Maven. `kernel-plugin-engine` et `kernel-bootstrap` gardent donc
+chacun leur propre copie locale — un cout de duplication mineur assume plutot
+qu'une solution qui casserait le build.
+
+**Deliberement differe, pour la meme raison que `Pf4jPluginLoader` et
+`KafkaEventBusAdapter` n'ont pas de test d'integration reel** : `KeycloakTestResource`
+et `SpiceDbTestResource`. Aucun code de ce depot n'integre encore reellement OIDC ou
+SpiceDB — les construire maintenant serait de la speculation non verifiable. A
+ajouter des qu'un premier consommateur reel existera.
+
+## A.6 Arborescence noyau — mise a jour (etat reel au 28 juillet 2026)
 
 ```
 egen-kernel/
@@ -381,7 +403,8 @@ egen-kernel/
 │   └── eventbus-kafka-adapter/          (KafkaEventBusAdapter — LIVRE, Niveau 2)
 ├── kernel-bootstrap/                    (EgenKernelApplication, KernelBootSequence,
 │                                          PluginDirectoryScanner — LIVRE)
-└── kernel-test-support/                 (a venir)
+└── kernel-test-support/                 (TracabiliteFixtures, fakes canoniques,
+                                           PostgresTestResource — LIVRE)
 
 egen-modules/
 ├── system/
@@ -515,7 +538,7 @@ documentaire (voir la migration `V1__init_organization.sql`) etaient requis.
 
 ---
 
-# PARTIE E — Points ouverts restants (etat au 27 juillet 2026, apres refactoring, conception du primitif Niveau 1, livraison de module-registry, de kernel-plugin-engine, de kernel-eventbus et de kernel-bootstrap)
+# PARTIE E — Points ouverts restants (etat au 28 juillet 2026, apres refactoring, conception du primitif Niveau 1, livraison de module-registry, de kernel-plugin-engine, de kernel-eventbus, de kernel-bootstrap et de kernel-test-support)
 
 1. ~~Contenu exact du primitif Niveau 1~~ (Identity + Authorization + Policy-noyau,
    § A.5) — **une premiere proposition concrete est implementee et poussee sur

@@ -67,7 +67,10 @@ egen-platform/                                     (racine du reacteur Maven)
 │   │                                                  KernelBootSequence,
 │   │                                                  PluginDirectoryScanner — l'app
 │   │                                                  Quarkus reelle
-│   └── kernel-test-support/                        ← a venir
+│   └── kernel-test-support/                        ← TracabiliteFixtures,
+│                                                       FakeKernelPermissionCheck,
+│                                                       FakeModuleActivationResolver,
+│                                                       PostgresTestResource
 └── egen-modules/                                   ← Niveau 2 (pluggable)
     ├── system/                                      ← les providers (ponts vers
     │   └── identity/                                  l'exterieur : Keycloak,
@@ -304,7 +307,7 @@ bout en bout de toute la chaine de gouvernance avec de vraies donnees en base.
 | `kernel-plugin-engine` | 0 | ✅ Livre — `ManifestReader`, `ExtensionRegistry`, `PluginLifecycleManager` (orchestrateur), `PluginLoader` + `Pf4jPluginLoader` |
 | `kernel-eventbus` | 0 | ✅ Livre — `EventBus`/`InMemoryEventBus` (`eventbus-api`), `KafkaEventBusAdapter` (`eventbus-kafka-adapter`) |
 | `kernel-bootstrap` | 0 | ✅ Livre — `EgenKernelApplication`, `KernelBootSequence`, `PluginDirectoryScanner` |
-| `kernel-test-support` | 0 | À venir |
+| `kernel-test-support` | 0 | ✅ Livre — `TracabiliteFixtures`, `FakeKernelPermissionCheck`, `FakeModuleActivationResolver`, `PostgresTestResource` |
 | `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
 | `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
 | `egen-modules/business/reference-data` | 2, business | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
@@ -343,6 +346,39 @@ reference Personne), il ajoute la location Flyway de l'autre module en plus de l
 sienne dans son `application.properties`, et declare l'artefact correspondant en
 dependance de scope **test** uniquement (jamais compile/runtime — voir la regle
 Enforcer ci-dessus).
+
+## kernel-test-support — fixtures et doublures communes, livre le 28 juillet 2026
+
+Reduit la duplication accumulee au fil des modules precedents, sans jamais toucher
+aux tests deja livres et verts :
+
+- **`TracabiliteFixtures`** — `Tracabilite.initiale(Acteur.systeme("test"),
+  OrigineDonnee.SAISIE_MANUELLE)` etait deja duplique, verbatim, dans des dizaines
+  de fichiers de test. Disponible pour tout code de test ecrit desormais.
+- **`FakeKernelPermissionCheck`**, **`FakeModuleActivationResolver`** — versions
+  canoniques, partagees entre `kernel-plugin-engine` et `kernel-bootstrap`.
+- **`PostgresTestResource`** — ressource Testcontainers explicite (`postgres:16`,
+  meme version que `docker-compose.yml`), pour les besoins qu'un Dev Services
+  automatique ne couvre pas encore. Testee (verifie une vraie connexion, pas
+  seulement que le conteneur demarre).
+
+**Contrainte de conception respectee** : `FakePluginLoader` n'a volontairement pas
+sa place ici. Le partager aurait exige que `kernel-test-support` depende de
+`kernel-plugin-engine` — et les tests de `kernel-plugin-engine` consommant a leur
+tour `kernel-test-support` auraient ferme un cycle de reacteur Maven
+(`kernel-plugin-engine` test → `kernel-test-support` compile → `kernel-plugin-engine`
+compile), que Maven refuse categoriquement. `kernel-plugin-engine` et
+`kernel-bootstrap` gardent donc chacun leur propre copie locale de
+`FakePluginLoader` — un petit cout de duplication assume plutot qu'une
+"solution" qui casserait le build.
+
+**Deliberement absents, pour la meme raison que `Pf4jPluginLoader` et
+`KafkaEventBusAdapter` n'ont pas de test d'integration reel** : `KeycloakTestResource`
+et `SpiceDbTestResource`. Aucun code de ce depot n'integre encore reellement OIDC ou
+SpiceDB — les construire maintenant serait de la speculation non verifiable, pas de
+la rigueur. A ajouter avec le meme soin des qu'un premier consommateur reel existera
+(veritable integration OIDC dans `identity-provider-keycloak`,
+`authorization-provider-spicedb`).
 
 ## Construire le projet
 

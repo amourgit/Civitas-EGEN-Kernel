@@ -1,4 +1,4 @@
-package africa.civitas.egen.kernel.pluginengine.testsupport;
+package africa.civitas.egen.kernel.testsupport.fake;
 
 import africa.civitas.egen.kernel.sdk.permission.authorization.DecisionNoyau;
 import africa.civitas.egen.kernel.sdk.permission.authorization.KernelCapability;
@@ -12,6 +12,11 @@ import java.util.Set;
  * Doublure de test de {@link KernelPermissionCheck}, fidele au contrat reel : le
  * sujet bootstrap est toujours autorise ; tout autre sujet doit avoir ete
  * explicitement autorise via {@link #autoriser} pour la capacite precise demandee.
+ *
+ * <p>Version canonique, partagee — voir le pom.xml de ce module pour la raison
+ * exacte pour laquelle elle ne peut pas, elle, etre consommee par les tests de
+ * kernel-plugin-engine (qui garde sa propre copie locale, pour eviter un cycle de
+ * reacteur Maven).
  */
 public final class FakeKernelPermissionCheck implements KernelPermissionCheck {
 

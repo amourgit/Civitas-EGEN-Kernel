@@ -1,4 +1,4 @@
-package africa.civitas.egen.kernel.pluginengine.testsupport;
+package africa.civitas.egen.kernel.testsupport.fake;
 
 import africa.civitas.egen.kernel.domain.module.ModuleId;
 import africa.civitas.egen.kernel.moduleregistry.service.ModuleActivationResolver;
@@ -8,7 +8,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-/** Doublure de test de {@link ModuleActivationResolver} — refuse par defaut, comme le veut le fail-closed reel. */
+/**
+ * Doublure de test de {@link ModuleActivationResolver} — refuse par defaut, comme le
+ * veut le fail-closed reel. Version canonique, partagee entre kernel-plugin-engine
+ * et kernel-bootstrap (aucun cycle de reacteur ici : ni l'un ni l'autre n'est
+ * consomme, en retour, par kernel-test-support).
+ */
 public final class FakeModuleActivationResolver implements ModuleActivationResolver {
 
     private final Set<String> actifs = new HashSet<>();
