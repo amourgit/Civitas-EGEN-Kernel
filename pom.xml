@@ -38,6 +38,16 @@
     <jandex-maven-plugin.version>3.6.0</jandex-maven-plugin.version>
 
     <!--
+      Testcontainers (MIT) — utilise directement par kernel-test-support
+      (PostgresTestResource). Non gere par le BOM Quarkus pour l'artefact
+      org.testcontainers:postgresql (contrairement a la plupart des dependances de
+      ce depot) ; import du BOM Testcontainers lui-meme ci-dessous plutot que de
+      fixer une version par artefact individuel. Version non verifiable depuis ce
+      sandbox (Maven Central injoignable) — a confirmer par la CI.
+    -->
+    <testcontainers.version>1.20.4</testcontainers.version>
+
+    <!--
       Quarkus — runtime du Kernel (voir la decision d'architecture posee dans nos
       echanges : Quarkus heberge le Kernel, jamais l'inverse ; les contrats restent en
       Jakarta EE). Version epinglee sur la ligne LTS 3.33 (supportee jusqu'en mars
@@ -87,6 +97,13 @@
         <groupId>org.pf4j</groupId>
         <artifactId>pf4j</artifactId>
         <version>${pf4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>${testcontainers.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
