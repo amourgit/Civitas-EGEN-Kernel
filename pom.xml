@@ -198,11 +198,11 @@
               <rules>
                 <bannedDependencies>
                   <excludes>
-                    <exclude>*:*-impl</exclude>
+                    <exclude>africa.civitas.egen:*-impl</exclude>
                     <exclude>africa.civitas.egen:identity-provider-keycloak</exclude>
                   </excludes>
                   <includes>
-                    <include>*:*-impl:*:*:test</include>
+                    <include>africa.civitas.egen:*-impl:*:*:test</include>
                     <include>africa.civitas.egen:identity-provider-keycloak:*:*:test</include>
                   </includes>
                   <message>
