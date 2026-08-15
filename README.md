@@ -1,10 +1,21 @@
 # EGEN Kernel
 
-EGEN est une plateforme de gouvernance d'organisations souveraines et de services
-modulaires, developpee par **CIVITAS Africa**. Ce depot contient le **Kernel** et
-les **modules Niveau 2** (providers systeme + modules business) qui gravitent autour
-de lui — voir la Charte d'Architecture ci-dessous pour la distinction exacte entre
-ces trois notions.
+EGEN est un **Kernel backend neutre et generique**, developpe par **CIVITAS
+Africa** — pas un framework de gouvernance d'organisations. Le Kernel (Niveau 0 +
+Niveau 1) ne connait aucun domaine metier ; voir
+[« Neutralite complete du Kernel »](#neutralite-complete-du-kernel-effective-depuis-le-15-aout-2026)
+plus bas pour le detail de ce que ça signifie concretement dans le code, pas
+seulement dans l'intention.
+
+Ce depot heberge aujourd'hui, en plus du Kernel, les **modules Niveau 2** (providers
+systeme + modules business) de la premiere plateforme construite dessus — une
+plateforme de gouvernance d'organisations souveraines et de services modulaires. Ces
+modules business (`egen-modules/business/`) seront extraits vers un projet dedie une
+fois cette premiere livraison stabilisee, pour que ce depot devienne exactement ce
+que son nom dit : un Kernel, reutilisable tel quel comme socle de n'importe quel
+futur backend modulaire (SaaS, Intranet...), sans aucun lien avec ce premier cas
+d'usage. Voir la Charte d'Architecture ci-dessous pour la distinction exacte entre
+Kernel, primitif Niveau 1 et module Niveau 2.
 
 **Logiciel proprietaire — tous droits reserves.** Ce depot est prive et son contenu
 n'est distribue sous aucune licence open source. Toute reproduction, modification ou
@@ -29,6 +40,61 @@ politique, ressources, audit) et delegue toujours la logique d'execution
 externes qu'il invoque et journalise, sans jamais la reimplementer. Le Kernel
 lui-meme (Niveau 0 + Niveau 1) ignore tout de ce qui est charge par-dessus lui — voir
 la Charte v3, Partie A.
+
+## Neutralite complete du Kernel, effective depuis le 15 aout 2026
+
+La Charte v3 promettait ceci des sa toute premiere phrase (§A.1) : *« Le Kernel EGEN
+est un noyau strictement neutre, facon noyau Linux : il ne connait ni l'identite, ni
+l'organisation, ni l'autorisation metier, ni aucun domaine. »* Jusqu'au 15 aout 2026,
+le code n'a jamais totalement tenu cette promesse : plusieurs contrats du Kernel
+(`egen-kernel/`) portaient encore, en dur, du vocabulaire propre a un seul domaine
+metier — celui d'Organisation/Cellule. Une passe de neutralisation complete a retire
+tout ce qui restait, sans exception, en dehors de `egen-modules/` :
+
+- **`Contexte` (kernel-sdk) reduit a son strict minimum.** `ContexteNature` — une
+  enumeration fermee `{ORGANISATION, CELLULE}` directement dans le SDK
+  zero-dependance — a ete supprimee. `Contexte` n'expose plus que `UUID id()` : un
+  identifiant opaque, sans aucune hypothese sur ce qu'il represente concretement.
+  Ce que "un Contexte" signifie dans un deploiement donne (une Organisation, un
+  tenant SaaS, un workspace, n'importe quelle autre notion de perimetre) est
+  entierement decide par le module Niveau 2 qui la definit — jamais par le Kernel.
+- **`ManifesteExtension` (kernel-sdk) prive de ses deux champs les plus
+  metier-specifiques.** `cellTypesProvided` et `mandatesProvided` calquaient
+  directement le Lexique du module business Organization dans le contrat neutre du
+  SDK — n'importe quel futur module, dans n'importe quel domaine, aurait ete force
+  de se decrire avec ce vocabulaire precis. Retires, sans equivalent generique
+  invente a la place : un module qui a besoin d'etendre son propre vocabulaire le
+  fait entierement dans son propre module.
+- **`module-registry` (Catalogue/Souscription/Activation, B2, Niveau 0)
+  entierement renomme.** `Souscription.organisationId` et `Activation.celluleId`
+  sont devenus `contexteId` ; `ActiverModuleCommand` distingue desormais
+  `contexteSouscripteurId` (la portee censee detenir la Souscription) de
+  `contexteCibleId` (la portee qui active reellement) — jamais une hierarchie
+  Organisation/Cellule nommee comme telle. Migration SQL (`V3`), entites JPA,
+  repositories, exceptions et tests suivent.
+- **`kernel-bootstrap`** : `egen.kernel.cellule-racine` devient
+  `egen.kernel.contexte-racine` (variable d'environnement
+  `EGEN_KERNEL_CONTEXTE_RACINE`).
+
+**Ce que ça change concretement pour tout futur module Niveau 2** : plus aucun
+contrat du Kernel ne suggere, meme indirectement, qu'un Contexte ne peut etre
+qu'une Organisation ou une Cellule, ni qu'un module doit se decrire avec un
+vocabulaire de "types de cellule" ou de "mandats". `egen-modules/business/*`, dans
+ce depot, reste le premier consommateur reel de ces contrats et continue, lui, a
+utiliser Organisation/Cellule/Lexique/Mandat comme vocabulaire — legitimement,
+puisque c'est son domaine — mais entierement de son cote de la frontiere Niveau
+1/Niveau 2, jamais celui du Kernel. C'est exactement ce qui rend credible l'objectif
+enonce plus haut : que ce Kernel serve un jour de socle a un tout autre domaine
+metier sans qu'une seule ligne de `egen-kernel/` n'ait a changer.
+
+**Limite assumee, documentee plutot que silencieuse** : quelques notes contrastives
+(Javadoc, `pom.xml`) continuent de nommer explicitement "Politique organisationnelle"
+et le module business Organization, uniquement pour expliquer pourquoi
+Politique-**noyau** (Niveau 1) et Politique **organisationnelle** (Niveau 2) portent
+des noms volontairement distincts malgre le mot commun dans le langage courant.
+Elles marquent explicitement le concept nomme comme exterieur au Kernel ("vit
+entierement dans...") — de la documentation de frontiere, pas une fuite
+structurelle. A reevaluer une fois `egen-modules/business/` extrait.
 
 ## Arborescence (etat reel au 23 juillet 2026, apres refactoring vers la Charte v3 et livraison du primitif Niveau 1)
 
@@ -112,6 +178,15 @@ devenu un provider (`egen-modules/system/identity/`), avec un contrat generique
 (`identity-provider-keycloak`) — pour que d'autres providers de la meme capacite
 puissent le rejoindre au fil du temps sans jamais casser ce qui en depend, exactement
 le modele de connecteurs pluggables d'ActivePieces ou n8n.
+
+**Ce refactoring du 22 juillet a deplace le contenu manifestement Niveau 2 hors du
+Kernel, mais n'a pas encore purge le vocabulaire Organisation/Cellule qui restait,
+plus discretement, dans les contrats du Kernel lui-meme** (`ContexteNature`,
+`ManifesteExtension.cellTypesProvided`/`mandatesProvided`, `celluleId`/
+`organisationId` dans module-registry...). C'est l'objet de la passe de
+neutralisation du 15 aout 2026, voir la section
+[« Neutralite complete du Kernel »](#neutralite-complete-du-kernel-effective-depuis-le-15-aout-2026)
+plus haut.
 
 `kernel-systems/` porte desormais les trois primitifs Niveau 1 sous leur forme
 correcte : `identity` (`KernelSubjectService`, sujet minimal), `authorization`

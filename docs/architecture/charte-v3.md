@@ -30,6 +30,21 @@ inter-instances entre Organisations souveraines, via Passerelle et Reseau —
 strictement business (Niveau 2), sans detail d'implementation, close sans point
 ouvert restant.
 
+**Le 15 aout 2026**, une passe de neutralisation complete a retire tout vocabulaire
+Organisation/Cellule qui subsistait dans les contrats du Kernel lui-meme
+(`egen-kernel/`), en dehors de `egen-modules/business/` — closant l'ecart entre ce
+que §A.1 promettait depuis le debut (« il ne connait ni l'identite, ni
+l'organisation, ni l'autorisation metier, ni aucun domaine ») et ce que le code
+imposait reellement jusque-la. En particulier : `ContexteNature` (l'enumeration
+fermee `{ORGANISATION, CELLULE}` dans kernel-sdk) supprimee, `Contexte` reduit a
+`UUID id()` ; `ManifesteExtension.cellTypesProvided`/`mandatesProvided` retires sans
+equivalent generique invente a la place ; `module-registry` (Souscription,
+Activation, `ActiverModuleCommand`) et `kernel-bootstrap`
+(`egen.kernel.contexte-racine`) renommes en vocabulaire neutre — detail complet en
+§A.6bis, §A.6ter et §A.6quinquies. `egen-modules/business/organization` continue,
+legitimement, a utiliser ce vocabulaire — entierement de son cote de la frontiere
+Niveau 1/Niveau 2, jamais celui du Kernel.
+
 ---
 
 # PARTIE A — Le Noyau : philosophie et classification
