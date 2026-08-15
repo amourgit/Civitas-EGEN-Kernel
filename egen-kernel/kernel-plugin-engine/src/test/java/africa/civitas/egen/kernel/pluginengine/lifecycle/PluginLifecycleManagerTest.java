@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PluginLifecycleManagerTest {
 
-    private static final UUID CELLULE = UUID.randomUUID();
+    private static final UUID CONTEXTE = UUID.randomUUID();
     private static final KernelSubject ADMIN = KernelSubject.nouveau();
     private static final KernelSubject SANS_DROITS = KernelSubject.nouveau();
 
@@ -80,9 +80,9 @@ class PluginLifecycleManagerTest {
 
     @Test
     void refusesToLoadWhenTheRequestingSubjectLacksTheChargerModuleCapacity() {
-        activationResolver.activerPour(CELLULE, new ModuleId("academie"));
+        activationResolver.activerPour(CONTEXTE, new ModuleId("academie"));
 
-        ResultatChargement resultat = manager.charger(candidat("academie"), SANS_DROITS, CELLULE);
+        ResultatChargement resultat = manager.charger(candidat("academie"), SANS_DROITS, CONTEXTE);
 
         assertFalse(resultat.reussi());
         assertTrue(pluginLoader.modulesCharges().isEmpty());
@@ -90,9 +90,9 @@ class PluginLifecycleManagerTest {
 
     @Test
     void theBootstrapSubjectCanAlwaysLoadEvenWithoutAnyExplicitGrant() {
-        activationResolver.activerPour(CELLULE, new ModuleId("academie"));
+        activationResolver.activerPour(CONTEXTE, new ModuleId("academie"));
 
-        ResultatChargement resultat = manager.charger(candidat("academie"), KernelSubject.sujetBootstrap(), CELLULE);
+        ResultatChargement resultat = manager.charger(candidat("academie"), KernelSubject.sujetBootstrap(), CONTEXTE);
 
         assertTrue(resultat.reussi());
     }
@@ -106,7 +106,7 @@ class PluginLifecycleManagerTest {
         };
         CandidatModule candidatCasse = new CandidatModule(Path.of("casse.jar"), sourceEnEchec);
 
-        ResultatChargement resultat = manager.charger(candidatCasse, ADMIN, CELLULE);
+        ResultatChargement resultat = manager.charger(candidatCasse, ADMIN, CONTEXTE);
 
         assertFalse(resultat.reussi());
         assertTrue(((ResultatChargement.Echec) resultat).motif().contains("Manifeste"));
@@ -118,7 +118,7 @@ class PluginLifecycleManagerTest {
         CandidatModule candidatInvalide = new CandidatModule(
                 Path.of("invalide.jar"), () -> donneesInvalides);
 
-        ResultatChargement resultat = manager.charger(candidatInvalide, ADMIN, CELLULE);
+        ResultatChargement resultat = manager.charger(candidatInvalide, ADMIN, CONTEXTE);
 
         assertFalse(resultat.reussi());
     }
@@ -127,10 +127,10 @@ class PluginLifecycleManagerTest {
 
     @Test
     void refusesToLoadAModuleThatIsAlreadyLoaded() {
-        activationResolver.activerPour(CELLULE, new ModuleId("academie"));
-        manager.charger(candidat("academie"), ADMIN, CELLULE);
+        activationResolver.activerPour(CONTEXTE, new ModuleId("academie"));
+        manager.charger(candidat("academie"), ADMIN, CONTEXTE);
 
-        ResultatChargement second = manager.charger(candidat("academie"), ADMIN, CELLULE);
+        ResultatChargement second = manager.charger(candidat("academie"), ADMIN, CONTEXTE);
 
         assertFalse(second.reussi());
     }
@@ -138,8 +138,8 @@ class PluginLifecycleManagerTest {
     // --- charger() : ordre 3 — Activation ---
 
     @Test
-    void refusesToLoadAModuleThatHasNoActiveActivationForTheTargetCellule() {
-        ResultatChargement resultat = manager.charger(candidat("academie"), ADMIN, CELLULE);
+    void refusesToLoadAModuleThatHasNoActiveActivationForTheTargetContexte() {
+        ResultatChargement resultat = manager.charger(candidat("academie"), ADMIN, CONTEXTE);
 
         assertFalse(resultat.reussi());
         assertTrue(pluginLoader.modulesCharges().isEmpty());
@@ -149,9 +149,9 @@ class PluginLifecycleManagerTest {
 
     @Test
     void refusesToLoadAModuleWhoseDependenciesAreNotYetLoaded() {
-        activationResolver.activerPour(CELLULE, new ModuleId("affiliation"));
+        activationResolver.activerPour(CONTEXTE, new ModuleId("reporting"));
 
-        ResultatChargement resultat = manager.charger(candidat("affiliation", "identite"), ADMIN, CELLULE);
+        ResultatChargement resultat = manager.charger(candidat("reporting", "identite"), ADMIN, CONTEXTE);
 
         assertFalse(resultat.reussi());
         assertTrue(((ResultatChargement.Echec) resultat).motif().contains("identite"));
@@ -160,9 +160,9 @@ class PluginLifecycleManagerTest {
     @Test
     void loadsSuccessfullyOnceEveryDependencyIsAlreadyLoaded() {
         pluginLoader.marquerCharge("identite");
-        activationResolver.activerPour(CELLULE, new ModuleId("affiliation"));
+        activationResolver.activerPour(CONTEXTE, new ModuleId("reporting"));
 
-        ResultatChargement resultat = manager.charger(candidat("affiliation", "identite"), ADMIN, CELLULE);
+        ResultatChargement resultat = manager.charger(candidat("reporting", "identite"), ADMIN, CONTEXTE);
 
         assertTrue(resultat.reussi());
     }
@@ -171,11 +171,11 @@ class PluginLifecycleManagerTest {
 
     @Test
     void loadingSuccessfullyRegistersTheDiscoveredExtensionsAndTracksTheManifest() {
-        activationResolver.activerPour(CELLULE, new ModuleId("academie"));
+        activationResolver.activerPour(CONTEXTE, new ModuleId("academie"));
         pluginLoader.avecExtensionsPour("academie", List.of(
                 new ExtensionDecouverte(PointExtensionDeTest.class, new ImplementationDeTest("A"), 100, "academie")));
 
-        ResultatChargement resultat = manager.charger(candidat("academie"), ADMIN, CELLULE);
+        ResultatChargement resultat = manager.charger(candidat("academie"), ADMIN, CONTEXTE);
 
         assertTrue(resultat instanceof ResultatChargement.Succes);
         ResultatChargement.Succes succes = (ResultatChargement.Succes) resultat;
@@ -190,8 +190,8 @@ class PluginLifecycleManagerTest {
 
     @Test
     void refusesToUnloadWhenTheRequestingSubjectLacksTheDechargerModuleCapacity() {
-        activationResolver.activerPour(CELLULE, new ModuleId("academie"));
-        manager.charger(candidat("academie"), ADMIN, CELLULE);
+        activationResolver.activerPour(CONTEXTE, new ModuleId("academie"));
+        manager.charger(candidat("academie"), ADMIN, CONTEXTE);
 
         ResultatDechargement resultat = manager.decharger("academie", SANS_DROITS);
 
@@ -210,23 +210,23 @@ class PluginLifecycleManagerTest {
     void refusesToUnloadAModuleThatAnotherLoadedModuleStillDependsOn() {
         pluginLoader.marquerCharge("identite");
         activationResolver
-                .activerPour(CELLULE, new ModuleId("identite"))
-                .activerPour(CELLULE, new ModuleId("affiliation"));
-        manager.charger(candidat("identite"), ADMIN, CELLULE);
-        manager.charger(candidat("affiliation", "identite"), ADMIN, CELLULE);
+                .activerPour(CONTEXTE, new ModuleId("identite"))
+                .activerPour(CONTEXTE, new ModuleId("reporting"));
+        manager.charger(candidat("identite"), ADMIN, CONTEXTE);
+        manager.charger(candidat("reporting", "identite"), ADMIN, CONTEXTE);
 
         ResultatDechargement resultat = manager.decharger("identite", ADMIN);
 
         assertFalse(resultat.reussi());
-        assertTrue(((ResultatDechargement.Echec) resultat).motif().contains("affiliation"));
+        assertTrue(((ResultatDechargement.Echec) resultat).motif().contains("reporting"));
     }
 
     @Test
     void unloadingSuccessfullyRemovesTrackedExtensionsAndForgetsTheManifest() {
-        activationResolver.activerPour(CELLULE, new ModuleId("academie"));
+        activationResolver.activerPour(CONTEXTE, new ModuleId("academie"));
         pluginLoader.avecExtensionsPour("academie", List.of(
                 new ExtensionDecouverte(PointExtensionDeTest.class, new ImplementationDeTest("A"), 100, "academie")));
-        manager.charger(candidat("academie"), ADMIN, CELLULE);
+        manager.charger(candidat("academie"), ADMIN, CONTEXTE);
 
         ResultatDechargement resultat = manager.decharger("academie", ADMIN);
 
@@ -263,11 +263,11 @@ class PluginLifecycleManagerTest {
 
     @Test
     void rejectsANullCandidateOnLoad() {
-        assertThrows(IllegalArgumentException.class, () -> manager.charger(null, ADMIN, CELLULE));
+        assertThrows(IllegalArgumentException.class, () -> manager.charger(null, ADMIN, CONTEXTE));
     }
 
     @Test
-    void rejectsANullTargetCelluleOnLoad() {
+    void rejectsANullTargetContexteOnLoad() {
         assertThrows(IllegalArgumentException.class, () -> manager.charger(candidat("academie"), ADMIN, null));
     }
 

@@ -34,7 +34,7 @@ class SouscriptionTest {
     }
 
     @Test
-    void rejectsANullOrganisationId() {
+    void rejectsANullContexteId() {
         assertThrows(NullPointerException.class, () -> new Souscription(
                 UUID.randomUUID(), null, new ModuleId("academie"), UNE_TRACABILITE));
     }

@@ -9,8 +9,8 @@ package africa.civitas.egen.kernel.sdk.permission.policy;
  * <p>Chacune de ces questions correspond a un moment reel et concret du cycle de vie
  * du Kernel ou une decision doit etre prise alors qu'aucune autorite Niveau 2
  * competente n'a encore statue. Ce n'est jamais une question de politique
- * organisationnelle (§B.12 — une Organisation ou une Cellule qui configure ses
- * propres regles) : il s'agit exclusivement du comportement de secours du Kernel
+ * organisationnelle (§B.12 — un Contexte metier qui configure ses propres regles) :
+ * il s'agit exclusivement du comportement de secours du Kernel
  * lui-meme.
  *
  * <p>Cet ensemble est ferme, au meme titre que {@link
@@ -31,8 +31,8 @@ public enum PolitiqueNoyauQuestion {
 
     /**
      * Aucune Activation (Systeme B2, Catalogue/Souscription/Activation) n'a pu etre
-     * tranchee pour un module Souscrit, dans un Contexte (Organisation ou Cellule)
-     * donne — le module doit-il tourner malgre cette absence de decision explicite ?
+     * tranchee pour un module Souscrit, dans un Contexte donne — le module doit-il
+     * tourner malgre cette absence de decision explicite ?
      */
     ACTIVATION_NON_RESOLUE,
 

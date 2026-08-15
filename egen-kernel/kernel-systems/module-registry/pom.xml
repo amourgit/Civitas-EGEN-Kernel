@@ -24,9 +24,9 @@
 
     Depend de module-domain (le vocabulaire pur : ModuleId, CatalogueEntree,
     Souscription, Activation) et de policy (pour le refus par defaut de
-    ModuleActivationResolver). Ne depend jamais d'un module Niveau 2 : Organisation et
-    Cellule sont referencees par UUID nu dans les commandes et les tables, jamais par
-    un import du module business Organization.
+    ModuleActivationResolver). Ne depend jamais d'un module Niveau 2 : un Contexte est
+    toujours reference par UUID nu dans les commandes et les tables, jamais par un
+    import d'un module metier concret.
 
     Decision assumee, a expliciter si elle change : ce module ne verifie pas
     lui-meme, via KernelPermissionCheck, que l'Acteur demandeur a le droit

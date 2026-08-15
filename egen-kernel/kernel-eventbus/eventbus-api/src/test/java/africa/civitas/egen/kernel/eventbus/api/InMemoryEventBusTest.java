@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryEventBusTest {
 
-    private static final EventType AFFECTATION_TERMINEE = new EventType("organisation.affectation.terminee");
+    private static final EventType ACTIVATION_CREEE = new EventType("module-registry.activation.creee");
     private static final EventType PERSONNE_CREEE = new EventType("identite.personne.creee");
 
     private final InMemoryEventBus bus = new InMemoryEventBus();
@@ -26,15 +26,15 @@ class InMemoryEventBusTest {
 
     @Test
     void publishingWithNoSubscribersDoesNothing() {
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
     }
 
     @Test
     void aHandlerSubscribedToTheExactTypeReceivesAMatchingEvent() {
         List<EventEnvelope<String>> recus = new ArrayList<>();
-        bus.souscrire("organisation", AFFECTATION_TERMINEE, (EventHandler<String>) recus::add);
+        bus.souscrire("module-x", ACTIVATION_CREEE, (EventHandler<String>) recus::add);
 
-        EventEnvelope<String> evenement = unEvenement(AFFECTATION_TERMINEE);
+        EventEnvelope<String> evenement = unEvenement(ACTIVATION_CREEE);
         bus.publier(evenement);
 
         assertEquals(1, recus.size());
@@ -46,7 +46,7 @@ class InMemoryEventBusTest {
         AtomicInteger appels = new AtomicInteger();
         bus.souscrire("identite", PERSONNE_CREEE, (EventHandler<String>) e -> appels.incrementAndGet());
 
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
 
         assertEquals(0, appels.get());
     }
@@ -54,10 +54,10 @@ class InMemoryEventBusTest {
     @Test
     void aHandlerSubscribedByPrefixReceivesAnyMatchingSystemeOrigine() {
         AtomicInteger appels = new AtomicInteger();
-        bus.souscrireParPrefixe("audit", "organisation", (EventHandler<String>) e -> appels.incrementAndGet());
+        bus.souscrireParPrefixe("audit", "module-registry", (EventHandler<String>) e -> appels.incrementAndGet());
 
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
-        bus.publier(unEvenement(new EventType("organisation.tutelle.etablie")));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
+        bus.publier(unEvenement(new EventType("module-registry.souscription.creee")));
 
         assertEquals(2, appels.get());
     }
@@ -65,7 +65,7 @@ class InMemoryEventBusTest {
     @Test
     void aHandlerSubscribedByPrefixDoesNotReceiveAnUnrelatedSystemeOrigine() {
         AtomicInteger appels = new AtomicInteger();
-        bus.souscrireParPrefixe("audit", "organisation", (EventHandler<String>) e -> appels.incrementAndGet());
+        bus.souscrireParPrefixe("audit", "module-registry", (EventHandler<String>) e -> appels.incrementAndGet());
 
         bus.publier(unEvenement(PERSONNE_CREEE));
 
@@ -76,10 +76,10 @@ class InMemoryEventBusTest {
     void multipleHandlersForTheSameTypeAreAllCalled() {
         AtomicInteger premier = new AtomicInteger();
         AtomicInteger second = new AtomicInteger();
-        bus.souscrire("module-a", AFFECTATION_TERMINEE, (EventHandler<String>) e -> premier.incrementAndGet());
-        bus.souscrire("module-b", AFFECTATION_TERMINEE, (EventHandler<String>) e -> second.incrementAndGet());
+        bus.souscrire("module-a", ACTIVATION_CREEE, (EventHandler<String>) e -> premier.incrementAndGet());
+        bus.souscrire("module-b", ACTIVATION_CREEE, (EventHandler<String>) e -> second.incrementAndGet());
 
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
 
         assertEquals(1, premier.get());
         assertEquals(1, second.get());
@@ -88,34 +88,34 @@ class InMemoryEventBusTest {
     @Test
     void aFailingHandlerNeverPreventsOtherHandlersFromBeingCalled() {
         AtomicInteger appelsHandlerSain = new AtomicInteger();
-        bus.souscrire("module-fautif", AFFECTATION_TERMINEE, (EventHandler<String>) e -> {
+        bus.souscrire("module-fautif", ACTIVATION_CREEE, (EventHandler<String>) e -> {
             throw new RuntimeException("panne simulee");
         });
-        bus.souscrire("module-sain", AFFECTATION_TERMINEE, (EventHandler<String>) e -> appelsHandlerSain.incrementAndGet());
+        bus.souscrire("module-sain", ACTIVATION_CREEE, (EventHandler<String>) e -> appelsHandlerSain.incrementAndGet());
 
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
 
         assertEquals(1, appelsHandlerSain.get());
     }
 
     @Test
     void aFailingHandlerNeverPropagatesToThePublisher() {
-        bus.souscrire("module-fautif", AFFECTATION_TERMINEE, (EventHandler<String>) e -> {
+        bus.souscrire("module-fautif", ACTIVATION_CREEE, (EventHandler<String>) e -> {
             throw new RuntimeException("panne simulee");
         });
 
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
         // Aucune exception ne remonte jusqu'ici : c'est l'assertion elle-meme.
     }
 
     @Test
     void unsubscribingStopsFurtherDelivery() {
         AtomicInteger appels = new AtomicInteger();
-        Abonnement abonnement = bus.souscrire("organisation", AFFECTATION_TERMINEE,
+        Abonnement abonnement = bus.souscrire("module-x", ACTIVATION_CREEE,
                 (EventHandler<String>) e -> appels.incrementAndGet());
 
         bus.desabonner(abonnement);
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
 
         assertEquals(0, appels.get());
     }
@@ -124,11 +124,11 @@ class InMemoryEventBusTest {
     void desabonnerToutPourRemovesOnlyThatModulesSubscriptions() {
         AtomicInteger appelsA = new AtomicInteger();
         AtomicInteger appelsB = new AtomicInteger();
-        bus.souscrire("module-a", AFFECTATION_TERMINEE, (EventHandler<String>) e -> appelsA.incrementAndGet());
-        bus.souscrire("module-b", AFFECTATION_TERMINEE, (EventHandler<String>) e -> appelsB.incrementAndGet());
+        bus.souscrire("module-a", ACTIVATION_CREEE, (EventHandler<String>) e -> appelsA.incrementAndGet());
+        bus.souscrire("module-b", ACTIVATION_CREEE, (EventHandler<String>) e -> appelsB.incrementAndGet());
 
         int retirees = bus.desabonnerToutPour("module-a");
-        bus.publier(unEvenement(AFFECTATION_TERMINEE));
+        bus.publier(unEvenement(ACTIVATION_CREEE));
 
         assertEquals(1, retirees);
         assertEquals(0, appelsA.get());
@@ -137,7 +137,7 @@ class InMemoryEventBusTest {
 
     @Test
     void desabonnerIsSafeToCallForAnAlreadyRemovedSubscription() {
-        Abonnement abonnement = bus.souscrire("organisation", AFFECTATION_TERMINEE, (EventHandler<String>) e -> {
+        Abonnement abonnement = bus.souscrire("module-x", ACTIVATION_CREEE, (EventHandler<String>) e -> {
         });
 
         bus.desabonner(abonnement);
@@ -152,14 +152,14 @@ class InMemoryEventBusTest {
     @Test
     void rejectsANullTypeOnSubscribe() {
         assertThrows(NullPointerException.class,
-                () -> bus.souscrire("organisation", null, (EventHandler<String>) e -> {
+                () -> bus.souscrire("module-x", null, (EventHandler<String>) e -> {
                 }));
     }
 
     @Test
     void rejectsABlankPrefix() {
         assertThrows(IllegalArgumentException.class,
-                () -> bus.souscrireParPrefixe("organisation", " ", (EventHandler<String>) e -> {
+                () -> bus.souscrireParPrefixe("module-x", " ", (EventHandler<String>) e -> {
                 }));
     }
 
@@ -170,10 +170,10 @@ class InMemoryEventBusTest {
 
     @Test
     void subscribeReturnsAnAbonnementCarryingTheRequestingModuleId() {
-        Abonnement abonnement = bus.souscrire("organisation", AFFECTATION_TERMINEE, (EventHandler<String>) e -> {
+        Abonnement abonnement = bus.souscrire("module-x", ACTIVATION_CREEE, (EventHandler<String>) e -> {
         });
 
-        assertEquals("organisation", abonnement.moduleId());
-        assertTrue(abonnement.description().contains(AFFECTATION_TERMINEE.name()));
+        assertEquals("module-x", abonnement.moduleId());
+        assertTrue(abonnement.description().contains(ACTIVATION_CREEE.name()));
     }
 }

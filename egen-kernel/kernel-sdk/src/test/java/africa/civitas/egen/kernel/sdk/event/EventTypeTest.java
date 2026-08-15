@@ -12,10 +12,10 @@ class EventTypeTest {
 
     @Test
     void acceptsAWellFormedHierarchicalName() {
-        EventType type = new EventType("organisation.affectation.terminee");
+        EventType type = new EventType("identite.personne.creee");
 
-        assertEquals("organisation.affectation.terminee", type.name());
-        assertEquals("organisation", type.systemeOrigine());
+        assertEquals("identite.personne.creee", type.name());
+        assertEquals("identite", type.systemeOrigine());
     }
 
     @Test
@@ -35,12 +35,12 @@ class EventTypeTest {
     @ParameterizedTest
     @ValueSource(strings = {
             "SansPoint",
-            "Organisation.Affectation.Terminee",
-            "organisation..terminee",
-            ".organisation.terminee",
-            "organisation.terminee.",
-            "organisation",
-            "1organisation.affectation"
+            "Identite.Personne.Creee",
+            "identite..creee",
+            ".identite.creee",
+            "identite.creee.",
+            "identite",
+            "1identite.personne"
     })
     void rejectsNamesThatDoNotFollowTheHierarchicalConvention(String malformed) {
         assertThrows(IllegalArgumentException.class, () -> new EventType(malformed));

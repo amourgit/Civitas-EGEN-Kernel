@@ -17,17 +17,16 @@ import java.util.UUID;
  * {@link KernelSubject#sujetBootstrap()} : c'est exactement le moment ou aucun autre
  * sujet ne peut encore exister).
  *
- * <p><b>Decision de conception assumee sur la Cellule cible</b> : {@link
+ * <p><b>Decision de conception assumee sur le Contexte cible</b> : {@link
  * africa.civitas.egen.kernel.moduleregistry.service.ModuleActivationResolver}, consulte
- * par {@code PluginLifecycleManager}, verifie l'Activation d'un module pour UNE
- * Cellule precise. Au tout premier demarrage, avant qu'aucune hierarchie
- * organisationnelle ne soit necessairement consultable, cette sequence utilise une
- * unique Cellule racine, configuree ({@code egen.kernel.cellule-racine}) — jamais
- * decouverte dynamiquement. Charger un module pour d'autres Cellules, au fil de
- * l'exploitation reelle (une Organisation active un module pour une de ses Cellules
- * precises), restera une operation administrative posterieure au demarrage, hors
- * scope de cette sequence — voir le README pour le detail de cette simplification
- * assumee pour cette premiere livraison.
+ * par {@code PluginLifecycleManager}, verifie l'Activation d'un module pour UN
+ * Contexte precis. Au tout premier demarrage, avant qu'aucun Contexte metier ne soit
+ * necessairement consultable, cette sequence utilise un unique Contexte racine,
+ * configure ({@code egen.kernel.contexte-racine}) — jamais decouvert dynamiquement.
+ * Charger un module pour d'autres Contextes, au fil de l'exploitation reelle,
+ * restera une operation administrative posterieure au demarrage, hors scope de
+ * cette sequence — voir le README pour le detail de cette simplification assumee
+ * pour cette premiere livraison.
  *
  * <p>Classe volontairement simple (pas de bean CDI ici) : instanciable a la main
  * dans les tests, comme {@code PluginLifecycleManager} lui-meme.
@@ -37,17 +36,17 @@ public final class KernelBootSequence {
     private final PluginDirectoryScanner scanner;
     private final PluginLifecycleManager pluginLifecycleManager;
     private final Path repertoirePlugins;
-    private final UUID celluleRacine;
+    private final UUID contexteRacine;
 
     public KernelBootSequence(
             PluginDirectoryScanner scanner,
             PluginLifecycleManager pluginLifecycleManager,
             Path repertoirePlugins,
-            UUID celluleRacine) {
+            UUID contexteRacine) {
         this.scanner = Objects.requireNonNull(scanner, "scanner ne peut pas etre nul.");
         this.pluginLifecycleManager = Objects.requireNonNull(pluginLifecycleManager, "pluginLifecycleManager ne peut pas etre nul.");
         this.repertoirePlugins = Objects.requireNonNull(repertoirePlugins, "repertoirePlugins ne peut pas etre nul.");
-        this.celluleRacine = Objects.requireNonNull(celluleRacine, "celluleRacine ne peut pas etre nul.");
+        this.contexteRacine = Objects.requireNonNull(contexteRacine, "contexteRacine ne peut pas etre nul.");
     }
 
     public RapportDemarrage demarrer() {
@@ -58,7 +57,7 @@ public final class KernelBootSequence {
 
         for (CandidatModule candidat : candidats) {
             ResultatChargement resultat = pluginLifecycleManager.charger(
-                    candidat, KernelSubject.sujetBootstrap(), celluleRacine);
+                    candidat, KernelSubject.sujetBootstrap(), contexteRacine);
 
             switch (resultat) {
                 case ResultatChargement.Succes succes -> charges.add(succes.manifeste().moduleId());

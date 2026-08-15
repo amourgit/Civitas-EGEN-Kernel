@@ -17,7 +17,7 @@
   <description>
     Le contrat public du Kernel EGEN : annotations d'extension (@Module, @Extension),
     le marqueur ExtensionPoint, le contrat evenementiel (EventType, EventEnvelope), le
-    contrat de Contexte (Organisation ou Cellule, jamais leur implementation), et le
+    contrat de Contexte (l'identifiant neutre, jamais son implementation), et le
     schema du Manifeste d'Extension qu'un module metier declare pour s'accrocher au
     Kernel. Zero dependance d'execution, zero framework — c'est la seule raison pour
     laquelle ce module peut etre un vrai module JPMS (module-info.java) sans aucune

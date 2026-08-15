@@ -8,19 +8,20 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Demande de Souscription d'une Organisation a un module du Catalogue (§B.11).
+ * Demande de Souscription d'un Contexte a un module du Catalogue (§B.11).
  *
- * @param organisationId reference nue vers une Organisation (Niveau 2) — voir la
- *                        note de {@link africa.civitas.egen.kernel.domain.module.Souscription}
+ * @param contexteId reference nue vers un Contexte (dont la nature reelle est
+ *                    propriete d'un module Niveau 2) — voir la note de
+ *                    {@link africa.civitas.egen.kernel.domain.module.Souscription}
  */
 public record SouscrireModuleCommand(
-        UUID organisationId,
+        UUID contexteId,
         ModuleId moduleId,
         Acteur demandePar,
         OrigineDonnee origineDonnee) {
 
     public SouscrireModuleCommand {
-        Objects.requireNonNull(organisationId, "organisationId ne peut pas etre nul.");
+        Objects.requireNonNull(contexteId, "contexteId ne peut pas etre nul.");
         Objects.requireNonNull(moduleId, "moduleId ne peut pas etre nul.");
         Objects.requireNonNull(demandePar, "demandePar ne peut pas etre nul.");
         Objects.requireNonNull(origineDonnee, "origineDonnee ne peut pas etre nulle.");

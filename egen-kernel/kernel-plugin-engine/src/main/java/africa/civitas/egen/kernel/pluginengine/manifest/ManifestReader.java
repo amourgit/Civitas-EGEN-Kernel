@@ -25,8 +25,6 @@ public final class ManifestReader {
 
     private static final String CLE_MODULE_ID = "moduleId";
     private static final String CLE_VERSION = "version";
-    private static final String CLE_CELL_TYPES = "cellTypesProvided";
-    private static final String CLE_MANDATES = "mandatesProvided";
     private static final String CLE_EVENTS_EMITTED = "eventsEmitted";
     private static final String CLE_EVENTS_CONSUMED = "eventsConsumed";
     private static final String CLE_RESOURCE_TYPES = "resourceTypesProvided";
@@ -53,8 +51,6 @@ public final class ManifestReader {
         return new ManifesteExtension(
                 moduleId,
                 version,
-                listeDe(donnees, CLE_CELL_TYPES),
-                listeDe(donnees, CLE_MANDATES),
                 listeDe(donnees, CLE_EVENTS_EMITTED),
                 listeDe(donnees, CLE_EVENTS_CONSUMED),
                 listeDe(donnees, CLE_RESOURCE_TYPES),

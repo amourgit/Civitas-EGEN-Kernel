@@ -42,10 +42,10 @@ class SouscriptionServiceImplTest {
     @Test
     @TestTransaction
     void subscribingToAModuleAbsentFromTheCatalogueIsRejected() {
-        UUID organisationId = UUID.randomUUID();
+        UUID contexteId = UUID.randomUUID();
 
         assertThrows(ModuleIntrouvableAuCatalogueException.class, () -> souscriptionService.souscrire(
-                new SouscrireModuleCommand(organisationId, new ModuleId("inexistant"),
+                new SouscrireModuleCommand(contexteId, new ModuleId("inexistant"),
                         Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE)));
     }
 
@@ -53,25 +53,25 @@ class SouscriptionServiceImplTest {
     @TestTransaction
     void subscribingToACatalogedModuleSucceeds() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationId = UUID.randomUUID();
+        UUID contexteId = UUID.randomUUID();
 
         Souscription souscription = souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
 
         assertTrue(souscription.active());
-        assertTrue(souscriptionService.estActivePour(organisationId, moduleId));
+        assertTrue(souscriptionService.estActivePour(contexteId, moduleId));
     }
 
     @Test
     @TestTransaction
-    void subscribingTwiceToTheSameModuleForTheSameOrganisationIsRejected() {
+    void subscribingTwiceToTheSameModuleForTheSameContexteIsRejected() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationId = UUID.randomUUID();
+        UUID contexteId = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
 
         assertThrows(SouscriptionDejaActiveException.class, () -> souscriptionService.souscrire(
-                new SouscrireModuleCommand(organisationId, moduleId, Acteur.systeme("test"),
+                new SouscrireModuleCommand(contexteId, moduleId, Acteur.systeme("test"),
                         OrigineDonnee.SAISIE_MANUELLE)));
     }
 
@@ -79,15 +79,15 @@ class SouscriptionServiceImplTest {
     @TestTransaction
     void cancellingASubscriptionMakesItInactiveButKeepsItInHistory() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationId = UUID.randomUUID();
+        UUID contexteId = UUID.randomUUID();
         Souscription souscription = souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
 
         souscriptionService.resilier(new ResilierSouscriptionCommand(
                 souscription.id(), Acteur.systeme("test"), "fin de contrat"));
 
-        assertFalse(souscriptionService.estActivePour(organisationId, moduleId));
-        List<Souscription> historique = souscriptionService.listerPourOrganisation(organisationId);
+        assertFalse(souscriptionService.estActivePour(contexteId, moduleId));
+        List<Souscription> historique = souscriptionService.listerPourContexte(contexteId);
         assertEquals(1, historique.size());
         assertFalse(historique.get(0).active());
     }
@@ -101,18 +101,18 @@ class SouscriptionServiceImplTest {
 
     @Test
     @TestTransaction
-    void anOrganisationCanResubscribeAfterCancelling() {
+    void aContexteCanResubscribeAfterCancelling() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationId = UUID.randomUUID();
+        UUID contexteId = UUID.randomUUID();
         Souscription premiere = souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
         souscriptionService.resilier(new ResilierSouscriptionCommand(
                 premiere.id(), Acteur.systeme("test"), "resiliation"));
 
         Souscription seconde = souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
 
         assertTrue(seconde.active());
-        assertEquals(2, souscriptionService.listerPourOrganisation(organisationId).size());
+        assertEquals(2, souscriptionService.listerPourContexte(contexteId).size());
     }
 }

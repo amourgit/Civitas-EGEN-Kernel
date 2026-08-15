@@ -34,7 +34,7 @@ class ActivationTest {
     }
 
     @Test
-    void rejectsANullCelluleId() {
+    void rejectsANullContexteId() {
         assertThrows(NullPointerException.class, () -> new Activation(
                 UUID.randomUUID(), null, new ModuleId("academie"), UNE_TRACABILITE));
     }

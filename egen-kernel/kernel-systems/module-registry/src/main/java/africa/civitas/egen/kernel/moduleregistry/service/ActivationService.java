@@ -14,9 +14,9 @@ public interface ActivationService {
      * @throws africa.civitas.egen.kernel.moduleregistry.exception.ModuleIntrouvableAuCatalogueException
      *         si ce module n'est pas au Catalogue
      * @throws africa.civitas.egen.kernel.moduleregistry.exception.SouscriptionRequiseException
-     *         si {@code commande.organisationId()} n'a pas de Souscription active pour ce module
+     *         si {@code commande.contexteSouscripteurId()} n'a pas de Souscription active pour ce module
      * @throws africa.civitas.egen.kernel.moduleregistry.exception.ActivationDejaActiveException
-     *         si une Activation active existe deja pour cette Cellule et ce module
+     *         si une Activation active existe deja pour ce Contexte et ce module
      */
     Activation activer(ActiverModuleCommand commande);
 
@@ -26,5 +26,5 @@ public interface ActivationService {
      */
     void desactiver(DesactiverModuleCommand commande);
 
-    List<Activation> listerPourCellule(UUID celluleId);
+    List<Activation> listerPourContexte(UUID contexteId);
 }

@@ -42,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       ({@link PolitiqueNoyauQuestion#ECHEC_CONSTRUCTION_MANIFESTE}), toujours un
  *       refus.</li>
  *   <li>{@link ModuleActivationResolver} — ce module precis doit-il tourner dans
- *       cette Cellule precise (donnee de Souscription/Activation, independante de
+ *       ce Contexte precis (donnee de Souscription/Activation, independante de
  *       la capacite du sujet) ?</li>
  *   <li>Dependances — chaque module que le Manifeste declare requerir est-il deja
  *       charge ?</li>
@@ -84,7 +84,7 @@ public class PluginLifecycleManager {
     }
 
     /**
-     * Tente de charger {@code candidat} dans la Cellule {@code celluleCible}, pour le
+     * Tente de charger {@code candidat} dans le Contexte {@code contexteCible}, pour le
      * compte de {@code sujetDemandeur}.
      *
      * @throws PluginLoadException uniquement pour un echec technique imprevu du
@@ -92,15 +92,15 @@ public class PluginLifecycleManager {
      *                               refus de gouvernance attendu, toujours restitue
      *                               comme {@link ResultatChargement.Echec}
      */
-    public ResultatChargement charger(CandidatModule candidat, KernelSubject sujetDemandeur, UUID celluleCible) {
+    public ResultatChargement charger(CandidatModule candidat, KernelSubject sujetDemandeur, UUID contexteCible) {
         if (candidat == null) {
             throw new IllegalArgumentException("candidat ne peut pas etre nul.");
         }
         if (sujetDemandeur == null) {
             throw new IllegalArgumentException("sujetDemandeur ne peut pas etre nul.");
         }
-        if (celluleCible == null) {
-            throw new IllegalArgumentException("celluleCible ne peut pas etre nul.");
+        if (contexteCible == null) {
+            throw new IllegalArgumentException("contexteCible ne peut pas etre nul.");
         }
 
         DecisionNoyau droitDeCharger = kernelPermissionCheck.verifier(sujetDemandeur, KernelCapability.CHARGER_MODULE);
@@ -121,7 +121,7 @@ public class PluginLifecycleManager {
                     "Le module '" + manifeste.moduleId() + "' est deja charge.");
         }
 
-        DecisionNoyau doitTourner = moduleActivationResolver.estActifPour(celluleCible, new ModuleId(manifeste.moduleId()));
+        DecisionNoyau doitTourner = moduleActivationResolver.estActifPour(contexteCible, new ModuleId(manifeste.moduleId()));
         if (!doitTourner.autorise()) {
             return new ResultatChargement.Echec(doitTourner.motif());
         }

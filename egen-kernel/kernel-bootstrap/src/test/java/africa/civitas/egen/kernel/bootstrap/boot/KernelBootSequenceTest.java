@@ -65,21 +65,21 @@ class KernelBootSequenceTest {
                 "moduleId=" + moduleId + "\nversion=" + version + "\n");
     }
 
-    private void activerReellement(UUID celluleRacine, ModuleId moduleId) {
+    private void activerReellement(UUID contexteRacine, ModuleId moduleId) {
         catalogueService.enregistrer(new EnregistrerModuleCommand(
                 moduleId, moduleId.valeur(), "module de test", Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
-        UUID organisationId = UUID.randomUUID();
+        UUID contexteSouscripteurId = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
         activationService.activer(new ActiverModuleCommand(
-                organisationId, celluleRacine, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, contexteRacine, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
     }
 
-    private KernelBootSequence sequencePour(Path repertoire, UUID celluleRacine) {
+    private KernelBootSequence sequencePour(Path repertoire, UUID contexteRacine) {
         PluginLifecycleManager manager = new PluginLifecycleManager(
                 kernelPermissionCheck, moduleActivationResolver, politiqueNoyau,
                 new ManifestReader(), new ExtensionRegistry(), new FakePluginLoader());
-        return new KernelBootSequence(new PluginDirectoryScanner(), manager, repertoire, celluleRacine);
+        return new KernelBootSequence(new PluginDirectoryScanner(), manager, repertoire, contexteRacine);
     }
 
     @Test
@@ -109,12 +109,12 @@ class KernelBootSequenceTest {
     @TestTransaction
     void aCandidateWithARealActiveActivationLoadsSuccessfully(@TempDir Path repertoire)
             throws IOException {
-        UUID celluleRacine = UUID.randomUUID();
+        UUID contexteRacine = UUID.randomUUID();
         ModuleId moduleId = new ModuleId("academie");
-        activerReellement(celluleRacine, moduleId);
+        activerReellement(contexteRacine, moduleId);
         creerCandidat(repertoire, "academie", "1.0.0");
 
-        RapportDemarrage rapport = sequencePour(repertoire, celluleRacine).demarrer();
+        RapportDemarrage rapport = sequencePour(repertoire, contexteRacine).demarrer();
 
         assertEquals(1, rapport.candidatsTrouves());
         assertEquals(1, rapport.modulesCharges().size());

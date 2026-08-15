@@ -21,18 +21,18 @@ class FakeModuleActivationResolverTest {
     }
 
     @Test
-    void authorizesOnceActivatedForThatExactCelluleAndModule() {
-        UUID celluleId = UUID.randomUUID();
+    void authorizesOnceActivatedForThatExactContexteAndModule() {
+        UUID contexteId = UUID.randomUUID();
         ModuleId moduleId = new ModuleId("academie");
-        resolver.activerPour(celluleId, moduleId);
+        resolver.activerPour(contexteId, moduleId);
 
-        DecisionNoyau decision = resolver.estActifPour(celluleId, moduleId);
+        DecisionNoyau decision = resolver.estActifPour(contexteId, moduleId);
 
         assertTrue(decision.autorise());
     }
 
     @Test
-    void activationDoesNotLeakToADifferentCellule() {
+    void activationDoesNotLeakToADifferentContexte() {
         ModuleId moduleId = new ModuleId("academie");
         resolver.activerPour(UUID.randomUUID(), moduleId);
 
@@ -43,10 +43,10 @@ class FakeModuleActivationResolverTest {
 
     @Test
     void activationDoesNotLeakToADifferentModule() {
-        UUID celluleId = UUID.randomUUID();
-        resolver.activerPour(celluleId, new ModuleId("academie"));
+        UUID contexteId = UUID.randomUUID();
+        resolver.activerPour(contexteId, new ModuleId("academie"));
 
-        DecisionNoyau decision = resolver.estActifPour(celluleId, new ModuleId("rh"));
+        DecisionNoyau decision = resolver.estActifPour(contexteId, new ModuleId("rh"));
 
         assertFalse(decision.autorise());
     }

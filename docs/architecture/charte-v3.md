@@ -223,13 +223,13 @@ juillet) consulte a la fois `KernelPermissionCheck` ET `ModuleActivationResolver
 avant tout chargement — le test le plus exigeant envisage pour cette conception,
 reussi sans ajustement necessaire.
 
-## A.6bis Module-registry (B2) — livre le 24 juillet 2026
+## A.6bis Module-registry (B2) — livre le 24 juillet 2026, neutralise le 15 aout 2026
 
 Premiere brique Niveau 0 construite au-dela du primitif Niveau 1 : Catalogue,
 Souscription, Activation (§B.2, §B.11), avec la cascade strictement imposee au
-niveau service — un module doit etre au Catalogue avant qu'une Organisation ne
-puisse y Souscrire ; une Organisation doit avoir une Souscription active avant
-qu'une de ses Cellules ne puisse Activer le module.
+niveau service — un module doit etre au Catalogue avant qu'un Contexte ne puisse
+y Souscrire ; ce Contexte doit avoir une Souscription active avant qu'un Contexte
+qui en depend ne puisse Activer le module.
 
 `kernel-domain/module-domain` porte le vocabulaire pur (`ModuleId`,
 `CatalogueEntree`, `Souscription`, `Activation`), sans aucun framework — reserve
@@ -237,19 +237,39 @@ explicitement a part du reste de l'implementation par la Charte (§A.6), a la
 difference des primitifs Niveau 1 qui gardent leur domaine directement dans
 `kernel-systems/`.
 
-**Decision de conception assumee** : `Souscription.organisationId` et
-`Activation.celluleId` sont des UUID nus, jamais une reference typee vers le
-module business Organization (Niveau 2). Consequence directe : module-registry ne
-verifie jamais lui-meme qu'une Cellule appartient bien a l'Organisation dont on
-affirme la Souscription — cette resolution reste la responsabilite de l'appelant
-(`ActiverModuleCommand` recoit les deux identifiants explicitement). Egalement
-assume : aucune verification `KernelPermissionCheck` ne gate les ecritures de
+**Decision de conception assumee** : `Souscription.contexteId` et
+`Activation.contexteId` sont des UUID nus, jamais une reference typee vers un
+module Niveau 2. Consequence directe : module-registry ne verifie jamais
+lui-meme qu'un Contexte appartient bien au Contexte dont on affirme la
+Souscription — cette resolution reste la responsabilite de l'appelant
+(`ActiverModuleCommand` recoit les deux identifiants explicitement, sous les
+noms `contexteSouscripteurId` et `contexteCibleId`). Egalement assume : aucune
+verification `KernelPermissionCheck` ne gate les ecritures de
 Souscription/Activation dans cette premiere livraison — aucune des quatre
 `KernelCapability` fermees ne couvre cette question business, qui reste, pour
 l'instant, la responsabilite de l'appelant.
 
+**Note de neutralisation (15 aout 2026)** : cette section decrivait jusqu'ici
+`Souscription.organisationId` et `Activation.celluleId`, avec un renvoi explicite
+au duo Organisation/Cellule du module business Organization. Passe de
+neutralisation complete du Kernel : `ContexteNature` (kernel-sdk, l'enumeration
+fermee `{ORGANISATION, CELLULE}`) a ete supprimee, `Contexte` reduit a son seul
+identifiant (`UUID id()`), et tout champ ou variable nommant explicitement
+Organisation/Cellule dans `egen-kernel/` renomme vers le vocabulaire neutre
+`contexteId`/`contexteSouscripteurId`/`contexteCibleId`/`contexteRacine`. Meme
+traitement pour `ManifesteExtension` (kernel-sdk), qui exposait deux champs
+(`cellTypesProvided`, `mandatesProvided`) directement calques sur le Lexique du
+module business Organization — retires, sans equivalent generique invente a la
+place : un module Niveau 2 qui a besoin d'etendre son propre vocabulaire le fait
+entierement dans son propre module, jamais via un champ hardcode dans le SDK.
+Migration SQL V3 (module-registry) editee en place (`organisation_id`/
+`cellule_id` -> `contexte_id`) plutot que versionnee a nouveau : projet encore en
+0.1.0-SNAPSHOT, aucune base de production concernee. Toute base de developpement
+locale deja migree doit etre recreee (`flyway clean` puis remigration, ou drop
+direct) avant la prochaine execution.
+
 `ModuleActivationResolver` est la question que `kernel-plugin-engine` (§A.6ter, livre)
-posera avant de charger un module dans une Cellule : fail-closed, elle retombe sur
+posera avant de charger un module dans un Contexte : fail-closed, elle retombe sur
 `PolitiqueNoyau` (`ACTIVATION_NON_RESOLUE`) des qu'aucune Activation active n'est
 trouvee — la premiere consultation reelle de la Politique-noyau par un module autre
 que ses propres tests.
@@ -331,9 +351,9 @@ annoncee au pom.xml racine (execution `enforce-niveau2-impl-isolation`, desactiv
 explicitement dans le pom.xml de ce module). N'assemble jamais de module business.
 
 **Decision de conception assumee** : `ModuleActivationResolver` verifie l'Activation
-d'un module pour une Cellule precise ; au tout premier demarrage, `KernelBootSequence`
-utilise donc une unique Cellule racine configuree (`egen.kernel.cellule-racine`,
-obligatoire, sans valeur par defaut). Le chargement pour d'autres Cellules, au fil
+d'un module pour un Contexte precis ; au tout premier demarrage, `KernelBootSequence`
+utilise donc un unique Contexte racine configure (`egen.kernel.contexte-racine`,
+obligatoire, sans valeur par defaut). Le chargement pour d'autres Contextes, au fil
 de l'exploitation reelle, reste une operation administrative posterieure au
 demarrage — hors scope de cette premiere livraison, une simplification assumee et
 documentee plutot que silencieuse.

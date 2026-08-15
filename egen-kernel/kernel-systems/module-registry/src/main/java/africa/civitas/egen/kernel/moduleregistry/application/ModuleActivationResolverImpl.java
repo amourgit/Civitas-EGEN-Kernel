@@ -21,17 +21,17 @@ public class ModuleActivationResolverImpl implements ModuleActivationResolver {
     PolitiqueNoyau politiqueNoyau;
 
     @Override
-    public DecisionNoyau estActifPour(UUID celluleId, ModuleId moduleId) {
-        if (celluleId == null) {
-            throw new IllegalArgumentException("celluleId ne peut pas etre nul.");
+    public DecisionNoyau estActifPour(UUID contexteId, ModuleId moduleId) {
+        if (contexteId == null) {
+            throw new IllegalArgumentException("contexteId ne peut pas etre nul.");
         }
         if (moduleId == null) {
             throw new IllegalArgumentException("moduleId ne peut pas etre nul.");
         }
 
-        if (repository.existeActive(celluleId, moduleId.valeur())) {
+        if (repository.existeActive(contexteId, moduleId.valeur())) {
             return DecisionNoyau.autorise(
-                    "Activation active trouvee pour la Cellule " + celluleId
+                    "Activation active trouvee pour le Contexte " + contexteId
                             + " et le module '" + moduleId + "'.");
         }
 

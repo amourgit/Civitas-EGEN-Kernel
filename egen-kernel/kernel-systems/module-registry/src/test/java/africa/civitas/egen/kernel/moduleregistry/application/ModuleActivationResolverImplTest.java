@@ -36,7 +36,7 @@ class ModuleActivationResolverImplTest {
 
     @Test
     @TestTransaction
-    void aCelluleWithNoActivationAtAllIsDeniedByDefault() {
+    void aContexteWithNoActivationAtAllIsDeniedByDefault() {
         DecisionNoyau decision = resolver.estActifPour(UUID.randomUUID(), new ModuleId("academie"));
 
         assertFalse(decision.autorise());
@@ -44,18 +44,18 @@ class ModuleActivationResolverImplTest {
 
     @Test
     @TestTransaction
-    void aCelluleWithAnActiveActivationIsAuthorized() {
+    void aContexteWithAnActiveActivationIsAuthorized() {
         ModuleId moduleId = new ModuleId("academie");
         catalogueService.enregistrer(new EnregistrerModuleCommand(
                 moduleId, "Academie", "description", Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
-        UUID organisationId = UUID.randomUUID();
-        UUID celluleId = UUID.randomUUID();
+        UUID contexteSouscripteurId = UUID.randomUUID();
+        UUID contexteCibleId = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
         activationService.activer(new ActiverModuleCommand(
-                organisationId, celluleId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, contexteCibleId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
 
-        DecisionNoyau decision = resolver.estActifPour(celluleId, moduleId);
+        DecisionNoyau decision = resolver.estActifPour(contexteCibleId, moduleId);
 
         assertTrue(decision.autorise());
     }
@@ -66,16 +66,16 @@ class ModuleActivationResolverImplTest {
         ModuleId moduleId = new ModuleId("academie");
         catalogueService.enregistrer(new EnregistrerModuleCommand(
                 moduleId, "Academie", "description", Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
-        UUID organisationId = UUID.randomUUID();
-        UUID celluleId = UUID.randomUUID();
+        UUID contexteSouscripteurId = UUID.randomUUID();
+        UUID contexteCibleId = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
         Activation activation = activationService.activer(new ActiverModuleCommand(
-                organisationId, celluleId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, contexteCibleId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
         activationService.desactiver(new DesactiverModuleCommand(
                 activation.id(), Acteur.systeme("test"), "retrait"));
 
-        DecisionNoyau decision = resolver.estActifPour(celluleId, moduleId);
+        DecisionNoyau decision = resolver.estActifPour(contexteCibleId, moduleId);
 
         assertFalse(decision.autorise());
     }

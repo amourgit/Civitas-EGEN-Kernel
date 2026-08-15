@@ -17,8 +17,8 @@ public class SouscriptionEntity extends PanacheEntityBase {
     @Id
     public UUID id;
 
-    @Column(name = "organisation_id", nullable = false)
-    public UUID organisationId;
+    @Column(name = "contexte_id", nullable = false)
+    public UUID contexteId;
 
     @Column(name = "module_id", nullable = false, length = 100)
     public String moduleId;

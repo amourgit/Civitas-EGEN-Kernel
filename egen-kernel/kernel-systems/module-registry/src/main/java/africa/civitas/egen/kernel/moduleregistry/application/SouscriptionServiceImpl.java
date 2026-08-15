@@ -38,15 +38,15 @@ public class SouscriptionServiceImpl implements SouscriptionService {
                     "Le module '" + commande.moduleId() + "' n'est pas au Catalogue : "
                             + "impossible d'y souscrire.");
         }
-        if (repository.existeActive(commande.organisationId(), commande.moduleId().valeur())) {
+        if (repository.existeActive(commande.contexteId(), commande.moduleId().valeur())) {
             throw new SouscriptionDejaActiveException(
-                    "L'Organisation " + commande.organisationId() + " a deja une Souscription "
+                    "Le Contexte " + commande.contexteId() + " a deja une Souscription "
                             + "active pour le module '" + commande.moduleId() + "'.");
         }
 
         SouscriptionEntity entity = new SouscriptionEntity();
         entity.id = UUID.randomUUID();
-        entity.organisationId = commande.organisationId();
+        entity.contexteId = commande.contexteId();
         entity.moduleId = commande.moduleId().valeur();
 
         Tracabilite tracabilite = Tracabilite.initiale(commande.demandePar(), commande.origineDonnee());
@@ -74,13 +74,13 @@ public class SouscriptionServiceImpl implements SouscriptionService {
     }
 
     @Override
-    public boolean estActivePour(UUID organisationId, ModuleId moduleId) {
-        return repository.existeActive(organisationId, moduleId.valeur());
+    public boolean estActivePour(UUID contexteId, ModuleId moduleId) {
+        return repository.existeActive(contexteId, moduleId.valeur());
     }
 
     @Override
-    public List<Souscription> listerPourOrganisation(UUID organisationId) {
-        return repository.listerPourOrganisation(organisationId).stream()
+    public List<Souscription> listerPourContexte(UUID contexteId) {
+        return repository.listerPourContexte(contexteId).stream()
                 .map(SouscriptionMapper::toDomain)
                 .toList();
     }

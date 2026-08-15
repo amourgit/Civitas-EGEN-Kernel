@@ -39,21 +39,17 @@ class ManifestReaderTest {
     @Test
     void readsAllOptionalListFieldsAsCommaSeparatedValues() {
         Map<String, String> donnees = donneesMinimales();
-        donnees.put("cellTypesProvided", "Salle, Amphi");
-        donnees.put("mandatesProvided", "Surveillant");
         donnees.put("eventsEmitted", "academie.cours.cree");
-        donnees.put("eventsConsumed", "organisation.affectation.terminee");
-        donnees.put("resourceTypesProvided", "CameraSurveillance");
-        donnees.put("dependencies", "identite,organisationnel");
+        donnees.put("eventsConsumed", "identite.personne.creee");
+        donnees.put("resourceTypesProvided", "videoprojecteur");
+        donnees.put("dependencies", "identite,notifications");
 
         ManifesteExtension manifeste = reader.lire(source(donnees));
 
-        assertEquals(List.of("Salle", "Amphi"), manifeste.cellTypesProvided());
-        assertEquals(List.of("Surveillant"), manifeste.mandatesProvided());
         assertEquals(List.of("academie.cours.cree"), manifeste.eventsEmitted());
-        assertEquals(List.of("organisation.affectation.terminee"), manifeste.eventsConsumed());
-        assertEquals(List.of("CameraSurveillance"), manifeste.resourceTypesProvided());
-        assertEquals(List.of("identite", "organisationnel"), manifeste.dependencies());
+        assertEquals(List.of("identite.personne.creee"), manifeste.eventsConsumed());
+        assertEquals(List.of("videoprojecteur"), manifeste.resourceTypesProvided());
+        assertEquals(List.of("identite", "notifications"), manifeste.dependencies());
     }
 
     @Test

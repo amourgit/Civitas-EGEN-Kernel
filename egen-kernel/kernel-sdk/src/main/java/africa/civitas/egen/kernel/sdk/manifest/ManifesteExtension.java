@@ -10,12 +10,18 @@ import java.util.regex.Pattern;
  * Le Manifeste d'Extension qu'un module metier publie pour s'accrocher au Kernel.
  *
  * <p>Rattache conceptuellement au Catalogue (Systeme B2, Souscription/Activation), ce
- * manifeste declare exhaustivement ce que le module ajoute au Lexique (Types de
- * Cellule, Mandats), ce qu'il emet et ecoute sur le Bus d'Evenements, les Types de
- * Ressource qu'il introduit, et les autres modules dont il depend. Le moteur de
- * plugins (kernel-plugin-engine, via PF4J) lit ce manifeste au demarrage ; la decision
- * d'autoriser effectivement l'activation reste entierement du ressort de la logique
- * metier de B2 — ce manifeste ne fait que decrire, jamais autoriser.
+ * manifeste declare exhaustivement ce qu'il emet et ecoute sur le Bus d'Evenements,
+ * les Types de Ressource qu'il introduit, et les autres modules dont il depend. Le
+ * moteur de plugins (kernel-plugin-engine, via PF4J) lit ce manifeste au demarrage ;
+ * la decision d'autoriser effectivement l'activation reste entierement du ressort de
+ * la logique metier de B2 — ce manifeste ne fait que decrire, jamais autoriser.
+ *
+ * <p>Ce manifeste ne declare volontairement rien de plus generique que ces quatre
+ * categories : tout vocabulaire propre a un domaine metier (types de ressources
+ * specifiques mis a part, deja neutres par nature) — taxonomie, lexique, ou toute
+ * autre notion de classification — reste entierement la responsabilite du module
+ * Niveau 2 qui la definit, jamais une categorie hardcodee ici. Le Kernel ne suppose
+ * jamais quel vocabulaire un module metier a besoin d'etendre.
  *
  * <p>Toute instance de cette classe est valide par construction : le constructeur
  * canonique rejette immediatement un identifiant mal forme, une version non
@@ -24,8 +30,6 @@ import java.util.regex.Pattern;
  *
  * @param moduleId identifiant unique du module, en kebab-case
  * @param version version semantique du module (ex. {@code "1.4.0"})
- * @param cellTypesProvided Types de Cellule que ce module propose d'ajouter au Lexique
- * @param mandatesProvided Mandats que ce module propose d'ajouter au Lexique des Mandats
  * @param eventsEmitted noms de {@link africa.civitas.egen.kernel.sdk.event.EventType}
  *                       que ce module publie sur le Bus d'Evenements
  * @param eventsConsumed noms de {@link africa.civitas.egen.kernel.sdk.event.EventType}
@@ -36,8 +40,6 @@ import java.util.regex.Pattern;
 public record ManifesteExtension(
         String moduleId,
         String version,
-        List<String> cellTypesProvided,
-        List<String> mandatesProvided,
         List<String> eventsEmitted,
         List<String> eventsConsumed,
         List<String> resourceTypesProvided,
@@ -63,8 +65,6 @@ public record ManifesteExtension(
                             + version);
         }
 
-        cellTypesProvided = normalize("cellTypesProvided", cellTypesProvided);
-        mandatesProvided = normalize("mandatesProvided", mandatesProvided);
         eventsEmitted = normalize("eventsEmitted", eventsEmitted);
         eventsConsumed = normalize("eventsConsumed", eventsConsumed);
         resourceTypesProvided = normalize("resourceTypesProvided", resourceTypesProvided);
@@ -108,8 +108,6 @@ public record ManifesteExtension(
     public static final class Builder {
         private final String moduleId;
         private final String version;
-        private final List<String> cellTypesProvided = new ArrayList<>();
-        private final List<String> mandatesProvided = new ArrayList<>();
         private final List<String> eventsEmitted = new ArrayList<>();
         private final List<String> eventsConsumed = new ArrayList<>();
         private final List<String> resourceTypesProvided = new ArrayList<>();
@@ -118,16 +116,6 @@ public record ManifesteExtension(
         private Builder(String moduleId, String version) {
             this.moduleId = moduleId;
             this.version = version;
-        }
-
-        public Builder cellType(String cellType) {
-            this.cellTypesProvided.add(cellType);
-            return this;
-        }
-
-        public Builder mandate(String mandate) {
-            this.mandatesProvided.add(mandate);
-            return this;
         }
 
         public Builder emits(String eventTypeName) {
@@ -153,7 +141,6 @@ public record ManifesteExtension(
         public ManifesteExtension build() {
             return new ManifesteExtension(
                     moduleId, version,
-                    cellTypesProvided, mandatesProvided,
                     eventsEmitted, eventsConsumed,
                     resourceTypesProvided, dependencies);
         }

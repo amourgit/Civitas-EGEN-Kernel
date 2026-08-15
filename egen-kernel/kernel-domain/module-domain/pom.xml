@@ -22,9 +22,9 @@
     consommable directement par kernel-plugin-engine et kernel-bootstrap sans traîner
     la couche de persistance de module-registry.
 
-    Souscription et Activation referencent une Organisation ou une Cellule par UUID
-    nu, jamais par le type Contexte ni par un import du module business Organization
-    (Niveau 2) : ce module est Niveau 0, et le Niveau 0 ne depend jamais du Niveau 2.
+    Souscription et Activation referencent un Contexte par UUID nu, jamais par le type
+    Contexte lui-meme ni par un import d'un module Niveau 2 : ce module est Niveau 0,
+    et le Niveau 0 ne depend jamais du Niveau 2.
   </description>
 
   <dependencies>

@@ -27,10 +27,10 @@ import java.util.UUID;
  * racine de composition, qui leur donne une portee CDI, jamais kernel-plugin-engine
  * lui-meme.
  *
- * <p>{@code egen.kernel.cellule-racine} est obligatoire, sans valeur par defaut :
+ * <p>{@code egen.kernel.contexte-racine} est obligatoire, sans valeur par defaut :
  * une valeur inventee silencieusement serait pire qu'un echec de demarrage franc et
- * explicite — voir le README pour la simplification assumee que represente cette
- * unique Cellule racine au demarrage.
+ * explicite — voir le README pour la simplification assumee que represente cet
+ * unique Contexte racine au demarrage.
  */
 @ApplicationScoped
 public class KernelBootConfig {
@@ -41,8 +41,8 @@ public class KernelBootConfig {
     @ConfigProperty(name = "egen.kernel.plugins-directory", defaultValue = "plugins")
     String repertoirePlugins;
 
-    @ConfigProperty(name = "egen.kernel.cellule-racine")
-    UUID celluleRacine;
+    @ConfigProperty(name = "egen.kernel.contexte-racine")
+    UUID contexteRacine;
 
     @Produces
     @ApplicationScoped
@@ -66,6 +66,6 @@ public class KernelBootConfig {
     @ApplicationScoped
     public KernelBootSequence kernelBootSequence() {
         return new KernelBootSequence(
-                new PluginDirectoryScanner(), pluginLifecycleManager, Path.of(repertoirePlugins), celluleRacine);
+                new PluginDirectoryScanner(), pluginLifecycleManager, Path.of(repertoirePlugins), contexteRacine);
     }
 }

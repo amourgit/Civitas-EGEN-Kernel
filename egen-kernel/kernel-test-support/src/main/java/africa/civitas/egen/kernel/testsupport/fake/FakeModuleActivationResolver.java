@@ -18,20 +18,20 @@ public final class FakeModuleActivationResolver implements ModuleActivationResol
 
     private final Set<String> actifs = new HashSet<>();
 
-    public FakeModuleActivationResolver activerPour(UUID celluleId, ModuleId moduleId) {
-        actifs.add(cle(celluleId, moduleId));
+    public FakeModuleActivationResolver activerPour(UUID contexteId, ModuleId moduleId) {
+        actifs.add(cle(contexteId, moduleId));
         return this;
     }
 
     @Override
-    public DecisionNoyau estActifPour(UUID celluleId, ModuleId moduleId) {
-        if (actifs.contains(cle(celluleId, moduleId))) {
+    public DecisionNoyau estActifPour(UUID contexteId, ModuleId moduleId) {
+        if (actifs.contains(cle(contexteId, moduleId))) {
             return DecisionNoyau.autorise("Activation de test presente.");
         }
-        return DecisionNoyau.refuse("Aucune Activation de test pour " + celluleId + "/" + moduleId + ".");
+        return DecisionNoyau.refuse("Aucune Activation de test pour " + contexteId + "/" + moduleId + ".");
     }
 
-    private static String cle(UUID celluleId, ModuleId moduleId) {
-        return celluleId + "|" + moduleId;
+    private static String cle(UUID contexteId, ModuleId moduleId) {
+        return contexteId + "|" + moduleId;
     }
 }

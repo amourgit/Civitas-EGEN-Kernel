@@ -1,11 +1,11 @@
 -- Systeme Modules (B2, Niveau 0) — Catalogue, Souscription, Activation (§B.2, §B.11).
 -- Cascade stricte, imposee au niveau service (ActivationServiceImpl,
 -- SouscriptionServiceImpl) : un module doit etre au Catalogue avant de pouvoir etre
--- Souscrit, et une Organisation doit avoir une Souscription active avant qu'une de
--- ses Cellules ne puisse l'Activer. Aucune de ces trois tables ne reference
--- Organisation ou Cellule par cle etrangere : ce sont des UUID nus (organisation_id,
--- cellule_id), jamais une reference vers les tables du module business Organization
--- (Niveau 2) — le Niveau 0 ne depend jamais du Niveau 2, meme au niveau du schema.
+-- Souscrit, et un Contexte souscripteur doit avoir une Souscription active avant
+-- qu'un Contexte cible qui en depend ne puisse l'Activer. Aucune de ces trois tables
+-- ne reference quoi que ce soit par cle etrangere vers un module Niveau 2 : ce sont
+-- des UUID nus (contexte_id), jamais une reference vers les tables d'un module
+-- metier — le Niveau 0 ne depend jamais du Niveau 2, meme au niveau du schema.
 --
 -- Sequence Flyway propre a ce module (table flyway_schema_history_moduleregistry) —
 -- aucune combinaison avec un autre module pour SES PROPRES tests. Renumerotee V3
@@ -13,8 +13,7 @@
 -- locations identity + authorization + module-registry dans une meme execution
 -- Flyway de production, a besoin de numeros mutuellement uniques dans cet ensemble
 -- combine — V1 est reserve a identity, V2 a authorization (voir leurs migrations
--- respectives pour le detail de cette regle, deja rencontree pour
--- organization-impl).
+-- respectives pour le detail de cette regle).
 
 CREATE TABLE modreg_catalogue_entree (
     id                              UUID PRIMARY KEY,
@@ -43,7 +42,7 @@ CREATE TABLE modreg_catalogue_entree (
 
 CREATE TABLE modreg_souscription (
     id                              UUID PRIMARY KEY,
-    organisation_id                 UUID NOT NULL,
+    contexte_id                     UUID NOT NULL,
     module_id                       VARCHAR(100) NOT NULL,
 
     cree_le                         TIMESTAMPTZ NOT NULL,
@@ -63,17 +62,17 @@ CREATE TABLE modreg_souscription (
     supprime_par_systeme_label      VARCHAR(100)
 );
 
--- Une seule Souscription ACTIVE par (Organisation, module) — index partiel, plusieurs
+-- Une seule Souscription ACTIVE par (Contexte, module) — index partiel, plusieurs
 -- souscriptions resiliees successives pour le meme couple restant possibles.
 CREATE UNIQUE INDEX modreg_souscription_active_unique
-    ON modreg_souscription (organisation_id, module_id)
+    ON modreg_souscription (contexte_id, module_id)
     WHERE supprime_le IS NULL;
 
-CREATE INDEX modreg_souscription_organisation_idx ON modreg_souscription (organisation_id);
+CREATE INDEX modreg_souscription_contexte_idx ON modreg_souscription (contexte_id);
 
 CREATE TABLE modreg_activation (
     id                              UUID PRIMARY KEY,
-    cellule_id                      UUID NOT NULL,
+    contexte_id                     UUID NOT NULL,
     module_id                       VARCHAR(100) NOT NULL,
 
     cree_le                         TIMESTAMPTZ NOT NULL,
@@ -93,9 +92,9 @@ CREATE TABLE modreg_activation (
     supprime_par_systeme_label      VARCHAR(100)
 );
 
--- Une seule Activation ACTIVE par (Cellule, module) — meme discipline que ci-dessus.
+-- Une seule Activation ACTIVE par (Contexte, module) — meme discipline que ci-dessus.
 CREATE UNIQUE INDEX modreg_activation_active_unique
-    ON modreg_activation (cellule_id, module_id)
+    ON modreg_activation (contexte_id, module_id)
     WHERE supprime_le IS NULL;
 
-CREATE INDEX modreg_activation_cellule_idx ON modreg_activation (cellule_id);
+CREATE INDEX modreg_activation_contexte_idx ON modreg_activation (contexte_id);

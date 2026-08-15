@@ -66,47 +66,49 @@ class ActivationServiceImplTest {
     @TestTransaction
     void activatingASubscribedModuleSucceeds() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationId = UUID.randomUUID();
-        UUID celluleId = UUID.randomUUID();
+        UUID contexteSouscripteurId = UUID.randomUUID();
+        UUID contexteCibleId = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
 
         Activation activation = activationService.activer(new ActiverModuleCommand(
-                organisationId, celluleId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, contexteCibleId, moduleId, Acteur.systeme("test"),
+                OrigineDonnee.SAISIE_MANUELLE));
 
         assertTrue(activation.active());
-        assertEquals(celluleId, activation.celluleId());
+        assertEquals(contexteCibleId, activation.contexteId());
     }
 
     @Test
     @TestTransaction
-    void aSecondCelluleOfAnUnsubscribedOrganisationCannotActivateEvenIfAnotherOrganisationDid() {
+    void aSecondContexteOfAnUnsubscribedContexteSouscripteurCannotActivateEvenIfAnotherDid() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationSouscrite = UUID.randomUUID();
+        UUID contexteSouscripteurAbonne = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationSouscrite, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurAbonne, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
 
-        UUID autreOrganisation = UUID.randomUUID();
-        UUID celluleDeLautreOrganisation = UUID.randomUUID();
+        UUID autreContexteSouscripteur = UUID.randomUUID();
+        UUID contexteCibleDeLAutre = UUID.randomUUID();
 
         assertThrows(SouscriptionRequiseException.class, () -> activationService.activer(
-                new ActiverModuleCommand(autreOrganisation, celluleDeLautreOrganisation, moduleId,
+                new ActiverModuleCommand(autreContexteSouscripteur, contexteCibleDeLAutre, moduleId,
                         Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE)));
     }
 
     @Test
     @TestTransaction
-    void activatingTwiceForTheSameCelluleIsRejected() {
+    void activatingTwiceForTheSameContexteIsRejected() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationId = UUID.randomUUID();
-        UUID celluleId = UUID.randomUUID();
+        UUID contexteSouscripteurId = UUID.randomUUID();
+        UUID contexteCibleId = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
         activationService.activer(new ActiverModuleCommand(
-                organisationId, celluleId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, contexteCibleId, moduleId, Acteur.systeme("test"),
+                OrigineDonnee.SAISIE_MANUELLE));
 
         assertThrows(ActivationDejaActiveException.class, () -> activationService.activer(
-                new ActiverModuleCommand(organisationId, celluleId, moduleId, Acteur.systeme("test"),
+                new ActiverModuleCommand(contexteSouscripteurId, contexteCibleId, moduleId, Acteur.systeme("test"),
                         OrigineDonnee.SAISIE_MANUELLE)));
     }
 
@@ -114,17 +116,18 @@ class ActivationServiceImplTest {
     @TestTransaction
     void deactivatingMakesTheActivationInactiveButKeepsItInHistory() {
         ModuleId moduleId = enregistrerModule("academie");
-        UUID organisationId = UUID.randomUUID();
-        UUID celluleId = UUID.randomUUID();
+        UUID contexteSouscripteurId = UUID.randomUUID();
+        UUID contexteCibleId = UUID.randomUUID();
         souscriptionService.souscrire(new SouscrireModuleCommand(
-                organisationId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
         Activation activation = activationService.activer(new ActiverModuleCommand(
-                organisationId, celluleId, moduleId, Acteur.systeme("test"), OrigineDonnee.SAISIE_MANUELLE));
+                contexteSouscripteurId, contexteCibleId, moduleId, Acteur.systeme("test"),
+                OrigineDonnee.SAISIE_MANUELLE));
 
         activationService.desactiver(new DesactiverModuleCommand(
                 activation.id(), Acteur.systeme("test"), "module retire"));
 
-        List<Activation> historique = activationService.listerPourCellule(celluleId);
+        List<Activation> historique = activationService.listerPourContexte(contexteCibleId);
         assertEquals(1, historique.size());
         assertFalse(historique.get(0).active());
     }

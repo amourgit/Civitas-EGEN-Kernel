@@ -8,13 +8,13 @@ import java.util.regex.Pattern;
  * jamais le protocole concret).
  *
  * <p>Le nom suit une convention hierarchique en points, du systeme emetteur vers le
- * fait precis : {@code "organisation.affectation.terminee"},
- * {@code "identite.personne.creee"}. Cette convention permet, plus tard, des
+ * fait precis : {@code "identite.personne.creee"},
+ * {@code "module-registry.activation.creee"}. Cette convention permet, plus tard, des
  * souscriptions par prefixe sans avoir a enumerer chaque type un par un.
  *
  * @param name le nom hierarchique du type d'evenement, en minuscules, segments
  *             separes par un point, chaque segment en kebab-case si necessaire
- *             (ex. {@code "organisation.affectation.terminee"})
+ *             (ex. {@code "identite.personne.creee"})
  */
 public record EventType(String name) {
 
@@ -28,7 +28,7 @@ public record EventType(String name) {
         if (!NAME_PATTERN.matcher(name).matches()) {
             throw new IllegalArgumentException(
                     "Le nom d'un EventType doit suivre le format 'systeme.entite.fait' "
-                            + "en minuscules (ex. 'organisation.affectation.terminee'), recu : " + name);
+                            + "en minuscules (ex. 'identite.personne.creee'), recu : " + name);
         }
     }
 

@@ -7,9 +7,9 @@ import java.util.UUID;
 
 /**
  * Une entree du Catalogue — un module qu'EGEN sait proposer sur ce deploiement,
- * independamment de toute Organisation (§B.2 : "l'ensemble des modules que la
- * plateforme EGEN sait proposer"). Une entree au Catalogue ne signifie ni qu'une
- * Organisation l'a souscrite ({@link Souscription}) ni qu'une Cellule l'a activee
+ * independamment de tout Contexte metier (§B.2 : "l'ensemble des modules que la
+ * plateforme EGEN sait proposer"). Une entree au Catalogue ne signifie ni qu'un
+ * Contexte l'a souscrite ({@link Souscription}) ni qu'un autre Contexte l'a activee
  * ({@link Activation}) — seulement qu'elle existe et peut l'etre.
  *
  * @param moduleId identifiant stable, partage avec {@code ManifesteExtension.moduleId}

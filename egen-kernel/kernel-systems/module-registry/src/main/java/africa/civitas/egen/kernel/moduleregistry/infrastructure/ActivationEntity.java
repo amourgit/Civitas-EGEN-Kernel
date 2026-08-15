@@ -17,8 +17,8 @@ public class ActivationEntity extends PanacheEntityBase {
     @Id
     public UUID id;
 
-    @Column(name = "cellule_id", nullable = false)
-    public UUID celluleId;
+    @Column(name = "contexte_id", nullable = false)
+    public UUID contexteId;
 
     @Column(name = "module_id", nullable = false, length = 100)
     public String moduleId;

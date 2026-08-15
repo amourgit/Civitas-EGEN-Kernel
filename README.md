@@ -128,15 +128,15 @@ precede.
 
 `kernel-domain/module-domain` et `kernel-systems/module-registry` implementent la
 cascade Catalogue -> Souscription -> Activation (§B.11) : un module doit etre au
-Catalogue avant qu'une Organisation ne puisse y Souscrire, elle-meme prealable a
-toute Activation par une de ses Cellules. Chaque palier est verifie explicitement
+Catalogue avant qu'un Contexte ne puisse y Souscrire, prealable a toute Activation
+par un Contexte qui en depend. Chaque palier est verifie explicitement
 au niveau service, jamais suppose. `ModuleActivationResolver` est la question
 fail-closed que `kernel-plugin-engine` consulte desormais reellement avant de
 charger un module : sans Activation active, la Politique-noyau tranche, toujours un
-refus. Organisation et Cellule y sont systematiquement des UUID nus, jamais un
-import du module business Organization (Niveau 2) — module-registry est Niveau 0, il
-ignore tout de la hierarchie des Cellules ; c'est a l'appelant de la resoudre avant
-d'appeler ce
+refus. Un Contexte y est systematiquement un UUID nu, jamais un import d'un module
+Niveau 2 — module-registry est Niveau 0, il ignore tout de la maniere dont
+plusieurs Contextes s'articulent entre eux ; c'est a l'appelant de la resoudre
+avant d'appeler ce
 service (voir le pom.xml de module-registry pour cette decision assumee).
 
 ## kernel-plugin-engine — l'orchestrateur, livre le 25 juillet 2026
@@ -165,7 +165,7 @@ ordre de verification strict et jamais permute pour `charger(...)` :
 `KernelPermissionCheck` (le sujet a-t-il le droit administratif de declencher un
 chargement ?) → lecture et validation du Manifeste (echec → `PolitiqueNoyau`,
 toujours un refus) → `ModuleActivationResolver` (ce module doit-il tourner dans
-cette Cellule ?) → verification des dependances declarees → alors seulement,
+ce Contexte ?) → verification des dependances declarees → alors seulement,
 chargement physique. `decharger(...)` refuse tant qu'un autre module charge declare
 encore en dependre — jamais de cascade implicite.
 
@@ -197,8 +197,8 @@ lui-meme (la verite est deja en base avant toute publication).
   lui-meme, pas un plugin metier optionnel.
 
 **Convention retenue** : un topic Kafka par systeme d'origine (`egen.<systeme>`,
-ex. `egen.organisation` porte a la fois `organisation.affectation.terminee` et
-`organisation.tutelle.etablie`) plutot qu'un topic par type exact — evite une
+ex. `egen.identite` porte a la fois `identite.personne.creee` et
+`identite.compte.suspendu`) plutot qu'un topic par type exact — evite une
 proliferation de topics et rend la souscription par prefixe directe. Cle de
 partition : `contexteId`, pour un ordre de livraison preserve par Contexte.
 
@@ -266,11 +266,11 @@ le repertoire) — configurable (`egen.kernel.plugins-directory`, defaut `plugin
 le compte du sujet bootstrap.
 
 **Decision de conception assumee** : `ModuleActivationResolver` verifie l'Activation
-d'un module pour *une* Cellule precise. Au tout premier demarrage, avant qu'aucune
-hierarchie organisationnelle ne soit necessairement consultable, cette sequence
-utilise une unique Cellule racine, configuree (`egen.kernel.cellule-racine`,
+d'un module pour *un* Contexte precis. Au tout premier demarrage, avant qu'aucun
+Contexte metier ne soit necessairement consultable, cette sequence
+utilise un unique Contexte racine, configure (`egen.kernel.contexte-racine`,
 obligatoire, sans valeur par defaut — un echec de demarrage franc plutot qu'une
-valeur inventee silencieusement). Charger un module pour d'autres Cellules, au fil
+valeur inventee silencieusement). Charger un module pour d'autres Contextes, au fil
 de l'exploitation reelle, reste une operation administrative posterieure au
 demarrage, hors scope de cette premiere livraison.
 

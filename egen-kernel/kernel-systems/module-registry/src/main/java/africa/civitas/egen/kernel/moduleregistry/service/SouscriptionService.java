@@ -15,7 +15,7 @@ public interface SouscriptionService {
      * @throws africa.civitas.egen.kernel.moduleregistry.exception.ModuleIntrouvableAuCatalogueException
      *         si ce module n'est pas au Catalogue
      * @throws africa.civitas.egen.kernel.moduleregistry.exception.SouscriptionDejaActiveException
-     *         si une Souscription active existe deja pour cette Organisation et ce module
+     *         si une Souscription active existe deja pour ce Contexte et ce module
      */
     Souscription souscrire(SouscrireModuleCommand commande);
 
@@ -25,7 +25,7 @@ public interface SouscriptionService {
      */
     void resilier(ResilierSouscriptionCommand commande);
 
-    boolean estActivePour(UUID organisationId, ModuleId moduleId);
+    boolean estActivePour(UUID contexteId, ModuleId moduleId);
 
-    List<Souscription> listerPourOrganisation(UUID organisationId);
+    List<Souscription> listerPourContexte(UUID contexteId);
 }

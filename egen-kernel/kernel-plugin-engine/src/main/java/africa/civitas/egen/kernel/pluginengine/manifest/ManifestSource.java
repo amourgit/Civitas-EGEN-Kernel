@@ -21,10 +21,10 @@ public interface ManifestSource {
     /**
      * @return les paires cle-valeur brutes du Manifeste, non encore validees. Les
      *         cles attendues par {@link ManifestReader} sont : {@code moduleId},
-     *         {@code version}, et, optionnelles, {@code cellTypesProvided},
-     *         {@code mandatesProvided}, {@code eventsEmitted}, {@code eventsConsumed},
-     *         {@code resourceTypesProvided}, {@code dependencies} — ces six dernieres
-     *         en valeurs separees par des virgules.
+     *         {@code version}, et, optionnelles, {@code eventsEmitted},
+     *         {@code eventsConsumed}, {@code resourceTypesProvided},
+     *         {@code dependencies} — ces quatre dernieres en valeurs separees par des
+     *         virgules.
      * @throws ManifestReadException si les donnees brutes ne peuvent pas etre lues du
      *                                tout (fichier absent, illisible...) — a distinguer
      *                                d'un Manifeste lisible mais invalide, qui leve

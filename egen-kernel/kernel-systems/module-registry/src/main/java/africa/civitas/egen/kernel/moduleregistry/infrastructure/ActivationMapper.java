@@ -10,7 +10,7 @@ public final class ActivationMapper {
 
     public static Activation toDomain(ActivationEntity entity) {
         return new Activation(
-                entity.id, entity.celluleId, new ModuleId(entity.moduleId),
+                entity.id, entity.contexteId, new ModuleId(entity.moduleId),
                 entity.tracabilite.toDomain());
     }
 }

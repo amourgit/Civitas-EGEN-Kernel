@@ -47,21 +47,21 @@ public class ActivationServiceImpl implements ActivationService {
                     "Le module '" + commande.moduleId() + "' n'est pas au Catalogue : "
                             + "impossible de l'activer.");
         }
-        if (!souscriptionService.estActivePour(commande.organisationId(), commande.moduleId())) {
+        if (!souscriptionService.estActivePour(commande.contexteSouscripteurId(), commande.moduleId())) {
             throw new SouscriptionRequiseException(
-                    "L'Organisation " + commande.organisationId() + " n'a aucune Souscription "
+                    "Le Contexte " + commande.contexteSouscripteurId() + " n'a aucune Souscription "
                             + "active pour le module '" + commande.moduleId() + "' : impossible "
-                            + "de l'activer pour l'une de ses Cellules.");
+                            + "de l'activer pour l'un de ses Contextes dependants.");
         }
-        if (repository.existeActive(commande.celluleId(), commande.moduleId().valeur())) {
+        if (repository.existeActive(commande.contexteCibleId(), commande.moduleId().valeur())) {
             throw new ActivationDejaActiveException(
-                    "La Cellule " + commande.celluleId() + " a deja active le module '"
+                    "Le Contexte " + commande.contexteCibleId() + " a deja active le module '"
                             + commande.moduleId() + "'.");
         }
 
         ActivationEntity entity = new ActivationEntity();
         entity.id = UUID.randomUUID();
-        entity.celluleId = commande.celluleId();
+        entity.contexteId = commande.contexteCibleId();
         entity.moduleId = commande.moduleId().valeur();
 
         Tracabilite tracabilite = Tracabilite.initiale(commande.demandePar(), commande.origineDonnee());
@@ -89,8 +89,8 @@ public class ActivationServiceImpl implements ActivationService {
     }
 
     @Override
-    public List<Activation> listerPourCellule(UUID celluleId) {
-        return repository.listerPourCellule(celluleId).stream()
+    public List<Activation> listerPourContexte(UUID contexteId) {
+        return repository.listerPourContexte(contexteId).stream()
                 .map(ActivationMapper::toDomain)
                 .toList();
     }

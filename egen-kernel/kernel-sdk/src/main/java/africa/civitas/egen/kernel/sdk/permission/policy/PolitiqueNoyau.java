@@ -11,9 +11,10 @@ import africa.civitas.egen.kernel.sdk.permission.authorization.DecisionNoyau;
  * organization.politique}) est une exigence explicite de la Charte, pas une nuance de
  * style.
  *
- * <p>La Politique organisationnelle repond a "quelles regles cette Organisation ou
- * cette Cellule s'est-elle donnees ?" — une question metier, Niveau 2, avec
- * configuration et Derogation en cascade. La Politique-noyau repond a une question
+ * <p>La Politique organisationnelle repond a "quelles regles ce Contexte metier
+ * s'est-il donnees ?" — une question metier, Niveau 2, propre a chaque module qui la
+ * definit, avec sa propre logique de configuration et de derogation en cascade si
+ * besoin. La Politique-noyau repond a une question
  * radicalement plus etroite et plus rigide : "que fait le Kernel, par defaut, quand
  * aucun module de gouvernance Niveau 2 competent n'a encore statue ?" — une question
  * Niveau 1, sans aucune configuration possible.

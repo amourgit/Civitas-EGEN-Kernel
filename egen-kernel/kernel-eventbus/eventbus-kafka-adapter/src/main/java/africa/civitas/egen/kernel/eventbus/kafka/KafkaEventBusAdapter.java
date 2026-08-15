@@ -37,15 +37,15 @@ import java.util.stream.Collectors;
  * ajoutes au fil du temps).
  *
  * <p><b>Convention de topic</b> : un topic par systeme d'origine (premier segment
- * d'un {@link EventType}, prefixe {@code egen.}) — {@code organisation.affectation.
- * terminee} et {@code organisation.tutelle.etablie} partagent le topic {@code
- * egen.organisation}. Ce choix, plus grossier qu'un topic par type exact, evite une
+ * d'un {@link EventType}, prefixe {@code egen.}) — {@code identite.personne.creee}
+ * et {@code identite.compte.suspendu} partagent le topic {@code
+ * egen.identite}. Ce choix, plus grossier qu'un topic par type exact, evite une
  * proliferation de topics et rend la souscription par prefixe (deja prevue par
  * {@link EventType#systemeOrigine()}) directe : un seul abonnement Kafka par systeme
  * d'origine ecoute, quel que soit le nombre de types precis qu'il porte.
  *
  * <p><b>Cle de partition</b> : {@code contexteId}, pour que tous les evenements d'un
- * meme Contexte (Organisation ou Cellule) atterrissent sur la meme partition — un
+ * meme Contexte atterrissent sur la meme partition — un
  * ordre de livraison preserve par Contexte, jamais garanti globalement (ce que Kafka
  * ne garantit d'ailleurs jamais au-dela d'une partition).
  *

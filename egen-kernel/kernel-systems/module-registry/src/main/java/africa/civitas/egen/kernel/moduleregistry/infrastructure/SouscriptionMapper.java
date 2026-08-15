@@ -10,7 +10,7 @@ public final class SouscriptionMapper {
 
     public static Souscription toDomain(SouscriptionEntity entity) {
         return new Souscription(
-                entity.id, entity.organisationId, new ModuleId(entity.moduleId),
+                entity.id, entity.contexteId, new ModuleId(entity.moduleId),
                 entity.tracabilite.toDomain());
     }
 }

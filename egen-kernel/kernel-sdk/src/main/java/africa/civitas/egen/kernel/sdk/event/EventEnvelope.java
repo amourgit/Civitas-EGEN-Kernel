@@ -14,12 +14,12 @@ import java.util.UUID;
  *
  * <p>Chaque evenement porte obligatoirement un {@code contexteId} : conformement au
  * principe du Contexte unifie, aucun fait metier n'est publie hors d'un Contexte
- * (Organisation ou Cellule) precis.
+ * precis.
  *
  * @param <T> le type de la charge utile
  * @param eventId identifiant unique de cette occurrence d'evenement
  * @param type le type d'evenement
- * @param contexteId le Contexte (Organisation ou Cellule) porteur du fait
+ * @param contexteId le Contexte porteur du fait
  * @param occurredAt l'horodatage auquel le fait s'est produit
  * @param payload la charge utile structurea, propre au type d'evenement
  */
