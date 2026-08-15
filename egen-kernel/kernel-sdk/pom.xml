@@ -53,6 +53,23 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--
+            kernel-sdk est le seul module du depot avec un vrai module-info.java
+            (voir sa description ci-dessus). Sans cette option, Surefire — et
+            IntelliJ, qui reprend cette configuration a l'import Maven — tente une
+            execution modulaire des tests (patch-module, add-opens cibles vers
+            ALL-UNNAMED). Or org.junit.platform.commons est lui-meme un module
+            nomme dans ce lancement, jamais ALL-UNNAMED : ces add-opens ne lui
+            donnent donc aucun acces reflectif aux classes de test, d'ou
+            InaccessibleObjectException sur chaque constructeur de test. Forcer
+            l'execution sur le classpath classique (aucune frontiere de module a
+            l'execution des tests) evite le probleme a la racine, sans jamais
+            toucher au module-info.java de production ni a la surface publique
+            reellement livree.
+          -->
+          <useModulePath>false</useModulePath>
+        </configuration>
       </plugin>
     </plugins>
   </build>
