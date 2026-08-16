@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,7 +27,7 @@ class PluginProcessLauncherTest {
         String ligneAttendue = "EGEN-PLUGIN-PROCESS-1|9999|" + "b".repeat(64);
 
         PluginProcessHandle handle = launcher.lancer(
-                List.of("sh", "-c", "echo '" + ligneAttendue + "'; sleep 5"), REPERTOIRE_TRAVAIL);
+                List.of("sh", "-c", "echo '" + ligneAttendue + "'; sleep 5"), REPERTOIRE_TRAVAIL, Map.of());
         try {
             assertEquals(9999, handle.handshake().port());
             assertEquals("b".repeat(64), handle.handshake().certificatServeurSha256());
@@ -41,7 +42,7 @@ class PluginProcessLauncherTest {
         PluginProcessLauncher launcher = new PluginProcessLauncher(Duration.ofSeconds(5));
         PluginProcessHandle handle = launcher.lancer(
                 List.of("sh", "-c", "echo 'EGEN-PLUGIN-PROCESS-1|1234|" + "c".repeat(64) + "'; sleep 30"),
-                REPERTOIRE_TRAVAIL);
+                REPERTOIRE_TRAVAIL, Map.of());
 
         handle.arreter(Duration.ofSeconds(2));
 
@@ -54,7 +55,7 @@ class PluginProcessLauncherTest {
 
         long debut = System.currentTimeMillis();
         PluginProcessException exception = assertThrows(PluginProcessException.class,
-                () -> launcherAvecDelaiCourt.lancer(List.of("sh", "-c", "sleep 5"), REPERTOIRE_TRAVAIL));
+                () -> launcherAvecDelaiCourt.lancer(List.of("sh", "-c", "sleep 5"), REPERTOIRE_TRAVAIL, Map.of()));
         long duree = System.currentTimeMillis() - debut;
 
         assertTrue(duree < 4000, "le timeout doit se declencher bien avant la fin du sleep 5s reel, mis " + duree + "ms");
@@ -66,7 +67,7 @@ class PluginProcessLauncherTest {
         PluginProcessLauncher launcher = new PluginProcessLauncher(Duration.ofSeconds(5));
 
         PluginProcessException exception = assertThrows(PluginProcessException.class,
-                () -> launcher.lancer(List.of("sh", "-c", "exit 3"), REPERTOIRE_TRAVAIL));
+                () -> launcher.lancer(List.of("sh", "-c", "exit 3"), REPERTOIRE_TRAVAIL, Map.of()));
 
         assertTrue(exception.getMessage().contains("termine avant"));
     }
@@ -77,14 +78,14 @@ class PluginProcessLauncherTest {
 
         assertThrows(PluginProcessException.class,
                 () -> launcher.lancer(List.of("sh", "-c", "echo 'PAS-UN-HANDSHAKE-VALIDE'; sleep 5"),
-                        REPERTOIRE_TRAVAIL));
+                        REPERTOIRE_TRAVAIL, Map.of()));
     }
 
     @Test
     void rejectsAnEmptyCommand() {
         PluginProcessLauncher launcher = new PluginProcessLauncher(Duration.ofSeconds(5));
 
-        assertThrows(IllegalArgumentException.class, () -> launcher.lancer(List.of(), REPERTOIRE_TRAVAIL));
+        assertThrows(IllegalArgumentException.class, () -> launcher.lancer(List.of(), REPERTOIRE_TRAVAIL, Map.of()));
     }
 
     @Test

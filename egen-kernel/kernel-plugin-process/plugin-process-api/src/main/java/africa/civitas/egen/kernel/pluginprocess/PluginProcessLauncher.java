@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -43,21 +44,35 @@ public final class PluginProcessLauncher {
      * @param commande la commande complete a executer (ex. {@code java -jar
      *                 plugin-runtime.jar})
      * @param repertoireTravail le repertoire de travail du processus lance
+     * @param variablesEnvironnement variables ajoutees a l'environnement herite du
+     *                               processus hote — jamais un remplacement complet
+     *                               de cet environnement, uniquement un ajout/une
+     *                               surcharge. Cette classe ne sait rien de ce
+     *                               qu'elles contiennent (typiquement, le certificat
+     *                               de l'hote pour l'authentification mutuelle,
+     *                               fourni par l'appelant) : {@code
+     *                               PluginProcessLauncher} reste sans connaissance
+     *                               de TLS, exactement comme {@link
+     *                               AppelExtensionTransport} le laisse au transport
+     *                               concret.
      * @throws PluginProcessException si le processus ne peut pas etre lance, ne
      *                                  transmet pas de handshake valide dans le
      *                                  delai imparti, ou se termine avant de l'avoir
      *                                  fait
      */
-    public PluginProcessHandle lancer(List<String> commande, Path repertoireTravail) {
+    public PluginProcessHandle lancer(
+            List<String> commande, Path repertoireTravail, Map<String, String> variablesEnvironnement) {
         Objects.requireNonNull(commande, "commande ne peut pas etre nulle.");
         if (commande.isEmpty()) {
             throw new IllegalArgumentException("commande ne peut pas etre vide.");
         }
         Objects.requireNonNull(repertoireTravail, "repertoireTravail ne peut pas etre nul.");
+        Objects.requireNonNull(variablesEnvironnement, "variablesEnvironnement ne peut pas etre nul (une Map vide si aucune).");
 
         ProcessBuilder constructeur = new ProcessBuilder(commande)
                 .directory(repertoireTravail.toFile())
                 .redirectError(ProcessBuilder.Redirect.INHERIT);
+        constructeur.environment().putAll(variablesEnvironnement);
 
         Process processus;
         try {
