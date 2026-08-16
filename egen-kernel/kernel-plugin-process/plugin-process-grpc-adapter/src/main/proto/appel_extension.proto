@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package africa.civitas.egen.kernel.pluginprocess.grpc;
+
+option java_package = "africa.civitas.egen.kernel.pluginprocess.grpc";
+option java_outer_classname = "AppelExtensionProto";
+option java_multiple_files = true;
+
+// Le pont RPC generique que PontExtensionDistante (plugin-process-api) invoque a
+// travers un AppelExtensionTransport concret. Un seul service, une seule methode :
+// c'est ce qui permet a n'importe quel ExtensionPoint metier (defini par n'importe
+// quel module Niveau 2, avec n'importe quelle signature) d'etre servi sans qu'un
+// contrat .proto dedie n'ait a etre ecrit et regenere pour chaque nouveau point
+// d'extension — voir la description de kernel-plugin-process/pom.xml pour la
+// raison de ce choix face au modele "un service RPC fixe par categorie de plugin"
+// de go-plugin/Vault.
+service ServiceExtensionDistante {
+
+    // Invoque une methode d'un ExtensionPoint charge par le processus plugin.
+    rpc Invoquer(RequeteInvocation) returns (ReponseInvocation);
+
+    // Sonde de vie minimale, independante de toute extension chargee — utilisee
+    // pour detecter un processus plugin bloque (handshake recu mais serveur
+    // devenu non reactif) sans attendre l'echec d'un appel d'extension reel.
+    rpc SonderSante(RequeteSonde) returns (ReponseSonde);
+}
+
+message RequeteInvocation {
+    // Nom binaire complet de l'interface ExtensionPoint appelee (ex.
+    // "africa.civitas.egen.modules.business.academie.api.CoursExtensionPoint").
+    string point_extension = 1;
+
+    // Nom de la methode appelee sur cette interface.
+    string methode = 2;
+
+    // Noms binaires complets des types de parametres declares par la methode,
+    // dans l'ordre — necessaires pour resoudre une eventuelle surcharge, jamais
+    // pour la (de)serialisation elle-meme.
+    repeated string types_parametres = 3;
+
+    // Un argument par parametre, deja serialise en JSON par l'appelant. Le
+    // processus plugin ne fait jamais confiance a un type Java arbitraire
+    // recu par le reseau — uniquement a du JSON, desserialise localement vers
+    // le type concret attendu par sa propre implementation.
+    repeated string arguments_json = 4;
+}
+
+message ReponseInvocation {
+    oneof resultat {
+        // Present si l'appel a reussi — la valeur de retour serialisee en JSON.
+        // Une methode retournant void porte une chaine vide ici, jamais ce champ
+        // absent (distinction explicite entre "a reussi sans valeur" et "a
+        // echoue").
+        string valeur_retour_json = 1;
+
+        // Present si l'extension distante a leve une exception. Ne transporte
+        // jamais le type Java exact de l'exception distante (qui n'existe
+        // generalement pas dans le classloader de l'appelant) — uniquement son
+        // nom et son message, reconstruits localement en PluginProcessException
+        // cote hote.
+        EchecInvocation echec = 2;
+    }
+}
+
+message EchecInvocation {
+    // Nom binaire complet du type d'exception leve cote plugin — jamais
+    // desserialise en ce type, uniquement conserve pour diagnostic.
+    string type_exception_distant = 1;
+    string message_distant = 2;
+}
+
+message RequeteSonde {
+}
+
+message ReponseSonde {
+    bool vivant = 1;
+}
