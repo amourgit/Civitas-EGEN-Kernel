@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>kernel-plugin-process</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN Kernel — Isolation de plugin par processus</name>
+  <description>
+    Deuxieme implementation de PluginLoader (kernel-plugin-engine), a cote de
+    Pf4jPluginLoader plutot qu'a sa place : l'isolation par classloader de PF4J reste
+    la voie par defaut (legere, sans processus additionnel a superviser) ; celle-ci
+    ajoute l'isolation par processus separe pour les modules qui en ont besoin
+    (crash isolation reelle, empreinte memoire propre, langage d'implementation
+    libre du cote plugin). Le choix entre les deux reste un choix de deploiement,
+    jamais une reecriture du contrat consomme par PluginLifecycleManager.
+
+    Inspire de go-plugin (HashiCorp — Terraform, Vault, Nomad) sur un point precis :
+    processus enfant + RPC + mTLS ephemere par lancement. S'en ecarte
+    deliberement sur un autre : go-plugin (et Vault en particulier) isole un petit
+    nombre de contrats fixes et connus a l'avance (logical.Backend...). Le point
+    d'extension d'EGEN (ExtensionPoint) reste generique par construction — n'importe
+    quelle interface, definie par n'importe quel module Niveau 2. Le pont RPC ici est
+    donc lui-meme generique (invocation par nom de methode + arguments serialises),
+    pas un ensemble de services RPC fixes par categorie de plugin.
+
+    - plugin-process-api (Niveau 0) : le protocole de handshake, le lancement de
+      processus, et le pont d'invocation generique (Proxy dynamique cote hote) — pur
+      JDK, aucune dependance externe, transport-agnostique. Le transport reel
+      (AppelExtensionTransport) est une interface fonctionnelle que l'adaptateur
+      fournit.
+    - plugin-process-grpc-adapter (Niveau 2, "system") : le transport gRPC + mTLS
+      concret, RpcPluginLoader (implementation de PluginLoader), et le runtime
+      minimal execute cote processus plugin.
+
+    Limite assumee et documentee au meme titre que pour eventbus-kafka-adapter :
+    Maven Central n'etant pas joignable depuis le sandbox ou ce module a ete ecrit,
+    le code gRPC de plugin-process-grpc-adapter n'a pas pu etre compile ni execute
+    avant sa premiere livraison — a verifier en priorite au premier `mvn compile`
+    local. plugin-process-api, lui, est pur JDK et a ete compile et execute
+    directement (javac/java, hors Maven) pour verification reelle avant tout commit.
+  </description>
+
+  <modules>
+    <module>plugin-process-api</module>
+  </modules>
+
+</project>
