@@ -21,16 +21,20 @@ class PluginProcessLauncherTest {
 
     private static final Path REPERTOIRE_TRAVAIL = Path.of(System.getProperty("java.io.tmpdir"));
 
+    /** Le meme vrai certificat X.509 (EC secp256r1) que PluginProcessHandshakeTest, genere via keytool. */
+    private static final String CERTIFICAT_VALIDE_BASE64 =
+            "MIIBNTCB3KADAgECAgkAhLh07YXy52AwCgYIKoZIzj0EAwIwDzENMAsGA1UEAxMEdGVzdDAeFw0yNjA4MTcwMDU4NDRaFw0yNjA4MTgwMDU4NDRaMA8xDTALBgNVBAMTBHRlc3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATpxvxsrnmcuF+MMMvuEWdE7MWuum3KER3vCWvCOS++Vzqt2gzULnZt5y1+qd6HHwePHeAxLRH3E+9VNiRi6pH4oyEwHzAdBgNVHQ4EFgQUxP1r52FCQ/PXN4yWOw0xuud7hhUwCgYIKoZIzj0EAwIDSAAwRQIhALKME1co4El9evIIISbKdiXd/hJfum0y0mMMhnJWEJ+rAiBDBZ+SL9rujSjys6a3yjSkMiYBttSJMii5CE9tGIX4aQ==";
+
     @Test
     void readsAValidHandshakeFromARealSubprocess() {
         PluginProcessLauncher launcher = new PluginProcessLauncher(Duration.ofSeconds(5));
-        String ligneAttendue = "EGEN-PLUGIN-PROCESS-1|9999|" + "b".repeat(64);
+        String ligneAttendue = "EGEN-PLUGIN-PROCESS-1|9999|" + CERTIFICAT_VALIDE_BASE64;
 
         PluginProcessHandle handle = launcher.lancer(
                 List.of("sh", "-c", "echo '" + ligneAttendue + "'; sleep 5"), REPERTOIRE_TRAVAIL, Map.of());
         try {
             assertEquals(9999, handle.handshake().port());
-            assertEquals("b".repeat(64), handle.handshake().certificatServeurSha256());
+            assertEquals(CERTIFICAT_VALIDE_BASE64, handle.handshake().certificatServeurBase64());
             assertTrue(handle.estVivant());
         } finally {
             handle.arreter(Duration.ofSeconds(2));
@@ -41,7 +45,7 @@ class PluginProcessLauncherTest {
     void stoppingTheHandleTerminatesTheRealProcess() {
         PluginProcessLauncher launcher = new PluginProcessLauncher(Duration.ofSeconds(5));
         PluginProcessHandle handle = launcher.lancer(
-                List.of("sh", "-c", "echo 'EGEN-PLUGIN-PROCESS-1|1234|" + "c".repeat(64) + "'; sleep 30"),
+                List.of("sh", "-c", "echo 'EGEN-PLUGIN-PROCESS-1|1234|" + CERTIFICAT_VALIDE_BASE64 + "'; sleep 30"),
                 REPERTOIRE_TRAVAIL, Map.of());
 
         handle.arreter(Duration.ofSeconds(2));
