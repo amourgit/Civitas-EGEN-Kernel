@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>kernel-plugin-process</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>plugin-process-grpc-adapter</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN Kernel — Isolation par processus (adaptateur gRPC)</name>
+  <description>
+    Implementation concrete de AppelExtensionTransport (plugin-process-api) adossee
+    a gRPC + mTLS ephemere. Depend de io.grpc:grpc-netty (non shade — le Kernel tourne
+    dans Quarkus, qui gere deja sa propre version de Netty via le BOM importe a la
+    racine ; grpc-netty-shaded aurait embarque une seconde copie de Netty, source de
+    conflits inutiles) et non de grpc-netty-shaded.
+
+    Materiel TLS ephemere genere via Bouncy Castle (bcpkix-jdk18on, licence MIT) —
+    jamais io.netty.handler.ssl.util.SelfSignedCertificate, dont la Javadoc officielle
+    est explicite : reserve aux tests, generateur pseudo-aleatoire non securise.
+    Utiliser cette classe pour un mecanisme de securite reel aurait vide le mTLS de
+    son sens.
+
+    Topologie du mTLS, calquee sur le mecanisme AutoMTLS de go-plugin (HashiCorp —
+    Terraform, Vault, Nomad) : l'hote genere une paire de certificats et transmet son
+    certificat au processus plugin via son environnement au lancement (voir
+    PluginProcessLauncher#lancer, increment precedent) ; le plugin genere sa propre
+    paire et rapporte l'empreinte SHA-256 de son certificat via la ligne de handshake
+    (PluginProcessHandshake). Chaque partie ne fait confiance qu'a exactement l'autre
+    certificat ainsi echange, jamais a une autorite de certification partagee — pas
+    d'infrastructure PKI a operer, une paire de confiance unique et ephemere par
+    lancement de processus.
+
+    Versions de grpc.version et protoc.version non verifiables depuis ce sandbox
+    (Maven Central injoignable) — a confirmer par la CI, qui y a acces reel, et a
+    corriger si necessaire (meme limite deja assumee pour pf4j.version dans le
+    pom.xml racine).
+  </description>
+
+  <properties>
+    <grpc.version>1.83.1</grpc.version>
+    <protoc.version>4.33.2</protoc.version>
+    <bouncycastle.version>1.85</bouncycastle.version>
+    <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
+    <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-sdk</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>plugin-process-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Versions geree par le BOM Quarkus importe a la racine, pas fixee ici. -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+    </dependency>
+    <!--
+      Necessaire pour @Generated sur le code genere par protoc-gen-grpc-java —
+      l'annotation n'est plus fournie par le JDK depuis Java 9. Version geree par le
+      BOM Quarkus (jakarta.annotation-api est deja une dependance transitive
+      omnipresente de CDI/Jakarta EE dans ce depot), jamais fixee ici a la main.
+    -->
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jackson</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-maven-plugin.version}</version>
+      </extension>
+    </extensions>
+    <plugins>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf-maven-plugin.version}</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
+          <pluginId>grpc-java</pluginId>
+          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>compile-custom</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

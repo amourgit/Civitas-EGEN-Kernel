@@ -51,6 +51,7 @@
 
   <modules>
     <module>plugin-process-api</module>
+    <module>plugin-process-grpc-adapter</module>
   </modules>
 
 </project>
