@@ -90,7 +90,7 @@ public final class GrpcAppelExtensionTransport implements AppelExtensionTranspor
             PluginProcessHandshake handshake, MaterielTlsEphemere materielHote) {
         try (InputStream certificatHote = versFlux(materielHote.certificatPem());
              InputStream clePriveeHote = versFlux(materielHote.clePriveePem());
-             InputStream certificatPlugin = new ByteArrayInputStream(handshake.certificatServeurDer())) {
+             InputStream certificatPlugin = versFlux(CodagePem.certificatDerVersPem(handshake.certificatServeurDer()))) {
             return TlsChannelCredentials.newBuilder()
                     .keyManager(certificatHote, clePriveeHote)
                     .trustManager(certificatPlugin)
