@@ -5,10 +5,13 @@ import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
+import java.io.IOException;
+import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -22,6 +25,7 @@ import java.security.cert.X509Certificate;
 import java.security.spec.ECGenParameterSpec;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.Objects;
@@ -31,10 +35,10 @@ import java.util.Objects;
  * processus plugin — jamais reutilise entre deux lancements, jamais persiste sur
  * disque. L'hote en genere un pour lui-meme, transmis au processus plugin via son
  * environnement au lancement (voir {@code PluginProcessLauncher#lancer}) ; le
- * processus plugin en genere un autre pour lui-meme, dont l'empreinte est rapportee
- * a l'hote via {@code PluginProcessHandshake#certificatServeurSha256}. Chaque partie
- * ne fait confiance qu'a exactement l'unique certificat ainsi recu — jamais a une
- * autorite de certification partagee.
+ * processus plugin en genere un autre pour lui-meme, dont le certificat complet est
+ * rapporte a l'hote via {@code PluginProcessHandshake#certificatServeurBase64}.
+ * Chaque partie ne fait confiance qu'a exactement l'unique certificat ainsi recu —
+ * jamais a une autorite de certification partagee.
  *
  * <p>Genere via Bouncy Castle (licence MIT), jamais via {@code
  * io.netty.handler.ssl.util.SelfSignedCertificate} : sa propre Javadoc officielle
@@ -83,7 +87,7 @@ public final class MaterielTlsEphemere {
         return certificat;
     }
 
-    /** @return l'empreinte SHA-256 du certificat encode DER, en hexadecimal minuscule — le format attendu par {@code PluginProcessHandshake}. */
+    /** @return l'empreinte SHA-256 du certificat encode DER, en hexadecimal minuscule. Diagnostic uniquement — le protocole de handshake transporte desormais le certificat complet, jamais seulement cette empreinte. */
     public String empreinteSha256Hex() {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -92,6 +96,45 @@ public final class MaterielTlsEphemere {
         } catch (NoSuchAlgorithmException | CertificateEncodingException e) {
             throw new MaterielTlsException("Impossible de calculer l'empreinte du certificat.", e);
         }
+    }
+
+    /** @return le certificat encode DER puis Base64 sur une seule ligne — exactement le format que {@code PluginProcessHandshake} transporte. */
+    public String certificatBase64() {
+        try {
+            return Base64.getEncoder().encodeToString(certificat.getEncoded());
+        } catch (CertificateEncodingException e) {
+            throw new MaterielTlsException("Impossible d'encoder le certificat en Base64.", e);
+        }
+    }
+
+    /**
+     * @return le certificat encode au format PEM standard (en-tetes {@code BEGIN
+     *         CERTIFICATE}/{@code END CERTIFICATE}, corps multi-lignes) — le format
+     *         attendu par les constructeurs {@code keyManager}/{@code trustManager}
+     *         bases sur un flux de grpc-java (io.grpc.TlsChannelCredentials,
+     *         io.grpc.TlsServerCredentials). A ne jamais confondre avec le Base64
+     *         sur une seule ligne, sans en-tetes, que transporte {@code
+     *         PluginProcessHandshake} — deux encodages du meme certificat, pour deux
+     *         usages distincts.
+     */
+    public String certificatPem() {
+        return versPem(certificat);
+    }
+
+    /** @return la cle privee encodee au format PEM standard (PKCS#8), meme remarque que {@link #certificatPem()}. */
+    public String clePriveePem() {
+        return versPem(clePrivee);
+    }
+
+    private static String versPem(Object objetCryptographique) {
+        StringWriter tampon = new StringWriter();
+        try (JcaPEMWriter ecrivainPem = new JcaPEMWriter(tampon)) {
+            ecrivainPem.writeObject(objetCryptographique);
+        } catch (IOException e) {
+            throw new MaterielTlsException(
+                    "Echec d'encodage PEM de " + objetCryptographique.getClass().getSimpleName() + ".", e);
+        }
+        return tampon.toString();
     }
 
     private static KeyPair genererPaireDeCles() throws GeneralSecurityException {
