@@ -105,6 +105,19 @@ public final class GrpcAppelExtensionTransport implements AppelExtensionTranspor
         return new ByteArrayInputStream(pem.getBytes(StandardCharsets.US_ASCII));
     }
 
+    /** @return les points d'extension (noms binaires complets) que le processus plugin fournit reellement. */
+    public List<String> listerPointsExtension() {
+        try {
+            ReponseListePointsExtension reponse = souche
+                    .withDeadlineAfter(delaiAppel.toMillis(), TimeUnit.MILLISECONDS)
+                    .listerPointsExtension(RequeteListePointsExtension.newBuilder().build());
+            return reponse.getPointsExtensionList();
+        } catch (StatusRuntimeException e) {
+            throw new PluginProcessException(
+                    "Echec de la decouverte des points d'extension du processus plugin (" + e.getStatus() + ").", e);
+        }
+    }
+
     @Override
     public Object invoquer(Class<?> pointExtension, Method methode, Object[] arguments) throws Exception {
         RequeteInvocation requete = construireRequete(pointExtension, methode, arguments);

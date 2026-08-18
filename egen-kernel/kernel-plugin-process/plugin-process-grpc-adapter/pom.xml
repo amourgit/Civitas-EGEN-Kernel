@@ -59,6 +59,11 @@
     </dependency>
     <dependency>
       <groupId>africa.civitas.egen</groupId>
+      <artifactId>kernel-plugin-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
       <artifactId>plugin-process-api</artifactId>
       <version>${project.version}</version>
     </dependency>

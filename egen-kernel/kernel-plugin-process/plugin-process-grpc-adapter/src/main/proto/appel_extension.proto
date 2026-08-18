@@ -19,10 +19,24 @@ service ServiceExtensionDistante {
     // Invoque une methode d'un ExtensionPoint charge par le processus plugin.
     rpc Invoquer(RequeteInvocation) returns (ReponseInvocation);
 
+    // Les points d'extension (noms binaires complets d'interfaces ExtensionPoint)
+    // que ce processus plugin fournit reellement — le seul moyen pour l'hote de
+    // savoir pour quels points construire un Proxy dynamique (PontExtensionDistante,
+    // plugin-process-api), puisque la decouverte des classes @Extension a lieu
+    // entierement cote plugin (PluginProcessRuntime), jamais cote hote.
+    rpc ListerPointsExtension(RequeteListePointsExtension) returns (ReponseListePointsExtension);
+
     // Sonde de vie minimale, independante de toute extension chargee — utilisee
     // pour detecter un processus plugin bloque (handshake recu mais serveur
     // devenu non reactif) sans attendre l'echec d'un appel d'extension reel.
     rpc SonderSante(RequeteSonde) returns (ReponseSonde);
+}
+
+message RequeteListePointsExtension {
+}
+
+message ReponseListePointsExtension {
+    repeated string points_extension = 1;
 }
 
 message RequeteInvocation {

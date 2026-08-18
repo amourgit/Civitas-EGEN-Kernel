@@ -49,6 +49,16 @@ final class ServiceExtensionDistanteImpl extends ServiceExtensionDistanteGrpc.Se
     }
 
     @Override
+    public void listerPointsExtension(
+            RequeteListePointsExtension requete, StreamObserver<ReponseListePointsExtension> responseObserver) {
+        responseObserver.onNext(
+                ReponseListePointsExtension.newBuilder()
+                        .addAllPointsExtension(extensionsParPointExtension.keySet())
+                        .build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
     public void sonderSante(RequeteSonde requete, StreamObserver<ReponseSonde> responseObserver) {
         responseObserver.onNext(ReponseSonde.newBuilder().setVivant(true).build());
         responseObserver.onCompleted();
