@@ -5,13 +5,10 @@ import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
-import java.io.IOException;
-import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -118,23 +115,25 @@ public final class MaterielTlsEphemere {
      *         usages distincts.
      */
     public String certificatPem() {
-        return versPem(certificat);
-    }
-
-    /** @return la cle privee encodee au format PEM standard (PKCS#8), meme remarque que {@link #certificatPem()}. */
-    public String clePriveePem() {
-        return versPem(clePrivee);
-    }
-
-    private static String versPem(Object objetCryptographique) {
-        StringWriter tampon = new StringWriter();
-        try (JcaPEMWriter ecrivainPem = new JcaPEMWriter(tampon)) {
-            ecrivainPem.writeObject(objetCryptographique);
-        } catch (IOException e) {
-            throw new MaterielTlsException(
-                    "Echec d'encodage PEM de " + objetCryptographique.getClass().getSimpleName() + ".", e);
+        try {
+            return CodagePem.certificatDerVersPem(certificat.getEncoded());
+        } catch (CertificateEncodingException e) {
+            throw new MaterielTlsException("Echec d'encodage PEM du certificat.", e);
         }
-        return tampon.toString();
+    }
+
+    /**
+     * @return la cle privee encodee au format PEM standard (PKCS#8, en-tetes
+     *         {@code BEGIN PRIVATE KEY}/{@code END PRIVATE KEY}) — jamais via
+     *         {@code org.bouncycastle.openssl.jcajce.JcaPEMWriter#writeObject},
+     *         qui reencode silencieusement une cle EC au format legacy SEC1
+     *         ({@code EC PRIVATE KEY}) que le parseur PKCS#8 pur-JDK de Netty
+     *         (utilise par grpc-java en repli, sans netty-tcnative) ne sait pas
+     *         lire — confirme par execution reelle avant cette correction. Voir
+     *         {@link CodagePem} pour le detail complet.
+     */
+    public String clePriveePem() {
+        return CodagePem.clePriveeDerVersPem(clePrivee.getEncoded());
     }
 
     private static KeyPair genererPaireDeCles() throws GeneralSecurityException {

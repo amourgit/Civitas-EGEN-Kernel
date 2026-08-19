@@ -73,6 +73,21 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty</artifactId>
     </dependency>
+    <!--
+      Indispensable, pas facultatif : confirme par execution reelle (increment de
+      verification post-livraison) que le fournisseur SSL pur-JDK de Netty
+      (JdkSslContext) echoue au demarrage du serveur avec
+      "UnsupportedOperationException: JDK provider does not support ALPN protocol" —
+      gRPC (HTTP/2) exige ALPN pour negocier le protocole. BoringSSL/OpenSSL, via
+      cette dependance, a un support ALPN mature et independant des variations de
+      support JDK-natif ; c'est la recommandation officielle de grpc-java pour
+      grpc-netty (non-shade). Version geree par le BOM Quarkus, comme le reste de
+      io.grpc.* ci-dessus.
+    -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-tcnative-boringssl-static</artifactId>
+    </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-protobuf</artifactId>
