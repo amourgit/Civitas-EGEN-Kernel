@@ -46,7 +46,6 @@
   <properties>
     <grpc.version>1.83.1</grpc.version>
     <protoc.version>4.33.2</protoc.version>
-    <bouncycastle.version>1.85</bouncycastle.version>
     <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
   </properties>
@@ -113,10 +112,24 @@
       <artifactId>quarkus-jackson</artifactId>
     </dependency>
 
+    <!--
+      Version geree par dependencyManagement (kernel-plugin-process/pom.xml), pas
+      fixee ici : les trois artefacts sont explicitement declares, meme ceux dont
+      seule bcpkix-jdk18on a directement besoin, pour garantir qu'aucune version
+      transitive divergente (ex. via Quarkus) ne s'y substitue silencieusement — la
+      cause confirmee, par execution reelle, d'un NoSuchFieldError au demarrage.
+    -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcutil-jdk18on</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk18on</artifactId>
-      <version>${bouncycastle.version}</version>
     </dependency>
 
     <dependency>

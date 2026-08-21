@@ -47,7 +47,43 @@
     avant sa premiere livraison — a verifier en priorite au premier `mvn compile`
     local. plugin-process-api, lui, est pur JDK et a ete compile et execute
     directement (javac/java, hors Maven) pour verification reelle avant tout commit.
+
+    dependencyManagement ci-dessous : force les trois artefacts Bouncy Castle
+    (bcprov/bcutil/bcpkix-jdk18on) a la meme version, quelle que soit la version que
+    Quarkus (ou toute autre dependance du reactor) tirerait sinon transitivement de
+    son cote. Necessaire suite a un echec reel observe en execution locale
+    (premiere verification par un vrai mvn test sur ce module) :
+    NoSuchFieldError sur org.bouncycastle.asn1.iana.IANAObjectIdentifiers au
+    demarrage de JcaContentSignerBuilder — signature caracteristique d'un melange de
+    versions BC incompatibles sur le classpath, la resolution de dependances Maven
+    ayant retenu une version de bcprov/bcutil plus ancienne que celle de bcpkix
+    declaree ici. Scope volontairement a ce module (jamais a la racine du reactor) :
+    Bouncy Castle n'est utilise nulle part ailleurs dans ce depot.
   </description>
+
+  <properties>
+    <bouncycastle.version>1.85</bouncycastle.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcutil-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <modules>
     <module>plugin-process-api</module>
