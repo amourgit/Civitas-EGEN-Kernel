@@ -1,7 +1,6 @@
 package africa.civitas.egen.modules.business.organization.api.politique.domain;
 
 import africa.civitas.egen.modules.business.organization.api.politique.command.CreerPolitiqueCommand;
-import africa.civitas.egen.kernel.sdk.contexte.ContexteNature;
 import africa.civitas.egen.kernel.sdk.tracabilite.Acteur;
 import africa.civitas.egen.kernel.sdk.tracabilite.OrigineDonnee;
 import africa.civitas.egen.kernel.sdk.tracabilite.Tracabilite;

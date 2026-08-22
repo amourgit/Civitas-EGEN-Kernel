@@ -17,7 +17,7 @@ import africa.civitas.egen.modules.business.organization.api.exception.CelluleIn
 import africa.civitas.egen.modules.business.organization.api.exception.OrganisationIntrouvableException;
 import africa.civitas.egen.modules.business.organization.api.service.CelluleService;
 import africa.civitas.egen.modules.business.organization.api.service.OrganisationService;
-import africa.civitas.egen.kernel.sdk.contexte.ContexteNature;
+import africa.civitas.egen.modules.business.organization.api.politique.domain.ContexteNature;
 import africa.civitas.egen.kernel.sdk.tracabilite.Tracabilite;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

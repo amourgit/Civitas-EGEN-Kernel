@@ -3,7 +3,7 @@ package africa.civitas.egen.modules.business.organization.impl.politique.domain;
 import africa.civitas.egen.kernel.jpasupport.tracabilite.TracabiliteEmbeddable;
 import africa.civitas.egen.modules.business.organization.api.politique.domain.DomainePolitique;
 import africa.civitas.egen.modules.business.organization.api.politique.domain.StatutPolitique;
-import africa.civitas.egen.kernel.sdk.contexte.ContexteNature;
+import africa.civitas.egen.modules.business.organization.api.politique.domain.ContexteNature;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;

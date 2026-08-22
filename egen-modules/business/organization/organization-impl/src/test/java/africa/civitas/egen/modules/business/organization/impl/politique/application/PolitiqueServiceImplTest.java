@@ -19,7 +19,7 @@ import africa.civitas.egen.modules.business.organization.api.politique.command.C
 import africa.civitas.egen.modules.business.organization.api.politique.domain.DomainePolitique;
 import africa.civitas.egen.modules.business.organization.api.politique.domain.Politique;
 import africa.civitas.egen.modules.business.organization.api.politique.domain.ValeurEffective;
-import africa.civitas.egen.kernel.sdk.contexte.ContexteNature;
+import africa.civitas.egen.modules.business.organization.api.politique.domain.ContexteNature;
 import africa.civitas.egen.kernel.sdk.tracabilite.Acteur;
 import africa.civitas.egen.kernel.sdk.tracabilite.OrigineDonnee;
 import io.quarkus.test.TestTransaction;
