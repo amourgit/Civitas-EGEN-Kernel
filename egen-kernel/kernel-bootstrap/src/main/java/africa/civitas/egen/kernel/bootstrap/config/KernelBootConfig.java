@@ -56,6 +56,17 @@ public class KernelBootConfig {
         return new ExtensionRegistry();
     }
 
+    /**
+     * {@link Pf4jPluginLoader} (isolation par classloader) reste la voie par
+     * defaut — legere, aucun processus additionnel a superviser. {@code
+     * RpcPluginLoader} (isolation par processus separe + mTLS ephemere,
+     * kernel-plugin-process) existe comme alternative pour les modules qui en ont
+     * reellement besoin. kernel-bootstrap ne depend deliberement pas encore de
+     * kernel-plugin-process (aucun consommateur reel aujourd'hui — pas de
+     * dependance speculative) : l'activer exige d'abord d'ajouter
+     * plugin-process-grpc-adapter aux dependances de ce module, puis de changer ce
+     * producteur — jamais ailleurs dans le Kernel.
+     */
     @Produces
     @ApplicationScoped
     public PluginLoader pluginLoader() {

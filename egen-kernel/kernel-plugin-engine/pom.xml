@@ -19,8 +19,12 @@
     valide un Manifeste d'Extension (manifest/), decide s'il faut charger le module
     correspondant en consultant, dans cet ordre strict, KernelPermissionCheck puis
     ModuleActivationResolver (lifecycle/PluginLifecycleManager), et delegue le
-    chargement physique a une abstraction (loader/PluginLoader) dont
-    Pf4jPluginLoader est la seule implementation livree.
+    chargement physique a une abstraction (loader/PluginLoader). Deux implementations
+    coexistent desormais, sans qu'aucune n'ait exige de changement ici — exactement
+    la garantie que cette abstraction promettait : Pf4jPluginLoader (isolation par
+    classloader, ci-dessous) et RpcPluginLoader (isolation par processus separe,
+    kernel-plugin-process — voir Charte v3 §A.6septies). Le choix entre les deux
+    reste une decision de deploiement, jamais tranchee ici.
 
     Trois points d'extensibilite deliberes :
     - ManifestSource (manifest/) : d'ou viennent les donnees brutes d'un Manifeste.
@@ -30,7 +34,7 @@
     - PluginLoader (loader/) : comment un plugin est physiquement charge/decharge.
       Pf4jPluginLoader est adossee a PF4J (org.pf4j, Apache 2.0) pour l'isolation de
       classloader et le cycle de vie physique ; PluginLifecycleManager ne connait
-      jamais PF4J directement.
+      jamais PF4J directement, ni aucune autre implementation concrete.
     - ExtensionRegistry (registry/) : le registre vivant des extensions chargees,
       independant du mecanisme physique qui les a decouvertes.
 

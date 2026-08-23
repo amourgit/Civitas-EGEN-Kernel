@@ -45,6 +45,18 @@ Activation, `ActiverModuleCommand`) et `kernel-bootstrap`
 legitimement, a utiliser ce vocabulaire — entierement de son cote de la frontiere
 Niveau 1/Niveau 2, jamais celui du Kernel.
 
+**Le 22 aout 2026**, `kernel-plugin-process` ajoute une seconde implementation de
+`PluginLoader` — isolation par processus separe, mTLS ephemere, detail complet en
+§A.6septies. En verifiant `egen-modules/` par un premier `mvn test` complet et reel
+(le premier de tout le reacteur depuis la neutralisation), un angle mort de cette
+meme passe du 15 aout a ete corrige : `Politique` (§B.12,
+`egen-modules/business/organization/organization-api`) importait directement le
+`ContexteNature` de `kernel-sdk`, supprime par la neutralisation — l'audit de
+l'epoque n'avait cherche que les references litterales
+"organisation"/"cellule", jamais les usages du type lui-meme. Rapatrie cote
+business, la ou il appartient legitimement (`organization-api/.../politique/domain/
+ContexteNature.java`), jamais restaure dans le Kernel.
+
 ---
 
 # PARTIE A — Le Noyau : philosophie et classification
@@ -415,6 +427,47 @@ qu'une solution qui casserait le build.
 et `SpiceDbTestResource`. Aucun code de ce depot n'integre encore reellement OIDC ou
 SpiceDB — les construire maintenant serait de la speculation non verifiable. A
 ajouter des qu'un premier consommateur reel existera.
+
+## A.6septies kernel-plugin-process — isolation par processus, livre le 22 aout 2026
+
+Une seconde implementation de `PluginLoader` (§A.6ter), a cote de
+`Pf4jPluginLoader` plutot qu'a sa place : l'isolation par classloader de PF4J reste
+la voie par defaut (legere, aucun processus additionnel a superviser) ; celle-ci
+ajoute l'isolation par processus separe — crash isolation reelle, mTLS ephemere par
+lancement — pour les modules qui en ont besoin. Le choix entre les deux reste une
+decision de deploiement, jamais tranchee dans le Kernel lui-meme.
+
+Inspire de go-plugin (HashiCorp — Terraform, Vault, Nomad) sur un point precis :
+processus enfant + RPC + mTLS ephemere, jamais une autorite de certification
+partagee a etablir. S'en ecarte deliberement sur un autre : go-plugin isole un
+petit nombre de contrats fixes et connus a l'avance (`logical.Backend` pour Vault).
+Le point d'extension d'EGEN (`ExtensionPoint`) reste generique par construction —
+n'importe quelle interface, definie par n'importe quel module Niveau 2 — donc le
+pont RPC ici (`PontExtensionDistante`, un Proxy dynamique cote hote relayant chaque
+appel via un service gRPC generique a une seule methode) l'est aussi, plutot qu'un
+service RPC fixe par categorie de plugin.
+
+Deux artefacts, structures comme `kernel-eventbus` : `plugin-process-api` (Niveau
+0, pur JDK, zero dependance externe — handshake versionne a la Linux vermagic,
+lancement de processus, pont d'invocation generique) et
+`plugin-process-grpc-adapter` (Niveau 2 "system" — gRPC/mTLS concret, materiel TLS
+ephemere via Bouncy Castle, jamais `io.netty.handler.ssl.util.SelfSignedCertificate`
+dont la Javadoc officielle exclut tout usage hors tests).
+
+**Deux corrections trouvees en verification reelle, pas en relecture** :
+`JcaPEMWriter` reconvertit silencieusement une cle EC vers le format legacy SEC1,
+que Netty ne sait pas charger — corrige avant toute regression possible. Les trois
+artefacts Bouncy Castle (`bcprov`/`bcutil`/`bcpkix-jdk18on`) doivent partager
+exactement la meme version, fixee par `dependencyManagement` dans le pom agregateur
+plutot que laissee a la resolution transitive — sans quoi Maven peut retenir des
+versions incompatibles entre elles (confirme par un premier `mvn test` reel).
+
+**Limites assumees pour cette premiere livraison, documentees plutot que
+silencieuses** : le processus plugin herite integralement du classpath de l'hote
+(isolation memoire et crash garanties, pas encore l'isolation des dependances) ;
+une seule instance par point d'extension et par processus ; `priority()`
+(`@Extension`) pas encore transmis par le protocole. A corriger avant qu'un module
+reel n'en ait besoin.
 
 ## A.6 Arborescence noyau — mise a jour (etat reel au 28 juillet 2026)
 

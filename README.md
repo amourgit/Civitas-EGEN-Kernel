@@ -380,6 +380,7 @@ bout en bout de toute la chaine de gouvernance avec de vraies donnees en base.
 | `kernel-domain/module-domain` | 0 | ✅ Livre — `ModuleId`, `CatalogueEntree`, `Souscription`, `Activation` : vocabulaire pur, zero framework |
 | `kernel-systems/module-registry` | 0 | ✅ Livre — cascade Catalogue → Souscription → Activation, `ModuleActivationResolver` fail-closed |
 | `kernel-plugin-engine` | 0 | ✅ Livre — `ManifestReader`, `ExtensionRegistry`, `PluginLifecycleManager` (orchestrateur), `PluginLoader` + `Pf4jPluginLoader` |
+| `kernel-plugin-process` | 0 + 2 (system) | ✅ Livre — `RpcPluginLoader`, seconde implementation de `PluginLoader` : isolation par processus separe, mTLS ephemere |
 | `kernel-eventbus` | 0 | ✅ Livre — `EventBus`/`InMemoryEventBus` (`eventbus-api`), `KafkaEventBusAdapter` (`eventbus-kafka-adapter`) |
 | `kernel-bootstrap` | 0 | ✅ Livre — `EgenKernelApplication`, `KernelBootSequence`, `PluginDirectoryScanner` |
 | `kernel-test-support` | 0 | ✅ Livre — `TracabiliteFixtures`, `FakeKernelPermissionCheck`, `FakeModuleActivationResolver`, `PostgresTestResource` |
@@ -454,6 +455,49 @@ SpiceDB — les construire maintenant serait de la speculation non verifiable, p
 la rigueur. A ajouter avec le meme soin des qu'un premier consommateur reel existera
 (veritable integration OIDC dans `identity-provider-keycloak`,
 `authorization-provider-spicedb`).
+
+## kernel-plugin-process — isolation par processus, livre le 22 aout 2026
+
+Une seconde implementation de `PluginLoader` (kernel-plugin-engine), a cote de
+`Pf4jPluginLoader` plutot qu'a sa place. `Pf4jPluginLoader` (isolation par
+classloader, meme JVM, meme memoire) reste la voie par defaut ; celle-ci ajoute
+l'isolation par processus separe — un plugin qui plante n'affecte jamais l'hote —
+pour les modules qui en ont reellement besoin. Le choix entre les deux est une
+decision de deploiement, jamais tranchee dans le Kernel.
+
+Inspire de go-plugin (HashiCorp — Terraform, Vault, Nomad) sur un point precis :
+processus enfant + RPC + mTLS ephemere par lancement, jamais une autorite de
+certification partagee. S'en ecarte deliberement sur un autre : go-plugin isole un
+petit nombre de contrats fixes et connus a l'avance (`logical.Backend` pour Vault).
+`ExtensionPoint` reste generique par construction chez EGEN — n'importe quelle
+interface, definie par n'importe quel module Niveau 2 — donc le pont RPC l'est
+aussi : un service gRPC unique (`Invoquer`), pas un contrat `.proto` a ecrire par
+categorie de plugin.
+
+- **`plugin-process-api`** (Niveau 0, pur JDK) — `PluginProcessHandshake` (le
+  protocole de handshake, versionne a la Linux vermagic : un processus dont le
+  format ne correspond pas est refuse au chargement, jamais une tentative degradee
+  qui echoue plus tard de maniere imprevisible), `PluginProcessLauncher`/
+  `PluginProcessHandle` (lancement de sous-processus reel, delai de handshake
+  borne), `PontExtensionDistante` (le Proxy dynamique generique).
+- **`plugin-process-grpc-adapter`** (Niveau 2, "system") — `GrpcAppelExtensionTransport`
+  (cote hote), `ServiceExtensionDistanteImpl`/`PluginProcessRuntime` (cote
+  processus plugin), `MaterielTlsEphemere` (certificat auto-signe ephemere via
+  Bouncy Castle — jamais `io.netty.handler.ssl.util.SelfSignedCertificate`, dont la
+  Javadoc officielle exclut tout usage hors tests), `RpcPluginLoader`.
+
+**Deux corrections trouvees par execution reelle, pas par relecture** — la
+premiere fois dans cette session qu'un module a pu etre verifie par un vrai build
+plutot que par une lecture attentive seule : `JcaPEMWriter` reconvertit
+silencieusement une cle EC vers le format legacy SEC1, illisible par Netty ;
+`bcprov`/`bcutil`/`bcpkix-jdk18on` doivent partager exactement la meme version,
+desormais fixee par `dependencyManagement` plutot que laissee a la resolution
+transitive de Maven.
+
+**Limites assumees pour cette premiere livraison** : le processus plugin herite du
+classpath complet de l'hote (isolation memoire et crash garanties, pas encore
+l'isolation des dependances) ; une seule instance par point d'extension et par
+processus ; `priority()` (`@Extension`) pas encore transmis par le protocole.
 
 ## Construire le projet
 

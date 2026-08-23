@@ -10,13 +10,14 @@ import java.util.List;
  * deuxieme point d'extensibilite du moteur de plugins, apres {@link
  * africa.civitas.egen.kernel.pluginengine.manifest.ManifestSource}.
  *
- * <p>Implementation livree : {@link Pf4jPluginLoader}, adossee a PF4J (le choix
- * technologique acte pour EGEN — JPMS + PF4J en remplacement d'OSGi). Rien
- * n'empeche une future implementation alternative (un chargeur de test en memoire,
- * un mecanisme different si PF4J devait un jour etre remplace) de servir ce meme
- * contrat sans qu'aucun consommateur ({@link
- * africa.civitas.egen.kernel.pluginengine.lifecycle.PluginLifecycleManager}) n'ait a
- * changer — c'est precisement ce qui rend ce module "completement extensible".
+ * <p>Deux implementations coexistent : {@link Pf4jPluginLoader}, adossee a PF4J
+ * (isolation par classloader, le choix technologique acte pour EGEN en
+ * remplacement d'OSGi), et {@code RpcPluginLoader} (isolation par processus
+ * separe + mTLS ephemere, module {@code kernel-plugin-process} — voir Charte v3
+ * §A.6septies). La seconde n'a exige aucun changement ici, ni dans {@link
+ * africa.civitas.egen.kernel.pluginengine.lifecycle.PluginLifecycleManager} :
+ * c'est precisement ce qui rend ce module "completement extensible", pas une
+ * promesse abstraite. Le choix entre les deux reste une decision de deploiement.
  *
  * <p>Ce contrat ne prend jamais de decision d'autorisation lui-meme : il execute
  * mecaniquement ce qu'on lui demande. Charger un plugin non autorise n'est jamais

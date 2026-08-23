@@ -11,9 +11,13 @@
 
   <name>EGEN Platform</name>
   <description>
-    EGEN — plateforme de gouvernance d'organisations souveraines et de services modulaires,
-    developpee par CIVITAS Africa. Ce depot racine (reactor Maven) regroupe le Kernel et,
-    a terme, les modules metier qui s'y raccrochent.
+    EGEN — un Kernel backend neutre et generique, developpe par CIVITAS Africa (voir
+    egen-kernel/, et §A.1 de docs/architecture/charte-v3.md pour ce que "neutre"
+    signifie concretement dans le code, pas seulement dans l'intention). Ce depot
+    racine (reactor Maven) heberge aujourd'hui, en plus du Kernel, la premiere
+    plateforme construite dessus — modules system et business (egen-modules/) — en
+    attente d'extraction vers un projet dedie une fois cette premiere livraison
+    stabilisee. Voir README.md pour le detail de cette distinction.
   </description>
 
   <properties>

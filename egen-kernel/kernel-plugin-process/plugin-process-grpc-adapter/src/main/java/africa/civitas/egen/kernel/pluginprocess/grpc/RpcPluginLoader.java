@@ -42,11 +42,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * version d'une bibliotheque deja presente cote hote — seule l'isolation memoire
  * et l'isolation de crash (un plugin qui plante n'affecte jamais le processus
  * hote) sont garanties par cette premiere version, pas l'isolation complete des
- * dependances. A verifier egalement en priorite au premier lancement reel : la
- * fiabilite de {@code System.getProperty("java.class.path")} pour refleter le
- * classpath d'execution effectif peut varier selon le mode de packaging Quarkus
- * (jar rapide, jar uber, mode developpement) — non verifiable depuis ce sandbox,
- * ce module n'ayant jamais pu compiler ni s'executer.
+ * dependances. Ce module compile et ses tests unitaires passent, confirme par un
+ * premier mvn test complet et reel le 22 aout 2026 (Charte v3, §A.6septies) — mais
+ * cela ne couvre jamais {@code charger(...)} lui-meme dans une application Quarkus
+ * reellement packagee. A verifier en priorite au premier lancement reel dans ce
+ * contexte : la fiabilite de {@code System.getProperty("java.class.path")} pour
+ * refleter le classpath d'execution effectif peut varier selon le mode de
+ * packaging (jar rapide, jar uber, mode developpement) — jamais exerce par un test
+ * unitaire, seulement par un demarrage reel.
  *
  * <p>Classe volontairement simple (pas de bean CDI ici) — la meme convention que
  * {@code PluginLifecycleManager} : instanciable a la main, y compris dans les
