@@ -21,14 +21,16 @@
     Ce qui y vivait avant le refactoring vers la Charte v3 (identity, organization,
     affiliation, policy, reference-data) a ete deplace, parce qu'aucun de ces cinq
     anciens systemes n'etait, en verite, du Niveau 0/1 :
-    - identity et reference-data etaient deja des Niveau 2 (respectivement provider
-      system et business) — voir egen-modules/system/identity et
-      egen-modules/business/reference-data.
-    - organization et affiliation etaient du Niveau 2 business, desormais fusionnes —
-      voir egen-modules/business/organization.
+    - identity etait deja du Niveau 2 (provider system) — voir
+      egen-modules/system/identity. reference-data etait deja du Niveau 2 business
+      — extrait le 25 aout 2026 vers Civitas-EGEN-Business (historique git
+      preserve), avec organization/affiliation ci-dessous.
+    - organization et affiliation etaient du Niveau 2 business, desormais fusionnes,
+      et extraits le 25 aout 2026 vers Civitas-EGEN-Business (meme depot que
+      reference-data ci-dessus) — plus aucune trace locale dans ce Kernel.
     - policy portait en realite la Politique organisationnelle (§B.12, Niveau 2
       business), pas la Politique-noyau (§B1, Niveau 1) — le contenu existant a migre
-      avec organization/affiliation.
+      avec organization/affiliation, donc vers Civitas-EGEN-Business egalement.
 
     Le point 3 de la Charte v3 (contenu exact du primitif Niveau 1) a desormais une
     premiere proposition concrete, conçue et implementee ici, en attendant validation :

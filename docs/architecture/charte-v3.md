@@ -57,6 +57,21 @@ l'epoque n'avait cherche que les references litterales
 business, la ou il appartient legitimement (`organization-api/.../politique/domain/
 ContexteNature.java`), jamais restaure dans le Kernel.
 
+**Le 25 aout 2026**, les modules business (`organization`, `reference-data`) sont
+extraits vers leur propre depot,
+[Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business) —
+historique git preserve (`git filter-repo`, jamais une copie), premiere etape
+concrete de l'objectif enonce des le debut de ce travail : liberer ce Kernel de
+tout ce qui n'est pas lui. Ce nouveau depot consomme le Kernel EGEN comme une
+dependance externe fixee par version (`egen-kernel.version`), jamais comme un
+module de ce reacteur — le premier test reel de consommation externe du Kernel.
+Les **Parties B a F** de cette Charte, qui documentent en detail le modele
+organisationnel que ce code implemente, restent ici comme archive du travail de
+conception original, mais decrivent desormais du code qui vit ailleurs — la
+version activement maintenue de ce modele vit avec le code, dans
+Civitas-EGEN-Business. `egen-modules/` ne porte plus que `system/` (les
+providers — identity aujourd'hui, authorization/communication demain).
+
 ---
 
 # PARTIE A — Le Noyau : philosophie et classification

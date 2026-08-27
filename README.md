@@ -7,15 +7,19 @@ Niveau 1) ne connait aucun domaine metier ; voir
 plus bas pour le detail de ce que ça signifie concretement dans le code, pas
 seulement dans l'intention.
 
-Ce depot heberge aujourd'hui, en plus du Kernel, les **modules Niveau 2** (providers
-systeme + modules business) de la premiere plateforme construite dessus — une
-plateforme de gouvernance d'organisations souveraines et de services modulaires. Ces
-modules business (`egen-modules/business/`) seront extraits vers un projet dedie une
-fois cette premiere livraison stabilisee, pour que ce depot devienne exactement ce
-que son nom dit : un Kernel, reutilisable tel quel comme socle de n'importe quel
-futur backend modulaire (SaaS, Intranet...), sans aucun lien avec ce premier cas
-d'usage. Voir la Charte d'Architecture ci-dessous pour la distinction exacte entre
-Kernel, primitif Niveau 1 et module Niveau 2.
+Ce depot heberge, en plus du Kernel, un seul type de module Niveau 2 desormais :
+les **providers systeme** (`egen-modules/system/`) — des ponts generiques vers
+l'exterieur (identite aujourd'hui, autorisation et communication demain), jamais
+un domaine metier. Les modules business (Organisation, Referentiels Communs...) de
+la premiere plateforme construite sur ce Kernel — une plateforme de gouvernance
+d'organisations souveraines et de services modulaires — ont ete extraits le 25 aout
+2026 vers leur propre depot,
+[Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business)
+(historique git preserve), pour que ce depot soit exactement ce que son nom dit :
+un Kernel, reutilisable tel quel comme socle de n'importe quel futur backend
+modulaire (SaaS, Intranet...), sans aucun lien avec ce premier cas d'usage. Voir la
+Charte d'Architecture ci-dessous pour la distinction exacte entre Kernel, primitif
+Niveau 1 et module Niveau 2.
 
 **Logiciel proprietaire — tous droits reserves.** Ce depot est prive et son contenu
 n'est distribue sous aucune licence open source. Toute reproduction, modification ou
@@ -79,13 +83,15 @@ tout ce qui restait, sans exception, en dehors de `egen-modules/` :
 **Ce que ça change concretement pour tout futur module Niveau 2** : plus aucun
 contrat du Kernel ne suggere, meme indirectement, qu'un Contexte ne peut etre
 qu'une Organisation ou une Cellule, ni qu'un module doit se decrire avec un
-vocabulaire de "types de cellule" ou de "mandats". `egen-modules/business/*`, dans
-ce depot, reste le premier consommateur reel de ces contrats et continue, lui, a
-utiliser Organisation/Cellule/Lexique/Mandat comme vocabulaire — legitimement,
-puisque c'est son domaine — mais entierement de son cote de la frontiere Niveau
-1/Niveau 2, jamais celui du Kernel. C'est exactement ce qui rend credible l'objectif
-enonce plus haut : que ce Kernel serve un jour de socle a un tout autre domaine
-metier sans qu'une seule ligne de `egen-kernel/` n'ait a changer.
+vocabulaire de "types de cellule" ou de "mandats". `organization`/`reference-data`
+(desormais dans [Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business),
+un depot distinct qui consomme ce Kernel comme n'importe quel autre consommateur
+externe) restent le premier consommateur reel de ces contrats et continuent, eux,
+a utiliser Organisation/Cellule/Lexique/Mandat comme vocabulaire — legitimement,
+puisque c'est leur domaine — mais entierement hors de ce Kernel, jamais dedans.
+C'est exactement ce qui rend credible l'objectif enonce plus haut : que ce Kernel
+serve un jour de socle a un tout autre domaine metier sans qu'une seule ligne de
+`egen-kernel/` n'ait a changer.
 
 **Limite assumee, documentee plutot que silencieuse** : quelques notes contrastives
 (Javadoc, `pom.xml`) continuent de nommer explicitement "Politique organisationnelle"
@@ -94,9 +100,13 @@ Politique-**noyau** (Niveau 1) et Politique **organisationnelle** (Niveau 2) por
 des noms volontairement distincts malgre le mot commun dans le langage courant.
 Elles marquent explicitement le concept nomme comme exterieur au Kernel ("vit
 entierement dans...") — de la documentation de frontiere, pas une fuite
-structurelle. A reevaluer une fois `egen-modules/business/` extrait.
+structurelle. Le point de reevaluation envisage a l'epoque est desormais atteint
+(voir "Statut de ce document" de la Charte, 25 aout 2026) : ces notes referencent
+encore un chemin local (`egen-modules/business/organization`) qui n'existe plus
+dans ce depot — a corriger vers une reference externe simple, sans urgence
+fonctionnelle.
 
-## Arborescence (etat reel au 23 juillet 2026, apres refactoring vers la Charte v3 et livraison du primitif Niveau 1)
+## Arborescence (etat reel au 25 aout 2026, apres extraction des modules metier vers Civitas-EGEN-Business)
 
 ```
 egen-platform/                                     (racine du reacteur Maven)
@@ -123,12 +133,15 @@ egen-platform/                                     (racine du reacteur Maven)
 │   │   └── module-registry/                          Catalogue -> Souscription ->
 │   │                                                  Activation (B2, Niveau 0) —
 │   │                                                  cascade stricte, fail-closed
-│   ├── kernel-eventbus/                            ← EventBus + InMemoryEventBus
-│   │                                                  (Niveau 0), KafkaEventBusAdapter
-│   │                                                  (Niveau 2, meme module)
 │   ├── kernel-plugin-engine/                       ← ManifestReader, ExtensionRegistry,
 │   │                                                  PluginLifecycleManager (orchestrateur),
 │   │                                                  PluginLoader + Pf4jPluginLoader
+│   ├── kernel-plugin-process/                      ← isolation par processus separe —
+│   │                                                  RpcPluginLoader, seconde
+│   │                                                  implementation de PluginLoader
+│   ├── kernel-eventbus/                            ← EventBus + InMemoryEventBus
+│   │                                                  (Niveau 0), KafkaEventBusAdapter
+│   │                                                  (Niveau 2, meme module)
 │   ├── kernel-bootstrap/                           ← EgenKernelApplication,
 │   │                                                  KernelBootSequence,
 │   │                                                  PluginDirectoryScanner — l'app
@@ -138,20 +151,17 @@ egen-platform/                                     (racine du reacteur Maven)
 │                                                       FakeModuleActivationResolver,
 │                                                       PostgresTestResource
 └── egen-modules/                                   ← Niveau 2 (pluggable)
-    ├── system/                                      ← les providers (ponts vers
-    │   └── identity/                                  l'exterieur : Keycloak,
-    │       ├── identity-provider-api/                 SpiceDB, un futur fournisseur
-    │       └── identity-provider-keycloak/             de communication...)
-    └── business/                                    ← les modules metier
-        ├── organization/                              (fusion Organisation +
-        │   ├── organization-api/                      Rattachements + Politique
-        │   │   └── .../api/{affiliation,politique}/    organisationnelle)
-        │   └── organization-impl/
-        │       └── .../impl/{affiliation,politique}/
-        └── reference-data/
-            ├── reference-data-api/
-            └── reference-data-impl/
+    └── system/                                      ← les providers (ponts vers
+        └── identity/                                  l'exterieur : Keycloak,
+            ├── identity-provider-api/                 SpiceDB, un futur fournisseur
+            └── identity-provider-keycloak/             de communication...)
 ```
+
+Les modules metier (`organization`, `reference-data`) vivent desormais dans
+[Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business),
+qui consomme ce Kernel comme une dependance externe — jamais l'inverse. Voir
+`docs/architecture/charte-v3.md`, "Statut de ce document", pour le detail de
+cette extraction.
 
 ### Pourquoi ce depot n'est plus un empilement plat de "systemes A1-E3"
 
@@ -385,10 +395,13 @@ bout en bout de toute la chaine de gouvernance avec de vraies donnees en base.
 | `kernel-bootstrap` | 0 | ✅ Livre — `EgenKernelApplication`, `KernelBootSequence`, `PluginDirectoryScanner` |
 | `kernel-test-support` | 0 | ✅ Livre — `TracabiliteFixtures`, `FakeKernelPermissionCheck`, `FakeModuleActivationResolver`, `PostgresTestResource` |
 | `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
-| `egen-modules/business/organization` | 2, business | ✅ Livre — Organisation, Cellule (+ Fermeture Transitive), Lexique, Tutelle, Succession ; sous-domaine `.affiliation` (Affectation, Mandat, Delegation) ; sous-domaine `.politique` (Politique organisationnelle, Derogation) |
-| `egen-modules/business/reference-data` | 2, business | ✅ Livre — Pays, Langue, Devise, Fuseau Horaire, Unite de Mesure, Modele Sectoriel, Type de Cellule Modele, Mandat Modele |
 | `egen-modules/system/authorization` (SpiceDB), `egen-modules/system/communication` | 2, system | À venir |
-| `egen-modules/business/resource` | 2, business | À venir |
+
+Les modules business (Organisation, Referentiels Communs, et a terme
+Ressource/Academie/RH/Finance...) ne sont plus suivis dans cette table depuis leur
+extraction du 25 aout 2026 — voir
+[Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business), qui
+consomme ce Kernel comme n'importe quel autre consommateur externe le ferait.
 
 ## Convention de versionnement Flyway
 

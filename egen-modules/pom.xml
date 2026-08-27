@@ -31,20 +31,21 @@
 
     - business/ : les modules metier — l'equivalent des applications utilisateur d'EGEN
       (Organisation, Ressource, Referentiels, et demain Academie/RH/Finance...). Ce
-      depot Kernel ne les code pas au-dela de ce qui existe deja : ils sont hors du
-      scope du Kernel a proprement parler (voir README racine). Le code deja livre ici
-      (organization, reference-data) est celui herite du travail initial, repositionne
-      a son niveau correct — il n'est plus etendu depuis ce depot.
+      depot Kernel ne les a jamais codes au-dela du travail initial : ils etaient hors
+      du scope du Kernel a proprement parler (voir README racine) des la description
+      precedente de ce fichier. Extrait le 25 aout 2026 vers son propre depot,
+      Civitas-EGEN-Business (historique git preserve, jamais une copie) — pour la
+      meme raison que cette description l'annoncait deja : liberer ce Kernel de tout
+      ce qui n'est pas lui, jusqu'au bout.
 
     Aucun systeme Niveau 0/1 de egen-kernel/ ne doit jamais dependre d'un artefact de
     egen-modules/, dans un sens ou dans l'autre : le Kernel ignore tout de ce qui est
-    charge par-dessus lui. C'est kernel-bootstrap (a venir) qui, seul, composera le
-    tout au demarrage.
+    charge par-dessus lui. C'est kernel-bootstrap qui, seul, compose le tout au
+    demarrage.
   </description>
 
   <modules>
     <module>system</module>
-    <module>business</module>
   </modules>
 
 </project>
