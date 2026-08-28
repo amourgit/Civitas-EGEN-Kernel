@@ -14,10 +14,14 @@
     EGEN — un Kernel backend neutre et generique, developpe par CIVITAS Africa (voir
     egen-kernel/, et §A.1 de docs/architecture/charte-v3.md pour ce que "neutre"
     signifie concretement dans le code, pas seulement dans l'intention). Ce depot
-    racine (reactor Maven) heberge aujourd'hui, en plus du Kernel, la premiere
-    plateforme construite dessus — modules system et business (egen-modules/) — en
-    attente d'extraction vers un projet dedie une fois cette premiere livraison
-    stabilisee. Voir README.md pour le detail de cette distinction.
+    racine (reactor Maven) heberge, en plus du Kernel, un seul type de module Niveau
+    2 desormais : les providers systeme (egen-modules/system/) — des ponts
+    generiques vers l'exterieur, jamais un domaine metier. Les modules business
+    (Organisation, Referentiels Communs...) ont ete extraits le 25 aout 2026 vers
+    leur propre depot, Civitas-EGEN-Business
+    (https://github.com/amourgit/Civitas-EGEN-Business), qui consomme ce Kernel
+    comme une dependance externe fixee par version — jamais comme un module de ce
+    reacteur. Voir README.md pour le detail.
   </description>
 
   <properties>
