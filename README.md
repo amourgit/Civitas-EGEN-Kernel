@@ -1,548 +1,95 @@
 # EGEN Kernel
 
-EGEN est un **Kernel backend neutre et generique**, developpe par **CIVITAS
-Africa** — pas un framework de gouvernance d'organisations. Le Kernel (Niveau 0 +
-Niveau 1) ne connait aucun domaine metier ; voir
-[« Neutralite complete du Kernel »](#neutralite-complete-du-kernel-effective-depuis-le-15-aout-2026)
-plus bas pour le detail de ce que ça signifie concretement dans le code, pas
-seulement dans l'intention.
+EGEN Kernel est le socle technique développé par **CIVITAS Africa** sur lequel
+s'assemble et s'exécute un écosystème de services indépendants. Le Kernel ne
+connaît aucun métier : il fournit les mécanismes qui permettent à des services
+autonomes — éducation, actualité civique, communication, identité, ou tout
+autre domaine futur — d'exister, de tourner, de se trouver, de communiquer,
+de s'orchestrer et d'évoluer, sans jamais posséder lui-même la moindre
+logique métier.
 
-Ce depot heberge, en plus du Kernel, un seul type de module Niveau 2 desormais :
-les **providers systeme** (`egen-modules/system/`) — des ponts generiques vers
-l'exterieur (identite aujourd'hui, autorisation et communication demain), jamais
-un domaine metier. Les modules business (Organisation, Referentiels Communs...) de
-la premiere plateforme construite sur ce Kernel — une plateforme de gouvernance
-d'organisations souveraines et de services modulaires — ont ete extraits le 25 aout
-2026 vers leur propre depot,
-[Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business)
-(historique git preserve), pour que ce depot soit exactement ce que son nom dit :
-un Kernel, reutilisable tel quel comme socle de n'importe quel futur backend
-modulaire (SaaS, Intranet...), sans aucun lien avec ce premier cas d'usage. Voir la
-Charte d'Architecture ci-dessous pour la distinction exacte entre Kernel, primitif
-Niveau 1 et module Niveau 2.
+**Logiciel propriétaire — tous droits réservés.** Ce dépôt est privé et son
+contenu n'est distribué sous aucune licence open source. Toute reproduction,
+modification ou distribution en dehors de CIVITAS Africa est interdite sauf
+autorisation explicite.
 
-**Logiciel proprietaire — tous droits reserves.** Ce depot est prive et son contenu
-n'est distribue sous aucune licence open source. Toute reproduction, modification ou
-distribution en dehors de CIVITAS Africa est interdite sauf autorisation explicite.
+## Référence d'architecture
 
-## Reference d'architecture
-
-**[`docs/architecture/charte-v3.md`](docs/architecture/charte-v3.md)** est le
-document qui fait foi pour toute decision d'architecture dans ce depot. Il fixe le
-modele a trois niveaux (Niveau 0 irreductible / Niveau 1 primitif / Niveau 2
-pluggable) qui remplace le modele "systemes plats A1-E3" utilise jusqu'au 22 juillet
-2026 — lire ce document avant de contribuer, surtout si vous arrivez avec le
-vocabulaire de l'ancienne classification (A1, A2, B4...) en tete : les numeros
-restent valables comme reference historique, mais le **Niveau** (0/1/2) de chaque
-systeme a change de sens.
+[`docs/architecture/charte-v3.md`](docs/architecture/charte-v3.md) est le
+document qui fait foi pour toute décision d'architecture dans ce dépôt. Il
+détaille, mécanisme par mécanisme, chacun des piliers résumés ci-dessous —
+ce qu'il gère, ce qu'il ignore délibérément, ses points d'extension. Toute
+contribution doit s'y conformer.
 
 ## Principe directeur
 
-Le Kernel possede la verite organisationnelle (identite, souverainete, hierarchie,
-politique, ressources, audit) et delegue toujours la logique d'execution
-(autorisation, evenements, orchestration de processus, notification) a des services
-externes qu'il invoque et journalise, sans jamais la reimplementer. Le Kernel
-lui-meme (Niveau 0 + Niveau 1) ignore tout de ce qui est charge par-dessus lui — voir
-la Charte v3, Partie A.
+> Le Kernel ne possède rien du métier. Il fournit les mécanismes permettant
+> au métier d'exister sous forme de services autonomes.
 
-## Neutralite complete du Kernel, effective depuis le 15 aout 2026
+Il ne connaît ni l'identité, ni les organisations, ni les utilisateurs, ni
+aucun domaine métier — pas plus qu'il ne cherche à uniformiser la technologie
+des services qu'il héberge. Un service Python reste un service Python, un
+service Java reste un service Java ; le Kernel les monte, les enregistre, les
+connecte et les orchestre, sans jamais entrer dans leur logique interne. Son
+rôle s'arrête au **substrat d'exécution de l'écosystème**.
 
-La Charte v3 promettait ceci des sa toute premiere phrase (§A.1) : *« Le Kernel EGEN
-est un noyau strictement neutre, facon noyau Linux : il ne connait ni l'identite, ni
-l'organisation, ni l'autorisation metier, ni aucun domaine. »* Jusqu'au 15 aout 2026,
-le code n'a jamais totalement tenu cette promesse : plusieurs contrats du Kernel
-(`egen-kernel/`) portaient encore, en dur, du vocabulaire propre a un seul domaine
-metier — celui d'Organisation/Cellule. Une passe de neutralisation complete a retire
-tout ce qui restait, sans exception, en dehors de `egen-modules/` :
+## Les douze piliers du Kernel
 
-- **`Contexte` (kernel-sdk) reduit a son strict minimum.** `ContexteNature` — une
-  enumeration fermee `{ORGANISATION, CELLULE}` directement dans le SDK
-  zero-dependance — a ete supprimee. `Contexte` n'expose plus que `UUID id()` : un
-  identifiant opaque, sans aucune hypothese sur ce qu'il represente concretement.
-  Ce que "un Contexte" signifie dans un deploiement donne (une Organisation, un
-  tenant SaaS, un workspace, n'importe quelle autre notion de perimetre) est
-  entierement decide par le module Niveau 2 qui la definit — jamais par le Kernel.
-- **`ManifesteExtension` (kernel-sdk) prive de ses deux champs les plus
-  metier-specifiques.** `cellTypesProvided` et `mandatesProvided` calquaient
-  directement le Lexique du module business Organization dans le contrat neutre du
-  SDK — n'importe quel futur module, dans n'importe quel domaine, aurait ete force
-  de se decrire avec ce vocabulaire precis. Retires, sans equivalent generique
-  invente a la place : un module qui a besoin d'etendre son propre vocabulaire le
-  fait entierement dans son propre module.
-- **`module-registry` (Catalogue/Souscription/Activation, B2, Niveau 0)
-  entierement renomme.** `Souscription.organisationId` et `Activation.celluleId`
-  sont devenus `contexteId` ; `ActiverModuleCommand` distingue desormais
-  `contexteSouscripteurId` (la portee censee detenir la Souscription) de
-  `contexteCibleId` (la portee qui active reellement) — jamais une hierarchie
-  Organisation/Cellule nommee comme telle. Migration SQL (`V3`), entites JPA,
-  repositories, exceptions et tests suivent.
-- **`kernel-bootstrap`** : `egen.kernel.cellule-racine` devient
-  `egen.kernel.contexte-racine` (variable d'environnement
-  `EGEN_KERNEL_CONTEXTE_RACINE`).
+| Pilier | Rôle en une phrase |
+|---|---|
+| **Service Runtime** | Définit comment une instance de service démarre, tourne et s'arrête — sans fournir le runtime applicatif lui-même. |
+| **Service Registry** | Sait quels services existent et quelles capacités techniques ils exposent — jamais ce qu'ils font au sens métier. |
+| **Service Discovery** | Permet à un service d'en trouver un autre par son identité déclarée, jamais par une URL codée en dur. |
+| **Communication Fabric** | Transporte et route les échanges entre services (HTTP, gRPC, messaging, événements) sans en comprendre le contenu. |
+| **Workflow Engine** | Sait exécuter étapes, transitions, conditions et compensations — jamais un workflow métier prédéfini. |
+| **Configuration Engine** | Distribue, versionne et valide la configuration déclarée par les services, sans connaître le sens de leurs paramètres. |
+| **Dependency Management** | Sait qu'un service dépend techniquement d'un autre, jamais pourquoi. |
+| **Lifecycle Management** | Installe, enregistre, configure, démarre, arrête, met à jour et retire un service — le cycle de vie technique de bout en bout. |
+| **Observability** | Standardise logs, métriques, traces et healthchecks — sans jamais analyser ce qu'ils signifient pour le métier. |
+| **Event Infrastructure** | Fournit bus, topics, abonnements et livraison — les événements eux-mêmes appartiennent aux services. |
+| **API / Contract Infrastructure** | Fournit le cadre de déclaration, de versionnement et de validation des interfaces — jamais les API métier elles-mêmes. |
+| **Deployment Adapter** | Traduit une intention de déploiement vers l'environnement réel (Docker, Kubernetes, systemd, VM, cloud...), sans y enfermer le Kernel. |
 
-**Ce que ça change concretement pour tout futur module Niveau 2** : plus aucun
-contrat du Kernel ne suggere, meme indirectement, qu'un Contexte ne peut etre
-qu'une Organisation ou une Cellule, ni qu'un module doit se decrire avec un
-vocabulaire de "types de cellule" ou de "mandats". `organization`/`reference-data`
-(desormais dans [Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business),
-un depot distinct qui consomme ce Kernel comme n'importe quel autre consommateur
-externe) restent le premier consommateur reel de ces contrats et continuent, eux,
-a utiliser Organisation/Cellule/Lexique/Mandat comme vocabulaire — legitimement,
-puisque c'est leur domaine — mais entierement hors de ce Kernel, jamais dedans.
-C'est exactement ce qui rend credible l'objectif enonce plus haut : que ce Kernel
-serve un jour de socle a un tout autre domaine metier sans qu'une seule ligne de
-`egen-kernel/` n'ait a changer.
+## Ce que le Kernel n'est pas
 
-**Limite assumee, documentee plutot que silencieuse** : quelques notes contrastives
-(Javadoc, `pom.xml`) continuent de nommer explicitement "Politique organisationnelle"
-et le module business Organization, uniquement pour expliquer pourquoi
-Politique-**noyau** (Niveau 1) et Politique **organisationnelle** (Niveau 2) portent
-des noms volontairement distincts malgre le mot commun dans le langage courant.
-Elles marquent explicitement le concept nomme comme exterieur au Kernel ("vit
-entierement dans...") — de la documentation de frontiere, pas une fuite
-structurelle. Le point de reevaluation envisage a l'epoque est desormais atteint
-(voir "Statut de ce document" de la Charte, 25 aout 2026) : ces notes referencent
-encore un chemin local (`egen-modules/business/organization`) qui n'existe plus
-dans ce depot — a corriger vers une reference externe simple, sans urgence
-fonctionnelle.
+Le Kernel EGEN n'est, et ne doit jamais devenir :
 
-## Arborescence (etat reel au 25 aout 2026, apres extraction des modules metier vers Civitas-EGEN-Business)
+- un IAM central déguisé (identité, authentification, autorisation métier,
+  utilisateurs, organisations, tenants, membres, rôles ou permissions
+  métier) ;
+- un ERP technique ou un backend métier partagé (GED, éducation, finance,
+  RH, santé, CRM...) ;
+- un cadre qui impose sa propre stack technologique aux services qu'il
+  héberge.
 
-```
-egen-platform/                                     (racine du reacteur Maven)
-├── egen-kernel/                                    ← Niveau 0 + Niveau 1 uniquement
-│   ├── kernel-sdk/                                 ← contrat public, JPMS pur
-│   │                                                  (extension, event, contexte,
-│   │                                                  manifest, tracabilite,
-│   │                                                  permission/{identity,
-│   │                                                  authorization,policy})
-│   ├── kernel-jpa-support/                         ← TracabiliteEmbeddable (mapping
-│   │                                                  JPA partage entre tous les
-│   │                                                  modules -impl, kernel comme
-│   │                                                  egen-modules)
-│   ├── kernel-domain/                              ← module-domain (B2) — ModuleId,
-│   │                                                  CatalogueEntree, Souscription,
-│   │                                                  Activation : vocabulaire pur
-│   ├── kernel-systems/                             ← primitifs Niveau 1 (point 3, livre)
-│   │   ├── identity/                                 KernelSubjectService — sujet
-│   │   │                                             minimal, sans persistance
-│   │   ├── authorization/                            KernelPermissionCheckImpl —
-│   │   │                                             octrois de capacites, fail-closed
-│   │   ├── policy/                                   PolitiqueNoyauImpl — refuse
-│   │   │                                             systematiquement, sans exception
-│   │   └── module-registry/                          Catalogue -> Souscription ->
-│   │                                                  Activation (B2, Niveau 0) —
-│   │                                                  cascade stricte, fail-closed
-│   ├── kernel-plugin-engine/                       ← ManifestReader, ExtensionRegistry,
-│   │                                                  PluginLifecycleManager (orchestrateur),
-│   │                                                  PluginLoader + Pf4jPluginLoader
-│   ├── kernel-plugin-process/                      ← isolation par processus separe —
-│   │                                                  RpcPluginLoader, seconde
-│   │                                                  implementation de PluginLoader
-│   ├── kernel-eventbus/                            ← EventBus + InMemoryEventBus
-│   │                                                  (Niveau 0), KafkaEventBusAdapter
-│   │                                                  (Niveau 2, meme module)
-│   ├── kernel-bootstrap/                           ← EgenKernelApplication,
-│   │                                                  KernelBootSequence,
-│   │                                                  PluginDirectoryScanner — l'app
-│   │                                                  Quarkus reelle
-│   └── kernel-test-support/                        ← TracabiliteFixtures,
-│                                                       FakeKernelPermissionCheck,
-│                                                       FakeModuleActivationResolver,
-│                                                       PostgresTestResource
-└── egen-modules/                                   ← Niveau 2 (pluggable)
-    └── system/                                      ← les providers (ponts vers
-        └── identity/                                  l'exterieur : Keycloak,
-            ├── identity-provider-api/                 SpiceDB, un futur fournisseur
-            └── identity-provider-keycloak/             de communication...)
-```
+Toute logique de cette nature est portée par des **services indépendants**,
+au même titre que n'importe quel autre service de l'écosystème — jamais
+codée en dur dans le Kernel.
 
-Les modules metier (`organization`, `reference-data`) vivent desormais dans
-[Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business),
-qui consomme ce Kernel comme une dependance externe — jamais l'inverse. Voir
-`docs/architecture/charte-v3.md`, "Statut de ce document", pour le detail de
-cette extraction.
+## Deux façons d'étendre l'écosystème
 
-### Pourquoi ce depot n'est plus un empilement plat de "systemes A1-E3"
+Le Kernel propose deux modes d'extension, qui coexistent sans se substituer
+l'un à l'autre :
 
-Avant le 22 juillet 2026, `kernel-systems/` contenait `identity`, `reference-data`,
-`organization`, `affiliation` et `policy`, tous traites comme des systemes pairs du
-Kernel. Une analyse rigoureuse a la lumiere de la Charte v3 a etabli qu'aucun des
-cinq n'etait, en verite, du Niveau 0 ou 1 :
-
-- `identity` et `organization`/`affiliation`/`policy` etaient deja des implementations
-  riches, couplees a une technologie concrete (Keycloak) ou a un concept
-  intrinsequement Niveau 2 (Organisation/Cellule) — jamais le "minimum vital avant
-  qu'aucun module ne soit charge" que Niveau 0/1 designe.
-- `policy` en particulier portait a tort l'etiquette "Systeme B1" : son contenu reel
-  (Politique + Derogation sur un Contexte Organisation/Cellule, resolution "le plus
-  proche l'emporte") est la Politique **organisationnelle** (§B.12 de la Charte v3),
-  pas la Politique-**noyau** (le vrai B1). Les deux portent le meme mot dans le
-  langage courant ; ce n'est pas le meme systeme.
-
-Consequence : ce contenu a ete deplace tel quel (repackage, pas reecrit) vers
-`egen-modules/`, avec `organization` + `affiliation` + `policy` fusionnes en un seul
-module business (`organization`), conformement a la Charte v3 (§C.1). `identity` est
-devenu un provider (`egen-modules/system/identity/`), avec un contrat generique
-(`identity-provider-api`) separe de son implementation Keycloak
-(`identity-provider-keycloak`) — pour que d'autres providers de la meme capacite
-puissent le rejoindre au fil du temps sans jamais casser ce qui en depend, exactement
-le modele de connecteurs pluggables d'ActivePieces ou n8n.
-
-**Ce refactoring du 22 juillet a deplace le contenu manifestement Niveau 2 hors du
-Kernel, mais n'a pas encore purge le vocabulaire Organisation/Cellule qui restait,
-plus discretement, dans les contrats du Kernel lui-meme** (`ContexteNature`,
-`ManifesteExtension.cellTypesProvided`/`mandatesProvided`, `celluleId`/
-`organisationId` dans module-registry...). C'est l'objet de la passe de
-neutralisation du 15 aout 2026, voir la section
-[« Neutralite complete du Kernel »](#neutralite-complete-du-kernel-effective-depuis-le-15-aout-2026)
-plus haut.
-
-`kernel-systems/` porte desormais les trois primitifs Niveau 1 sous leur forme
-correcte : `identity` (`KernelSubjectService`, sujet minimal), `authorization`
-(`KernelPermissionCheckImpl`, octrois de capacites fail-closed) et `policy`
-(`PolitiqueNoyauImpl`, la vraie Politique-noyau — voir `docs/architecture/
-charte-v3.md`, §A.5, pour la conception complete). Livre le 23 juillet 2026, en
-reponse au point 3 de la Charte v3 — une premiere proposition rigoureuse, pas une
-verite gravee. Deux consommateurs reels confirment desormais la conception :
-`module-registry` (B2, 24 juillet) consulte `PolitiqueNoyau`, et
-`kernel-plugin-engine` (25 juillet) consulte a la fois `KernelPermissionCheck` ET
-`ModuleActivationResolver` avant tout chargement — le test le plus exigeant, reussi.
-`kernel-bootstrap`, livre le 27 juillet 2026, est la composition finale de tout ce qui
-precede.
-
-`kernel-domain/module-domain` et `kernel-systems/module-registry` implementent la
-cascade Catalogue -> Souscription -> Activation (§B.11) : un module doit etre au
-Catalogue avant qu'un Contexte ne puisse y Souscrire, prealable a toute Activation
-par un Contexte qui en depend. Chaque palier est verifie explicitement
-au niveau service, jamais suppose. `ModuleActivationResolver` est la question
-fail-closed que `kernel-plugin-engine` consulte desormais reellement avant de
-charger un module : sans Activation active, la Politique-noyau tranche, toujours un
-refus. Un Contexte y est systematiquement un UUID nu, jamais un import d'un module
-Niveau 2 — module-registry est Niveau 0, il ignore tout de la maniere dont
-plusieurs Contextes s'articulent entre eux ; c'est a l'appelant de la resoudre
-avant d'appeler ce
-service (voir le pom.xml de module-registry pour cette decision assumee).
-
-## kernel-plugin-engine — l'orchestrateur, livre le 25 juillet 2026
-
-Le mecanisme d'accueil des modules (§1 de l'anatomie du Kernel), avec trois points
-d'extensibilite deliberes :
-
-- **`ManifestSource`** (`manifest/`) — d'ou viennent les donnees brutes d'un
-  Manifeste. `PropertiesFileManifestSource` lit un fichier `.properties` (meme
-  format de base que le descripteur natif de PF4J) ; `ManifestReader` construit un
-  `ManifesteExtension` (kernel-sdk) a partir de n'importe quelle source respectant
-  ce contrat.
-- **`PluginLoader`** (`loader/`) — comment un plugin est physiquement charge et
-  decharge. `Pf4jPluginLoader` est adossee a PF4J (`org.pf4j`, Apache 2.0, le choix
-  technologique acte pour EGEN en remplacement d'OSGi) pour l'isolation de
-  classloader et le cycle de vie physique. PF4J recherchant sa **propre** annotation
-  d'extension par defaut, jamais celle d'EGEN, `Pf4jPluginLoader` fait elle-meme,
-  apres chargement, le balayage du JAR a la recherche des classes annotees
-  `@Extension` (kernel-sdk) et les verifie contre le point qu'elles declarent
-  servir.
-- **`ExtensionRegistry`** (`registry/`) — le registre vivant des extensions
-  chargees, thread-safe, independant du mecanisme physique qui les a decouvertes.
-
-**`PluginLifecycleManager`** (`lifecycle/`) est le seul point d'entree, avec un
-ordre de verification strict et jamais permute pour `charger(...)` :
-`KernelPermissionCheck` (le sujet a-t-il le droit administratif de declencher un
-chargement ?) → lecture et validation du Manifeste (echec → `PolitiqueNoyau`,
-toujours un refus) → `ModuleActivationResolver` (ce module doit-il tourner dans
-ce Contexte ?) → verification des dependances declarees → alors seulement,
-chargement physique. `decharger(...)` refuse tant qu'un autre module charge declare
-encore en dependre — jamais de cascade implicite.
-
-Cette classe est un bean CDI a injection **par constructeur**, deliberement
-instanciable a la main dans les tests, sans conteneur ni Docker : toute la logique
-de decision — l'essentiel de la valeur de ce module — est couverte par des tests
-unitaires purs, avec un `PluginLoader` de test entierement en memoire
-(`FakePluginLoader`) qui prouve, par sa seule existence, que
-`PluginLifecycleManager` ne se comporte pas differemment selon le mecanisme physique
-qui le sert. Seule `Pf4jPluginLoader`, qui touche reellement PF4J, n'est pas encore
-couverte par un test d'integration reel, faute d'un premier plugin JAR dans ce
-depot — voir son javadoc pour le detail de cette limite assumee.
-
-## kernel-eventbus — le systeme nerveux, livre le 26 juillet 2026
-
-Le Bus d'Evenements (anatomie du Kernel, §4) : porte l'annonce qu'un fait s'est
-produit, sans jamais dicter ce qu'il faut en faire, ni jamais porter la verite
-lui-meme (la verite est deja en base avant toute publication).
-
-- **`eventbus-api`** (Niveau 0) — le contrat neutre (`EventBus`, `EventHandler`,
-  `Abonnement`) et **`InMemoryEventBus`**, son unique implementation Niveau 0 :
-  thread-safe, zero dependance externe, isolation stricte des gestionnaires en echec
-  (jamais propage a l'emetteur ni aux autres souscripteurs). C'est le repli toujours
-  disponible, avant meme qu'un courtier externe ne soit joignable.
-- **`eventbus-kafka-adapter`** (Niveau 2, "system") — **`KafkaEventBusAdapter`**,
-  adossee a Kafka (le choix technologique acte pour EGEN). Rattachee physiquement a
-  `kernel-eventbus/` plutot qu'a `egen-modules/system/`, par decision explicite de
-  la Charte v3 (§A.6) : le Bus est une infrastructure coeur que le Kernel demarre
-  lui-meme, pas un plugin metier optionnel.
-
-**Convention retenue** : un topic Kafka par systeme d'origine (`egen.<systeme>`,
-ex. `egen.identite` porte a la fois `identite.personne.creee` et
-`identite.compte.suspendu`) plutot qu'un topic par type exact — evite une
-proliferation de topics et rend la souscription par prefixe directe. Cle de
-partition : `contexteId`, pour un ordre de livraison preserve par Contexte.
-
-**Decision de conception assumee** : la charge utile generique d'un evenement
-traverse Kafka comme une structure JSON (`EnvelopeJson`, un DTO non generique —
-un record generique introduirait une ambiguite de type a la deserialisation que
-Jackson ne resout qu'avec une information explicite). Un gestionnaire recevra
-typiquement une `java.util.Map` pour une charge utile structuree, pas l'instance
-Java d'origine — une limite reelle de cette premiere livraison, documentee dans le
-javadoc de `KafkaEventBusAdapter`, pas cachee.
-
-**Contrainte respectee** : `KafkaConsumer` n'est pas thread-safe — `subscribe` et
-`poll` doivent toujours provenir du meme thread. Les methodes de
-souscription/desabonnement, appelables depuis n'importe quel thread, ne font donc
-que mettre a jour un ensemble partage (`volatile`) ; le thread unique de
-consommation relit et applique cet ensemble lui-meme, a chaque iteration, avant de
-scruter.
-
-**Limite assumee** : comme `Pf4jPluginLoader`, `KafkaEventBusAdapter` n'est pas
-couverte par un test d'integration reel dans ce depot, faute d'un courtier Kafka
-disponible dans ce sandbox. Sa logique de correspondance et d'isolation des
-gestionnaires en echec est neanmoins identique, dans son intention, a celle
-d'`InMemoryEventBus` — entierement testee, elle, avec 20 tests couvrant chaque
-combinaison (type exact, prefixe, gestionnaires multiples, gestionnaire en echec,
-desabonnement cible et par module).
-
-## Le DAG de dependances, desormais impose mecaniquement
-
-Le reacteur Maven calcule l'ordre de construction et refuse tout cycle — ca a
-toujours ete vrai. Ce qui ne l'etait pas jusqu'au 22 juillet 2026 : rien n'empechait
-mecaniquement une dependance croisee **non cyclique** mais interdite (par exemple un
-module qui importerait directement le `-impl` d'un autre plutot que son `-api`). Le
-`pom.xml` racine porte desormais une execution `maven-enforcer-plugin` (regle
-`bannedDependencies`), heritee par tous les modules du reacteur, qui bloque
-explicitement toute dependance de scope compile/runtime vers un artefact `-impl` ou
-un provider concret — seul un scope `test` reste tolere (integration reelle avec une
-vraie implementation CDI, ex. `organization-impl` -> `identity-provider-keycloak`).
-Voir les commentaires dans le `pom.xml` racine pour le detail. `kernel-bootstrap`
-exerce desormais reellement l'unique exception assumee : son propre `pom.xml`
-desactive explicitement cette regle (execution `enforce-niveau2-impl-isolation`,
-`<skip>true</skip>`), avec le meme commentaire de justification que celui deja
-annonce dans le `pom.xml` racine — c'est la seule dependance compile-scope de tout
-le depot vers `identity-provider-keycloak`.
-
-## kernel-bootstrap — la composition finale, livree le 27 juillet 2026
-
-L'app Quarkus reelle. `EgenKernelApplication` (`@QuarkusMain`) ne fait que
-declencher `KernelBootSequence` et journaliser son bilan — aucune logique metier,
-conformement au principe pose des le premier jour pour ce module.
-
-Assemble, en scope compile : tous les systemes Niveau 0/1 (kernel-sdk,
-kernel-jpa-support, module-domain, identity, authorization, policy,
-module-registry), kernel-plugin-engine, kernel-eventbus (les deux modules), et
-**`identity-provider-keycloak`** — le seul provider Niveau 2 disponible a ce jour,
-traite comme une infrastructure coeur (au meme titre que
-`eventbus-kafka-adapter`) plutot que comme un plugin metier charge dynamiquement.
-N'assemble jamais de module business : ceux-la restent des candidats au
-chargement dynamique via `kernel-plugin-engine`, jamais des dependances Maven de ce
-module.
-
-**`PluginDirectoryScanner`** decouvre les candidats dans un repertoire de plugins
-(convention : `<moduleId>.jar` + `<moduleId>.properties`, en paire, directement dans
-le repertoire) — configurable (`egen.kernel.plugins-directory`, defaut `plugins`).
-**`KernelBootSequence`** scanne puis tente de charger chaque candidat trouve, pour
-le compte du sujet bootstrap.
-
-**Decision de conception assumee** : `ModuleActivationResolver` verifie l'Activation
-d'un module pour *un* Contexte precis. Au tout premier demarrage, avant qu'aucun
-Contexte metier ne soit necessairement consultable, cette sequence
-utilise un unique Contexte racine, configure (`egen.kernel.contexte-racine`,
-obligatoire, sans valeur par defaut — un echec de demarrage franc plutot qu'une
-valeur inventee silencieusement). Charger un module pour d'autres Contextes, au fil
-de l'exploitation reelle, reste une operation administrative posterieure au
-demarrage, hors scope de cette premiere livraison.
-
-**Consequence de ce large assemblage sur Flyway** : identity (V1), authorization
-(V2) et module-registry (V3) partagent desormais une seule execution Flyway de
-production (une seule base partagee, un seul jeu de migrations resolu, table
-`flyway_schema_history_kernel`) — chaque module garde neanmoins sa propre table pour
-SES PROPRES tests autonomes, ou cette renumerotation n'a aucune consequence.
-
-**Trois producteurs CDI necessaires** (`KernelBootConfig`) : `ManifestReader`,
-`ExtensionRegistry` et `PluginLoader` (kernel-plugin-engine) sont des classes
-volontairement simples, sans annotation CDI propre, pour rester instanciables a la
-main dans leurs propres tests — c'est kernel-bootstrap, la racine de composition,
-qui leur donne une portee CDI, jamais kernel-plugin-engine lui-meme.
-
-**Tests** : `KernelBootSequenceTest` verifie la sequence complete contre de
-**vraies** implementations (`KernelPermissionCheckImpl`, `ModuleActivationResolverImpl`
-— Testcontainers — et `PolitiqueNoyauImpl`), avec un `FakePluginLoader` local pour le
-seul maillon qui necessiterait un plugin JAR physique — la premiere verification de
-bout en bout de toute la chaine de gouvernance avec de vraies donnees en base.
-`PluginDirectoryScannerTest` couvre la decouverte de fichiers en isolation.
-
-## Etat d'avancement
-
-| Module | Niveau / Categorie | Statut |
-|---|---|---|
-| `kernel-sdk` | 0 | ✅ Livre — extension, event, Contexte, Manifeste d'Extension, Socle de Traçabilite |
-| `kernel-jpa-support` | 0 (partage) | ✅ Livre — TracabiliteEmbeddable |
-| `kernel-systems/identity` | 1 (primitif) | ✅ Livre — `KernelSubject` (kernel-sdk) + `KernelSubjectService`, sans persistance |
-| `kernel-systems/authorization` | 1 (primitif) | ✅ Livre — `KernelCapability` (kernel-sdk) + `KernelPermissionCheckImpl`, octrois/revocations avec Traçabilite complete |
-| `kernel-systems/policy` | 1 (primitif) | ✅ Livre — `PolitiqueNoyau` (kernel-sdk) + `PolitiqueNoyauImpl`, refuse systematiquement |
-| `kernel-domain/module-domain` | 0 | ✅ Livre — `ModuleId`, `CatalogueEntree`, `Souscription`, `Activation` : vocabulaire pur, zero framework |
-| `kernel-systems/module-registry` | 0 | ✅ Livre — cascade Catalogue → Souscription → Activation, `ModuleActivationResolver` fail-closed |
-| `kernel-plugin-engine` | 0 | ✅ Livre — `ManifestReader`, `ExtensionRegistry`, `PluginLifecycleManager` (orchestrateur), `PluginLoader` + `Pf4jPluginLoader` |
-| `kernel-plugin-process` | 0 + 2 (system) | ✅ Livre — `RpcPluginLoader`, seconde implementation de `PluginLoader` : isolation par processus separe, mTLS ephemere. Selectionnable par configuration dans `kernel-bootstrap` depuis le 11 sept. 2026 |
-| `kernel-eventbus` | 0 | ✅ Livre — `EventBus`/`InMemoryEventBus` (`eventbus-api`), `KafkaEventBusAdapter` (`eventbus-kafka-adapter`) |
-| `kernel-bootstrap` | 0 | ✅ Livre — `EgenKernelApplication`, `KernelBootSequence`, `PluginDirectoryScanner` |
-| `kernel-test-support` | 0 | ✅ Livre — `TracabiliteFixtures`, `FakeKernelPermissionCheck`, `FakeModuleActivationResolver`, `PostgresTestResource` |
-| `egen-modules/system/identity` (`identity-provider-api` + `identity-provider-keycloak`) | 2, system | ✅ Livre — Personne, Compte, Historique d'Identite (provider Keycloak) |
-| `egen-modules/system/authorization` (SpiceDB), `egen-modules/system/communication` | 2, system | À venir |
-
-Les modules business (Organisation, Referentiels Communs, et a terme
-Ressource/Academie/RH/Finance...) ne sont plus suivis dans cette table depuis leur
-extraction du 25 aout 2026 — voir
-[Civitas-EGEN-Business](https://github.com/amourgit/Civitas-EGEN-Business), qui
-consomme ce Kernel comme n'importe quel autre consommateur externe le ferait.
-
-## Convention de versionnement Flyway
-
-Chaque module gere sa propre sequence Flyway et sa propre table
-`flyway_schema_history_*` — plus de numerotation globale unique sur l'ensemble de la
-plateforme comme avant le 22 juillet 2026. **Nuance importante, corrigee apres un
-premier echec CI sur ce refactoring** : "propre sequence" ne veut pas dire "peut
-toujours reprendre a V1 sans regarder les autres modules". Flyway valide l'unicite
-des numeros de version au sein de l'**ensemble de migrations resolu pour une
-execution donnee** (les locations combinees), jamais au sein d'une seule table
-d'historique. Deux modules qui ne se combinent jamais dans une meme execution (ex.
-`reference-data-impl`, qui n'a besoin des migrations d'aucun autre module) peuvent
-chacun reprendre a V1 sans risque. Mais des qu'un module ajoute la location d'un
-autre a la sienne pour ses tests d'integration reels — ce qui est exactement le cas
-de `organization-impl`, qui a besoin des tables `identity` pour verifier une
-reference Personne — leurs numeros doivent rester mutuellement uniques dans cet
-ensemble combine, meme si leurs tables d'historique restent bien distinctes en
-production.
-
-| Module | Sequence | Combine avec (tests) |
-|---|---|---|
-| `identity-provider-keycloak` | V1 (identity) | — (mais reserve V1 pour tout module qui le combinera) |
-| `reference-data-impl` | V1 (referencedata) | aucun — independance reelle |
-| `organization-impl` | V2 (organization), V3 (affiliation), V4 (politique organisationnelle) | `identity` (V1) — d'ou le decalage a partir de V2 |
-| `kernel-systems/authorization` | V1 (authorization) | aucun — independance reelle |
-| `kernel-systems/module-registry` | V1 (moduleregistry) | aucun — independance reelle |
-
-Quand un module a legitimement besoin des tables d'un autre pour ses tests
-d'integration reels (ex. `organization-impl` a besoin d'`identity` pour verifier une
-reference Personne), il ajoute la location Flyway de l'autre module en plus de la
-sienne dans son `application.properties`, et declare l'artefact correspondant en
-dependance de scope **test** uniquement (jamais compile/runtime — voir la regle
-Enforcer ci-dessus).
-
-## kernel-test-support — fixtures et doublures communes, livre le 28 juillet 2026
-
-Reduit la duplication accumulee au fil des modules precedents, sans jamais toucher
-aux tests deja livres et verts :
-
-- **`TracabiliteFixtures`** — `Tracabilite.initiale(Acteur.systeme("test"),
-  OrigineDonnee.SAISIE_MANUELLE)` etait deja duplique, verbatim, dans des dizaines
-  de fichiers de test. Disponible pour tout code de test ecrit desormais.
-- **`FakeKernelPermissionCheck`**, **`FakeModuleActivationResolver`** — versions
-  canoniques, partagees entre `kernel-plugin-engine` et `kernel-bootstrap`.
-- **`PostgresTestResource`** — ressource Testcontainers explicite (`postgres:16`,
-  meme version que `docker-compose.yml`), pour les besoins qu'un Dev Services
-  automatique ne couvre pas encore. Testee (verifie une vraie connexion, pas
-  seulement que le conteneur demarre).
-
-**Contrainte de conception respectee** : `FakePluginLoader` n'a volontairement pas
-sa place ici. Le partager aurait exige que `kernel-test-support` depende de
-`kernel-plugin-engine` — et les tests de `kernel-plugin-engine` consommant a leur
-tour `kernel-test-support` auraient ferme un cycle de reacteur Maven
-(`kernel-plugin-engine` test → `kernel-test-support` compile → `kernel-plugin-engine`
-compile), que Maven refuse categoriquement. `kernel-plugin-engine` et
-`kernel-bootstrap` gardent donc chacun leur propre copie locale de
-`FakePluginLoader` — un petit cout de duplication assume plutot qu'une
-"solution" qui casserait le build.
-
-**Deliberement absents, pour la meme raison que `Pf4jPluginLoader` et
-`KafkaEventBusAdapter` n'ont pas de test d'integration reel** : `KeycloakTestResource`
-et `SpiceDbTestResource`. Aucun code de ce depot n'integre encore reellement OIDC ou
-SpiceDB — les construire maintenant serait de la speculation non verifiable, pas de
-la rigueur. A ajouter avec le meme soin des qu'un premier consommateur reel existera
-(veritable integration OIDC dans `identity-provider-keycloak`,
-`authorization-provider-spicedb`).
-
-## kernel-plugin-process — isolation par processus, livre le 22 aout 2026
-
-Une seconde implementation de `PluginLoader` (kernel-plugin-engine), a cote de
-`Pf4jPluginLoader` plutot qu'a sa place. `Pf4jPluginLoader` (isolation par
-classloader, meme JVM, meme memoire) reste la voie par defaut ; celle-ci ajoute
-l'isolation par processus separe — un plugin qui plante n'affecte jamais l'hote —
-pour les modules qui en ont reellement besoin. Le choix entre les deux est une
-decision de deploiement — depuis le 11 septembre 2026, elle se prend par
-configuration (`egen.kernel.plugin-loader=pf4j|rpc`, voir
-`KernelBootConfig#pluginLoader()`), premier registre de capacite declaratif du
-Kernel (Capability -> Provider), jamais en editant kernel-bootstrap.
-
-Inspire de go-plugin (HashiCorp — Terraform, Vault, Nomad) sur un point precis :
-processus enfant + RPC + mTLS ephemere par lancement, jamais une autorite de
-certification partagee. S'en ecarte deliberement sur un autre : go-plugin isole un
-petit nombre de contrats fixes et connus a l'avance (`logical.Backend` pour Vault).
-`ExtensionPoint` reste generique par construction chez EGEN — n'importe quelle
-interface, definie par n'importe quel module Niveau 2 — donc le pont RPC l'est
-aussi : un service gRPC unique (`Invoquer`), pas un contrat `.proto` a ecrire par
-categorie de plugin.
-
-- **`plugin-process-api`** (Niveau 0, pur JDK) — `PluginProcessHandshake` (le
-  protocole de handshake, versionne a la Linux vermagic : un processus dont le
-  format ne correspond pas est refuse au chargement, jamais une tentative degradee
-  qui echoue plus tard de maniere imprevisible), `PluginProcessLauncher`/
-  `PluginProcessHandle` (lancement de sous-processus reel, delai de handshake
-  borne), `PontExtensionDistante` (le Proxy dynamique generique).
-- **`plugin-process-grpc-adapter`** (Niveau 2, "system") — `GrpcAppelExtensionTransport`
-  (cote hote), `ServiceExtensionDistanteImpl`/`PluginProcessRuntime` (cote
-  processus plugin), `MaterielTlsEphemere` (certificat auto-signe ephemere via
-  Bouncy Castle — jamais `io.netty.handler.ssl.util.SelfSignedCertificate`, dont la
-  Javadoc officielle exclut tout usage hors tests), `RpcPluginLoader`.
-
-**Deux corrections trouvees par execution reelle, pas par relecture** — la
-premiere fois dans cette session qu'un module a pu etre verifie par un vrai build
-plutot que par une lecture attentive seule : `JcaPEMWriter` reconvertit
-silencieusement une cle EC vers le format legacy SEC1, illisible par Netty ;
-`bcprov`/`bcutil`/`bcpkix-jdk18on` doivent partager exactement la meme version,
-desormais fixee par `dependencyManagement` plutot que laissee a la resolution
-transitive de Maven.
-
-**Limites assumees pour cette premiere livraison** : le processus plugin herite du
-classpath complet de l'hote (isolation memoire et crash garanties, pas encore
-l'isolation des dependances) ; une seule instance par point d'extension et par
-processus ; `priority()` (`@Extension`) pas encore transmis par le protocole.
+1. **Services indépendants** — le mode principal, décrit ci-dessus : un
+   service autonome, déployé séparément, qui s'enregistre auprès du Kernel
+   et communique avec le reste de l'écosystème via la Communication Fabric.
+   C'est la voie par défaut pour tout domaine métier.
+2. **Modules/plugins embarqués** — un mécanisme d'extension plus léger,
+   conservé pour les besoins où coder et déployer un service séparé serait
+   disproportionné : une fonctionnalité ou un module personnel chargé
+   directement dans le process du Kernel (ou dans un process isolé), sans
+   pour autant faire porter au Kernel lui-même la moindre logique métier
+   codée en dur. Voir la Charte d'Architecture, chapitre « Le mode
+   d'extension embarqué », pour la frontière exacte entre les deux modes.
 
 ## Construire le projet
 
-Prerequis : JDK 21, Maven 3.9+, Docker (requis par Quarkus Dev Services pour les
-tests d'integration des modules `-impl`, qui provisionnent un PostgreSQL ephemere
-automatiquement).
+Prérequis : JDK 21, Maven 3.9+, Docker.
 
 ```bash
 mvn -B verify
 ```
 
-La CI GitHub Actions (`.github/workflows/ci.yml`) reconstruit et teste l'integralite
-du reacteur a chaque push sur `main` et sur chaque pull request — c'est la porte de
-validation faisant foi du projet, Docker etant disponible nativement sur les runners
-GitHub-hosted.
-
-### Lancer le Kernel localement
-
-`docker-compose.yml`, a la racine du depot, fournit Postgres, Kafka (mode KRaft),
-Keycloak et SpiceDB (ce dernier provisionne par avance ; aucun provider ne le
-consomme encore) :
-
-```bash
-docker compose up -d postgres kafka keycloak
-cp .env.example .env
-mvn -pl egen-kernel/kernel-bootstrap -am quarkus:dev
-```
-
-En mode dev, Quarkus Dev Services prend le relais pour Postgres si aucune URL n'est
-explicitement fournie — `docker-compose.yml` reste utile pour une base persistante
-entre deux redemarrages, ou pour Kafka/Keycloak/SpiceDB, qu'aucun Dev Service ne
-provisionne encore automatiquement dans ce depot.
+La CI GitHub Actions reconstruit et teste l'intégralité du réacteur à chaque
+push.
