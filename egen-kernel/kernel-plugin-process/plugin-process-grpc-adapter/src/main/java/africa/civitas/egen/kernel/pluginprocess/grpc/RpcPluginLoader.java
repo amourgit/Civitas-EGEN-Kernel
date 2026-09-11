@@ -35,6 +35,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * s'active explicitement, module par module ou deploiement par deploiement,
  * quand l'isolation par processus est reellement necessaire.
  *
+ * <p><b>Mise a jour du 11 septembre 2026</b> : la decision de deploiement
+ * mentionnee ci-dessus se prend desormais par configuration
+ * ({@code egen.kernel.plugin-loader=rpc}), pas en editant kernel-bootstrap — voir
+ * {@code KernelBootConfig#pluginLoader()}, qui depend maintenant reellement de ce
+ * module. Le paragraphe precedent reste exact pour ce qu'il decrivait au moment de
+ * ce commit-ci ({@code RpcPluginLoader} lui-meme, jamais son cablage).
+ *
  * <p><b>Simplification assumee pour cette premiere livraison</b> : le processus
  * plugin herite integralement du classpath de l'hote (voir {@link
  * #construireCommande}), plutot que d'un classpath minimal qui lui serait propre.

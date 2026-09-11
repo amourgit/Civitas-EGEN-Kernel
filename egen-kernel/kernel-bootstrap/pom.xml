@@ -23,8 +23,10 @@
 
     Assemble : kernel-sdk, kernel-jpa-support, module-domain, les trois primitifs
     Niveau 1 (identity, authorization, policy), module-registry (B2),
-    kernel-plugin-engine, kernel-eventbus (eventbus-api + eventbus-kafka-adapter), et
-    identity-provider-keycloak — le seul provider Niveau 2 disponible a ce jour,
+    kernel-plugin-engine, plugin-process-grpc-adapter (depuis le 11 septembre 2026 —
+    voir KernelBootConfig#pluginLoader()), kernel-eventbus (eventbus-api +
+    eventbus-kafka-adapter), et identity-provider-keycloak — le seul provider
+    Niveau 2 disponible a ce jour,
     traite comme une infrastructure coeur (au meme titre que eventbus-kafka-adapter)
     plutot que comme un plugin metier charge dynamiquement, puisqu'un Kernel sans
     aucun provider Identite fonctionnel n'a pas grand-chose a faire tourner.
@@ -79,6 +81,20 @@
     <dependency>
       <groupId>africa.civitas.egen</groupId>
       <artifactId>kernel-plugin-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!--
+      Depuis le 11 septembre 2026 : KernelBootConfig#pluginLoader() choisit
+      reellement entre Pf4jPluginLoader et RpcPluginLoader selon
+      egen.kernel.plugin-loader (voir ce producteur) — ce module n'est donc plus
+      une dependance speculative, contrairement a ce qu'annoncait la Javadoc de ce
+      producteur jusqu'a cette date. Apporte transitivement quarkus-jackson (pour
+      l'ObjectMapper injecte dans RpcPluginLoader) et les dependances gRPC/Bouncy
+      Castle deja documentees dans son propre pom.xml.
+    -->
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>plugin-process-grpc-adapter</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

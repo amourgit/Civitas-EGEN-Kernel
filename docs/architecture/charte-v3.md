@@ -426,6 +426,26 @@ producteur, jamais ailleurs dans le Kernel. Un nouveau test,
 fonctionnel dans l'application assemblee — sans dupliquer la couverture
 fonctionnelle deja assuree par `InMemoryEventBusTest`.
 
+**Deuxieme mise a jour du 11 septembre 2026** : `KernelBootConfig.pluginLoader()`
+ne retourne plus systematiquement `Pf4jPluginLoader` — une nouvelle propriete,
+`egen.kernel.plugin-loader` (`pf4j` par defaut, ou `rpc`), decide reellement quelle
+implementation est produite, dans ce seul producteur, jamais par une ambiguite de
+resolution CDI entre deux beans candidats. C'est le premier exemple concret, dans
+ce Kernel, du registre de capacite declaratif (Capability -> Provider) identifie
+comme absent par un audit technique exhaustif mene ce jour : jusque-la,
+l'interchangeabilite de `PluginLoader` etait reelle au niveau Java (deux
+implementations completes et testees) mais jamais exposee a un consommateur sans
+toucher au code. `kernel-bootstrap` depend desormais reellement de
+`plugin-process-grpc-adapter` (compile scope) — ce n'est plus une dependance
+speculative, contrairement a ce qu'annoncait ce meme fichier avant cette date (voir
+aussi la Javadoc de `RpcPluginLoader`, corrigee du meme jour). `ObjectMapper`,
+requis par le constructeur de `RpcPluginLoader`, est injecte depuis l'extension
+`quarkus-jackson` — deja une dependance transitive de `plugin-process-grpc-adapter`,
+pas une nouvelle dependance ajoutee pour l'occasion.
+`KernelBootConfigPluginLoaderTest` verifie la decision elle-meme (pf4j, rpc,
+valeur invalide) directement, sans conteneur CDI — meme discipline que
+`PluginLifecycleManagerTest`.
+
 **Premiere verification de bout en bout** : `KernelBootSequenceTest` exerce la
 sequence complete contre de vraies implementations (`KernelPermissionCheckImpl`,
 `ModuleActivationResolverImpl` — Testcontainers — et `PolitiqueNoyauImpl`), avec un

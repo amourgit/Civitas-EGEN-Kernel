@@ -9,12 +9,15 @@ import africa.civitas.egen.kernel.pluginengine.loader.Pf4jPluginLoader;
 import africa.civitas.egen.kernel.pluginengine.loader.PluginLoader;
 import africa.civitas.egen.kernel.pluginengine.manifest.ManifestReader;
 import africa.civitas.egen.kernel.pluginengine.registry.ExtensionRegistry;
+import africa.civitas.egen.kernel.pluginprocess.grpc.RpcPluginLoader;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.UUID;
 
 /**
@@ -33,6 +36,14 @@ import java.util.UUID;
  * une valeur inventee silencieusement serait pire qu'un echec de demarrage franc et
  * explicite — voir le README pour la simplification assumee que represente cet
  * unique Contexte racine au demarrage.
+ *
+ * <p>{@code egen.kernel.plugin-loader} (depuis le 11 septembre 2026) est le premier
+ * exemple, dans ce Kernel, d'une capacite choisie par configuration plutot que par
+ * edition de ce fichier : voir {@link #pluginLoader()}. Le meme patron (une
+ * propriete de configuration lue dans un seul producteur, jamais une ambiguite de
+ * resolution CDI) est le candidat naturel pour toute future capacite a plusieurs
+ * implementations concretes — Identite comprise, le jour ou un second provider
+ * existera reellement.
  */
 @ApplicationScoped
 public class KernelBootConfig {
@@ -45,6 +56,21 @@ public class KernelBootConfig {
 
     @ConfigProperty(name = "egen.kernel.contexte-racine")
     UUID contexteRacine;
+
+    @ConfigProperty(name = "egen.kernel.plugin-loader", defaultValue = "pf4j")
+    String implementationPluginLoader;
+
+    @ConfigProperty(name = "egen.kernel.plugin-loader.rpc.delai-handshake", defaultValue = "PT10S")
+    Duration delaiHandshakeRpc;
+
+    @ConfigProperty(name = "egen.kernel.plugin-loader.rpc.delai-appel", defaultValue = "PT30S")
+    Duration delaiAppelRpc;
+
+    @ConfigProperty(name = "egen.kernel.plugin-loader.rpc.delai-arret-propre", defaultValue = "PT5S")
+    Duration delaiArretPropreRpc;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     @Produces
     @ApplicationScoped
@@ -59,20 +85,31 @@ public class KernelBootConfig {
     }
 
     /**
-     * {@link Pf4jPluginLoader} (isolation par classloader) reste la voie par
-     * defaut — legere, aucun processus additionnel a superviser. {@code
-     * RpcPluginLoader} (isolation par processus separe + mTLS ephemere,
-     * kernel-plugin-process) existe comme alternative pour les modules qui en ont
-     * reellement besoin. kernel-bootstrap ne depend deliberement pas encore de
-     * kernel-plugin-process (aucun consommateur reel aujourd'hui — pas de
-     * dependance speculative) : l'activer exige d'abord d'ajouter
-     * plugin-process-grpc-adapter aux dependances de ce module, puis de changer ce
-     * producteur — jamais ailleurs dans le Kernel.
+     * Premier registre de capacite declaratif du Kernel (Capability -> Provider) :
+     * {@code egen.kernel.plugin-loader} choisit, par configuration et non par
+     * edition de ce fichier, laquelle des deux implementations reelles de {@link
+     * PluginLoader} est active — {@code pf4j} (isolation par classloader,
+     * {@link Pf4jPluginLoader}, la voie par defaut, legere, aucun processus
+     * additionnel a superviser) ou {@code rpc} (isolation par processus separe +
+     * mTLS ephemere, {@code RpcPluginLoader}, kernel-plugin-process, pour les
+     * modules qui en ont reellement besoin).
+     *
+     * <p>Un seul producteur, jamais deux beans candidats pour le meme type : aucune
+     * ambiguite de resolution CDI possible, quelle que soit la valeur configuree.
+     * Une valeur ni {@code pf4j} ni {@code rpc} echoue explicitement, au premier
+     * usage reel de ce producteur — jamais un remplacement silencieux par un choix
+     * par defaut non demande.
      */
     @Produces
     @ApplicationScoped
     public PluginLoader pluginLoader() {
-        return new Pf4jPluginLoader();
+        return switch (implementationPluginLoader) {
+            case "pf4j" -> new Pf4jPluginLoader();
+            case "rpc" -> new RpcPluginLoader(delaiHandshakeRpc, delaiAppelRpc, delaiArretPropreRpc, objectMapper);
+            default -> throw new IllegalStateException(
+                    "egen.kernel.plugin-loader invalide : '" + implementationPluginLoader
+                            + "' (valeurs acceptees : 'pf4j', 'rpc').");
+        };
     }
 
     /**

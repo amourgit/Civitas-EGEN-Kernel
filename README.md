@@ -390,7 +390,7 @@ bout en bout de toute la chaine de gouvernance avec de vraies donnees en base.
 | `kernel-domain/module-domain` | 0 | ✅ Livre — `ModuleId`, `CatalogueEntree`, `Souscription`, `Activation` : vocabulaire pur, zero framework |
 | `kernel-systems/module-registry` | 0 | ✅ Livre — cascade Catalogue → Souscription → Activation, `ModuleActivationResolver` fail-closed |
 | `kernel-plugin-engine` | 0 | ✅ Livre — `ManifestReader`, `ExtensionRegistry`, `PluginLifecycleManager` (orchestrateur), `PluginLoader` + `Pf4jPluginLoader` |
-| `kernel-plugin-process` | 0 + 2 (system) | ✅ Livre — `RpcPluginLoader`, seconde implementation de `PluginLoader` : isolation par processus separe, mTLS ephemere |
+| `kernel-plugin-process` | 0 + 2 (system) | ✅ Livre — `RpcPluginLoader`, seconde implementation de `PluginLoader` : isolation par processus separe, mTLS ephemere. Selectionnable par configuration dans `kernel-bootstrap` depuis le 11 sept. 2026 |
 | `kernel-eventbus` | 0 | ✅ Livre — `EventBus`/`InMemoryEventBus` (`eventbus-api`), `KafkaEventBusAdapter` (`eventbus-kafka-adapter`) |
 | `kernel-bootstrap` | 0 | ✅ Livre — `EgenKernelApplication`, `KernelBootSequence`, `PluginDirectoryScanner` |
 | `kernel-test-support` | 0 | ✅ Livre — `TracabiliteFixtures`, `FakeKernelPermissionCheck`, `FakeModuleActivationResolver`, `PostgresTestResource` |
@@ -476,7 +476,10 @@ Une seconde implementation de `PluginLoader` (kernel-plugin-engine), a cote de
 classloader, meme JVM, meme memoire) reste la voie par defaut ; celle-ci ajoute
 l'isolation par processus separe — un plugin qui plante n'affecte jamais l'hote —
 pour les modules qui en ont reellement besoin. Le choix entre les deux est une
-decision de deploiement, jamais tranchee dans le Kernel.
+decision de deploiement — depuis le 11 septembre 2026, elle se prend par
+configuration (`egen.kernel.plugin-loader=pf4j|rpc`, voir
+`KernelBootConfig#pluginLoader()`), premier registre de capacite declaratif du
+Kernel (Capability -> Provider), jamais en editant kernel-bootstrap.
 
 Inspire de go-plugin (HashiCorp — Terraform, Vault, Nomad) sur un point precis :
 processus enfant + RPC + mTLS ephemere par lancement, jamais une autorite de
