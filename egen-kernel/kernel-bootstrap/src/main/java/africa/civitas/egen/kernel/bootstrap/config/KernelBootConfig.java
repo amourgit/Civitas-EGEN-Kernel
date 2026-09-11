@@ -2,6 +2,8 @@ package africa.civitas.egen.kernel.bootstrap.config;
 
 import africa.civitas.egen.kernel.bootstrap.boot.KernelBootSequence;
 import africa.civitas.egen.kernel.bootstrap.boot.PluginDirectoryScanner;
+import africa.civitas.egen.kernel.eventbus.api.EventBus;
+import africa.civitas.egen.kernel.eventbus.api.InMemoryEventBus;
 import africa.civitas.egen.kernel.pluginengine.lifecycle.PluginLifecycleManager;
 import africa.civitas.egen.kernel.pluginengine.loader.Pf4jPluginLoader;
 import africa.civitas.egen.kernel.pluginengine.loader.PluginLoader;
@@ -20,12 +22,12 @@ import java.util.UUID;
  * et des beans deja disponibles. Aucune logique metier ici, conformement au principe
  * pose pour ce module (voir sa description dans le pom.xml).
  *
- * <p>Trois producteurs sont necessaires ici parce que {@code ManifestReader}, {@code
- * ExtensionRegistry} et {@code PluginLoader} (kernel-plugin-engine) sont des classes
- * volontairement simples, sans annotation CDI propre — instanciables a la main dans
- * les tests, comme documente dans leur propre module. C'est kernel-bootstrap, la
- * racine de composition, qui leur donne une portee CDI, jamais kernel-plugin-engine
- * lui-meme.
+ * <p>Quatre producteurs sont necessaires ici parce que {@code ManifestReader}, {@code
+ * ExtensionRegistry}, {@code PluginLoader} (kernel-plugin-engine) et {@code
+ * InMemoryEventBus} (kernel-eventbus) sont des classes volontairement simples, sans
+ * annotation CDI propre — instanciables a la main dans les tests, comme documente
+ * dans leur propre module. C'est kernel-bootstrap, la racine de composition, qui
+ * leur donne une portee CDI, jamais leur module d'origine lui-meme.
  *
  * <p>{@code egen.kernel.contexte-racine} est obligatoire, sans valeur par defaut :
  * une valeur inventee silencieusement serait pire qu'un echec de demarrage franc et
@@ -71,6 +73,22 @@ public class KernelBootConfig {
     @ApplicationScoped
     public PluginLoader pluginLoader() {
         return new Pf4jPluginLoader();
+    }
+
+    /**
+     * {@link InMemoryEventBus} (Niveau 0, sans dependance externe) reste le repli
+     * par defaut — aucun module charge dynamiquement aujourd'hui n'a encore besoin
+     * de franchir une frontiere de processus pour publier ou souscrire. {@code
+     * KafkaEventBusAdapter} (kernel-eventbus/eventbus-kafka-adapter, deja une
+     * dependance de ce module) reste l'alternative pour un deploiement qui en a
+     * reellement besoin : l'activer exige de changer ce seul producteur, jamais
+     * ailleurs dans le Kernel — meme discipline que {@link #pluginLoader()}
+     * ci-dessus.
+     */
+    @Produces
+    @ApplicationScoped
+    public EventBus eventBus() {
+        return new InMemoryEventBus();
     }
 
     @Produces

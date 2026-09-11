@@ -376,8 +376,9 @@ future, sans que le contrat `EventBus` lui-meme n'ait besoin de changer.
 dans kernel-plugin-engine, n'est pas couverte par un test d'integration reel dans ce
 depot, faute d'un courtier Kafka disponible dans ce sandbox. Sa logique de dispatch
 est neanmoins identique, dans son intention, a celle d'`InMemoryEventBus` — qui,
-elle, est entierement testee (20 tests couvrant chaque combinaison de
-correspondance, d'isolation des gestionnaires en echec et de desabonnement).
+elle, est entierement testee (16 tests couvrant chaque combinaison de
+correspondance, d'isolation des gestionnaires en echec et de desabonnement —
+corrige le 11 septembre 2026, ce paragraphe en annoncait 20 par erreur).
 
 ## A.6quinquies kernel-bootstrap — livre le 27 juillet 2026
 
@@ -407,11 +408,23 @@ production (une seule base, un seul jeu de migrations resolu, table
 propres tests autonomes, ou la renumerotation n'a aucune consequence. Meme
 discipline de coordination que celle deja etablie pour organization/identity.
 
-**Cablage CDI** : `ManifestReader`, `ExtensionRegistry` et `PluginLoader`
-(kernel-plugin-engine) sont des classes volontairement simples, sans annotation CDI
-propre, pour rester instanciables a la main dans leurs propres tests — trois
+**Cablage CDI** : `ManifestReader`, `ExtensionRegistry`, `PluginLoader`
+(kernel-plugin-engine) et, depuis le 11 septembre 2026, `InMemoryEventBus`
+(kernel-eventbus) sont des classes volontairement simples, sans annotation CDI
+propre, pour rester instanciables a la main dans leurs propres tests — quatre
 producteurs `@Produces` dans `KernelBootConfig` leur donnent une portee CDI,
-jamais kernel-plugin-engine lui-meme.
+jamais leur module d'origine lui-meme.
+
+**Mise a jour du 11 septembre 2026** : jusqu'a cette date, `EventBus` etait
+construit et entierement teste isolement (voir §A.6quater) mais aucun `@Produces`
+ne l'exposait ici — aucune classe du reacteur ne pouvait l'injecter ni l'utiliser,
+malgre un contrat et deux implementations reelles. `KernelBootConfig.eventBus()`
+retourne desormais `InMemoryEventBus` par defaut, avec la meme discipline que
+`pluginLoader()` : passer a `KafkaEventBusAdapter` exige de changer ce seul
+producteur, jamais ailleurs dans le Kernel. Un nouveau test,
+`KernelBootConfigEventBusTest`, verifie que le bean est reellement injectable et
+fonctionnel dans l'application assemblee — sans dupliquer la couverture
+fonctionnelle deja assuree par `InMemoryEventBusTest`.
 
 **Premiere verification de bout en bout** : `KernelBootSequenceTest` exerce la
 sequence complete contre de vraies implementations (`KernelPermissionCheckImpl`,
