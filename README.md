@@ -1,87 +1,89 @@
 # EGEN Kernel
 
-EGEN Kernel est le socle technique développé par **CIVITAS Africa** sur lequel
-s'assemble et s'exécute un écosystème de services indépendants. Le Kernel ne
-connaît aucun métier : il fournit les mécanismes qui permettent à des services
-autonomes — éducation, actualité civique, communication, identité, ou tout
-autre domaine futur — d'exister, de tourner, de se trouver, de communiquer,
-de s'orchestrer et d'évoluer, sans jamais posséder lui-même la moindre
-logique métier.
+**EGEN Kernel** est le Control / Composition Plane développé par **CIVITAS
+Africa** pour faire tourner, découvrir, connecter et orchestrer un
+écosystème de services autonomes — éducation, actualité civique,
+communication, identité, ou tout autre domaine à venir. Le Kernel ne
+possède aucune logique métier : il compose des moteurs spécialisés déjà
+éprouvés (Nomad, Consul, Kafka/NATS) pour donner à cet écosystème un socle
+technique cohérent, sans jamais dupliquer ce que ces moteurs savent déjà
+faire.
 
 **Logiciel propriétaire — tous droits réservés.** Ce dépôt est privé et son
-contenu n'est distribué sous aucune licence open source. Toute reproduction,
-modification ou distribution en dehors de CIVITAS Africa est interdite sauf
-autorisation explicite.
+contenu n'est distribué sous aucune licence open source. Toute
+reproduction, modification ou distribution en dehors de CIVITAS Africa est
+interdite sauf autorisation explicite.
 
-## Référence d'architecture
+## La phrase qui guide chaque décision
 
-[`docs/architecture/charte-v3.md`](docs/architecture/charte-v3.md) est le
-document qui fait foi pour toute décision d'architecture dans ce dépôt. Il
-détaille, mécanisme par mécanisme, chacun des piliers résumés ci-dessous —
-ce qu'il gère, ce qu'il ignore délibérément, ses points d'extension. Toute
-contribution doit s'y conformer.
+> **EGEN possède l'intelligence de composition. Les moteurs spécialisés
+> possèdent l'intelligence d'exécution.**
 
-## Principe directeur
-
-> Le Kernel ne possède rien du métier. Il fournit les mécanismes permettant
-> au métier d'exister sous forme de services autonomes.
-
-Il ne connaît ni l'identité, ni les organisations, ni les utilisateurs, ni
-aucun domaine métier — pas plus qu'il ne cherche à uniformiser la technologie
-des services qu'il héberge. Un service Python reste un service Python, un
-service Java reste un service Java ; le Kernel les monte, les enregistre, les
-connecte et les orchestre, sans jamais entrer dans leur logique interne. Son
-rôle s'arrête au **substrat d'exécution de l'écosystème**.
-
-## Les douze piliers du Kernel
-
-| Pilier | Rôle en une phrase |
+| EGEN sait dire… | … le moteur spécialisé sait répondre |
 |---|---|
-| **Service Runtime** | Définit comment une instance de service démarre, tourne et s'arrête — sans fournir le runtime applicatif lui-même. |
-| **Service Registry** | Sait quels services existent et quelles capacités techniques ils exposent — jamais ce qu'ils font au sens métier. |
-| **Service Discovery** | Permet à un service d'en trouver un autre par son identité déclarée, jamais par une URL codée en dur. |
-| **Communication Fabric** | Transporte et route les échanges entre services (HTTP, gRPC, messaging, événements) sans en comprendre le contenu. |
-| **Workflow Engine** | Sait exécuter étapes, transitions, conditions et compensations — jamais un workflow métier prédéfini. |
-| **Configuration Engine** | Distribue, versionne et valide la configuration déclarée par les services, sans connaître le sens de leurs paramètres. |
-| **Dependency Management** | Sait qu'un service dépend techniquement d'un autre, jamais pourquoi. |
-| **Lifecycle Management** | Installe, enregistre, configure, démarre, arrête, met à jour et retire un service — le cycle de vie technique de bout en bout. |
-| **Observability** | Standardise logs, métriques, traces et healthchecks — sans jamais analyser ce qu'ils signifient pour le métier. |
-| **Event Infrastructure** | Fournit bus, topics, abonnements et livraison — les événements eux-mêmes appartiennent aux services. |
-| **API / Contract Infrastructure** | Fournit le cadre de déclaration, de versionnement et de validation des interfaces — jamais les API métier elles-mêmes. |
-| **Deployment Adapter** | Traduit une intention de déploiement vers l'environnement réel (Docker, Kubernetes, systemd, VM, cloud...), sans y enfermer le Kernel. |
+| « Ce service doit tourner, avec ces ressources. » | **Nomad** : sur quel nœud, avec quel scheduling, quelle allocation. |
+| « Ce service doit être découvrable et sain. » | **Consul** : où sont ses instances, sont-elles en bonne santé. |
+| « Ces services échangent tel type d'événement. » | **Kafka/NATS** : comment transporter, répliquer, garantir la livraison. |
+| « Cette suite d'étapes métier doit s'exécuter dans cet ordre, avec compensation si ça échoue. » | Le **moteur de Workflow EGEN**, natif, orchestre — mais délègue chaque étape au service propriétaire. |
+
+Avant d'écrire une ligne de code sur une capacité, la question à se poser
+est toujours : *« Nomad/Consul/Kafka/NATS le fait-il déjà ? »* Si la
+réponse est oui, EGEN se contente de le composer — il ne le réimplémente
+jamais.
+
+## Le cycle canonique
+
+Le cœur d'EGEN est une boucle de contrôle permanente, jamais un script
+d'installation :
+
+```
+Declare → Resolve → Compose → Delegate → Observe → Reconcile
+```
+
+Un client déclare un **état désiré** ; EGEN résout les références, compose
+un plan d'exécution, délègue aux moteurs spécialisés, observe l'état réel,
+et corrige tout écart — sans intervention humaine, en continu. Le détail
+complet de ce cycle est dans
+[`docs/architecture/04-moteur-de-reconciliation.md`](docs/architecture/04-moteur-de-reconciliation.md).
+
+## Documentation d'architecture
+
+La documentation complète — vision, principes, moteur de réconciliation,
+modèle de domaine, contrat de service, ports & adapters, cycle de vie,
+dépendances, workflow, communication, API, sécurité, observabilité, stack,
+tests, feuille de route — vit dans
+[`docs/architecture/`](docs/architecture/README.md). C'est la référence qui
+fait foi pour toute décision de conception ou de revue de code dans ce
+dépôt.
+
+Point d'entrée recommandé : [`docs/architecture/README.md`](docs/architecture/README.md).
+
+## Les dix garde-fous non négociables
+
+1. Aucune logique métier dans le cœur (`egen-domain`, `egen-application`).
+2. Aucun type d'un SDK externe (Nomad, Consul, Kafka…) dans une signature de méthode du domaine.
+3. Toute capacité candidate à l'implémentation interne doit d'abord répondre « non » à : *Nomad/Consul/Kafka/NATS le fait-il déjà ?*
+4. Une installation EGEN vide (zéro service métier) doit démarrer et répondre à son API de santé.
+5. Ajouter un service ne doit jamais nécessiter de modifier une ligne du Kernel.
+6. Ajouter un adapter ne doit jamais nécessiter de modifier le domaine.
+7. Chaque opération déléguée à un adapter doit être idempotente.
+8. Chaque service peut être dans n'importe quel langage.
+9. Le cœur est testable sans qu'aucun moteur externe ne tourne.
+10. Toute divergence entre état désiré et état observé doit être visible — jamais silencieuse.
+
+Détail et justification de chacun : [`docs/architecture/02-principes-fondamentaux.md`](docs/architecture/02-principes-fondamentaux.md).
 
 ## Ce que le Kernel n'est pas
 
-Le Kernel EGEN n'est, et ne doit jamais devenir :
-
-- un IAM central déguisé (identité, authentification, autorisation métier,
-  utilisateurs, organisations, tenants, membres, rôles ou permissions
-  métier) ;
-- un ERP technique ou un backend métier partagé (GED, éducation, finance,
-  RH, santé, CRM...) ;
-- un cadre qui impose sa propre stack technologique aux services qu'il
-  héberge.
+- Un PaaS métier (pas de modèle `Invoice`, `Patient`, `Article`).
+- Un remplaçant de Kubernetes/Nomad — c'est une couche au-dessus.
+- Un ESB qui comprend la sémantique métier des messages.
+- Un framework applicatif imposé aux services (pas de SDK obligatoire couplé à un langage).
+- Un IAM central déguisé, un ERP technique ou un backend métier partagé.
 
 Toute logique de cette nature est portée par des **services indépendants**,
-au même titre que n'importe quel autre service de l'écosystème — jamais
-codée en dur dans le Kernel.
-
-## Deux façons d'étendre l'écosystème
-
-Le Kernel propose deux modes d'extension, qui coexistent sans se substituer
-l'un à l'autre :
-
-1. **Services indépendants** — le mode principal, décrit ci-dessus : un
-   service autonome, déployé séparément, qui s'enregistre auprès du Kernel
-   et communique avec le reste de l'écosystème via la Communication Fabric.
-   C'est la voie par défaut pour tout domaine métier.
-2. **Modules/plugins embarqués** — un mécanisme d'extension plus léger,
-   conservé pour les besoins où coder et déployer un service séparé serait
-   disproportionné : une fonctionnalité ou un module personnel chargé
-   directement dans le process du Kernel (ou dans un process isolé), sans
-   pour autant faire porter au Kernel lui-même la moindre logique métier
-   codée en dur. Voir la Charte d'Architecture, chapitre « Le mode
-   d'extension embarqué », pour la frontière exacte entre les deux modes.
+jamais codée en dur dans le Kernel. Détail complet :
+[`docs/architecture/01-vision-et-positionnement.md`](docs/architecture/01-vision-et-positionnement.md).
 
 ## Construire le projet
 
@@ -91,5 +93,12 @@ Prérequis : JDK 21, Maven 3.9+, Docker.
 mvn -B verify
 ```
 
-La CI GitHub Actions reconstruit et teste l'intégralité du réacteur à chaque
-push.
+La CI GitHub Actions reconstruit et teste l'intégralité du réacteur à
+chaque push.
+
+## Contribuer
+
+Toute contribution doit respecter les dix garde-fous ci-dessus et éviter
+les anti-patterns listés dans
+[`CONTRIBUTING.md`](CONTRIBUTING.md) et
+[`docs/architecture/18-anti-patterns.md`](docs/architecture/18-anti-patterns.md).
