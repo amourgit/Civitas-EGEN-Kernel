@@ -20,7 +20,6 @@ public class EnvelopeJson {
 
     public UUID eventId;
     public String type;
-    public UUID contexteId;
     public Instant occurredAt;
     public Object payload;
 
@@ -28,10 +27,9 @@ public class EnvelopeJson {
     public EnvelopeJson() {
     }
 
-    public EnvelopeJson(UUID eventId, String type, UUID contexteId, Instant occurredAt, Object payload) {
+    public EnvelopeJson(UUID eventId, String type, Instant occurredAt, Object payload) {
         this.eventId = eventId;
         this.type = type;
-        this.contexteId = contexteId;
         this.occurredAt = occurredAt;
         this.payload = payload;
     }

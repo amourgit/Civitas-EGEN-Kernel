@@ -50,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * et l'isolation de crash (un plugin qui plante n'affecte jamais le processus
  * hote) sont garanties par cette premiere version, pas l'isolation complete des
  * dependances. Ce module compile et ses tests unitaires passent, confirme par un
- * premier mvn test complet et reel le 22 aout 2026 (Charte v3, §A.6septies) — mais
+ * premier mvn test complet et reel le 22 aout 2026 — mais
  * cela ne couvre jamais {@code charger(...)} lui-meme dans une application Quarkus
  * reellement packagee. A verifier en priorite au premier lancement reel dans ce
  * contexte : la fiabilite de {@code System.getProperty("java.class.path")} pour

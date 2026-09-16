@@ -13,8 +13,7 @@ import java.util.List;
  * <p>Deux implementations coexistent : {@link Pf4jPluginLoader}, adossee a PF4J
  * (isolation par classloader, le choix technologique acte pour EGEN en
  * remplacement d'OSGi), et {@code RpcPluginLoader} (isolation par processus
- * separe + mTLS ephemere, module {@code kernel-plugin-process} — voir Charte v3
- * §A.6septies). La seconde n'a exige aucun changement ici, ni dans {@link
+ * separe + mTLS ephemere, module {@code kernel-plugin-process}). La seconde n'a exige aucun changement ici, ni dans {@link
  * africa.civitas.egen.kernel.pluginengine.lifecycle.PluginLifecycleManager} :
  * c'est precisement ce qui rend ce module "completement extensible", pas une
  * promesse abstraite. Le choix entre les deux reste une decision de deploiement.

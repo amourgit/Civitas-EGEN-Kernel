@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,13 +14,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryEventBusTest {
 
-    private static final EventType ACTIVATION_CREEE = new EventType("module-registry.activation.creee");
+    private static final EventType ACTIVATION_CREEE = new EventType("academie.cours.creee");
     private static final EventType PERSONNE_CREEE = new EventType("identite.personne.creee");
 
     private final InMemoryEventBus bus = new InMemoryEventBus();
 
     private static EventEnvelope<String> unEvenement(EventType type) {
-        return EventEnvelope.of(type, UUID.randomUUID(), "charge-utile-de-test");
+        return EventEnvelope.of(type, "charge-utile-de-test");
     }
 
     @Test
@@ -54,10 +53,10 @@ class InMemoryEventBusTest {
     @Test
     void aHandlerSubscribedByPrefixReceivesAnyMatchingSystemeOrigine() {
         AtomicInteger appels = new AtomicInteger();
-        bus.souscrireParPrefixe("audit", "module-registry", (EventHandler<String>) e -> appels.incrementAndGet());
+        bus.souscrireParPrefixe("audit", "academie", (EventHandler<String>) e -> appels.incrementAndGet());
 
         bus.publier(unEvenement(ACTIVATION_CREEE));
-        bus.publier(unEvenement(new EventType("module-registry.souscription.creee")));
+        bus.publier(unEvenement(new EventType("academie.club.creee")));
 
         assertEquals(2, appels.get());
     }
@@ -65,7 +64,7 @@ class InMemoryEventBusTest {
     @Test
     void aHandlerSubscribedByPrefixDoesNotReceiveAnUnrelatedSystemeOrigine() {
         AtomicInteger appels = new AtomicInteger();
-        bus.souscrireParPrefixe("audit", "module-registry", (EventHandler<String>) e -> appels.incrementAndGet());
+        bus.souscrireParPrefixe("audit", "academie", (EventHandler<String>) e -> appels.incrementAndGet());
 
         bus.publier(unEvenement(PERSONNE_CREEE));
 

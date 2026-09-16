@@ -1,11 +1,10 @@
 services:
 
-  # PostgreSQL — la memoire souveraine, utilisee par tous les modules Kernel et
-  # egen-modules avec Traçabilite (identity, authorization, module-registry,
-  # organization, reference-data...). En dev/test, Quarkus Dev Services provisionne
-  # deja un Postgres ephemere automatiquement — ce service sert a un demarrage
-  # manuel de kernel-bootstrap (quarkus.datasource.jdbc.url pointant ici) ou a une
-  # inspection persistante des donnees entre deux redemarrages.
+  # PostgreSQL — la memoire souveraine du Kernel et de tout module qui persiste le
+  # Socle de Traçabilite (voir kernel-jpa-support). En dev/test, Quarkus Dev
+  # Services provisionne deja un Postgres ephemere automatiquement — ce service sert
+  # a un demarrage manuel de kernel-bootstrap (quarkus.datasource.jdbc.url pointant
+  # ici) ou a une inspection persistante des donnees entre deux redemarrages.
   postgres:
     image: postgres:16
     container_name: egen-postgres
@@ -52,42 +51,10 @@ services:
       timeout: 10s
       retries: 10
 
-  # Keycloak — Identite riche (Niveau 2), consomme par identity-provider-keycloak.
-  # Realm/clients a importer manuellement ou via un fichier de realm monte a part
-  # (hors scope de ce compose minimal).
-  keycloak:
-    image: quay.io/keycloak/keycloak:25.0
-    container_name: egen-keycloak
-    restart: unless-stopped
-    command: start-dev
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/egen_keycloak
-      KC_DB_USERNAME: egen
-      KC_DB_PASSWORD: egen
-    ports:
-      - "8081:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # SpiceDB — Autorisation riche (Niveau 2), consomme par le futur
-  # authorization-provider-spicedb (pas encore construit). Preset avec une cle de
-  # test uniquement pour le developpement local — jamais en production.
-  spicedb:
-    image: authzed/spicedb:latest
-    container_name: egen-spicedb
-    restart: unless-stopped
-    command: serve --grpc-preshared-key "egen-dev-key" --datastore-engine memory
-    ports:
-      - "50051:50051"   # gRPC
-      - "8443:8443"     # dashboard HTTP
-
   # Valkey — cache (Redis-compatible, Apache 2.0, remplace Redis/AGPLv3). Aucun
   # module ne l'utilise encore reellement dans ce depot ; provisionne par avance
-  # puisqu'il fait partie de la pile actee (kernel-jpa-support/anatomie du Kernel).
+  # puisqu'il fait partie de la pile actee pour l'implementation future de
+  # plusieurs piliers de la Charte (Service Discovery, Configuration Engine).
   valkey:
     image: valkey/valkey:8
     container_name: egen-valkey

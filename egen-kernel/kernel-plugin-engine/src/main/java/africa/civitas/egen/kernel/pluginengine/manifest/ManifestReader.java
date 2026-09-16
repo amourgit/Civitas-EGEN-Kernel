@@ -17,9 +17,7 @@ import java.util.Map;
  *
  * <p>Les deux exceptions convergent vers le meme traitement chez l'appelant
  * (PluginLifecycleManager) : un echec de lecture ou de construction du Manifeste
- * declenche systematiquement {@link
- * africa.civitas.egen.kernel.sdk.permission.policy.PolitiqueNoyauQuestion#ECHEC_CONSTRUCTION_MANIFESTE},
- * toujours un refus.
+ * declenche systematiquement un {@code ResultatChargement.Echec}, toujours un refus.
  */
 public final class ManifestReader {
 
@@ -27,7 +25,6 @@ public final class ManifestReader {
     private static final String CLE_VERSION = "version";
     private static final String CLE_EVENTS_EMITTED = "eventsEmitted";
     private static final String CLE_EVENTS_CONSUMED = "eventsConsumed";
-    private static final String CLE_RESOURCE_TYPES = "resourceTypesProvided";
     private static final String CLE_DEPENDENCIES = "dependencies";
 
     /**
@@ -53,7 +50,6 @@ public final class ManifestReader {
                 version,
                 listeDe(donnees, CLE_EVENTS_EMITTED),
                 listeDe(donnees, CLE_EVENTS_CONSUMED),
-                listeDe(donnees, CLE_RESOURCE_TYPES),
                 listeDe(donnees, CLE_DEPENDENCIES));
     }
 

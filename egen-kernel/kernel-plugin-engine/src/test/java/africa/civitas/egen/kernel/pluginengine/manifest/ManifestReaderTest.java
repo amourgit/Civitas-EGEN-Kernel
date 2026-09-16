@@ -41,14 +41,12 @@ class ManifestReaderTest {
         Map<String, String> donnees = donneesMinimales();
         donnees.put("eventsEmitted", "academie.cours.cree");
         donnees.put("eventsConsumed", "identite.personne.creee");
-        donnees.put("resourceTypesProvided", "videoprojecteur");
         donnees.put("dependencies", "identite,notifications");
 
         ManifesteExtension manifeste = reader.lire(source(donnees));
 
         assertEquals(List.of("academie.cours.cree"), manifeste.eventsEmitted());
         assertEquals(List.of("identite.personne.creee"), manifeste.eventsConsumed());
-        assertEquals(List.of("videoprojecteur"), manifeste.resourceTypesProvided());
         assertEquals(List.of("identite", "notifications"), manifeste.dependencies());
     }
 

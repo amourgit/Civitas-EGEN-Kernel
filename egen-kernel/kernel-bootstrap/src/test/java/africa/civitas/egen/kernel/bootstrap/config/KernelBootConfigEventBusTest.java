@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -45,7 +44,7 @@ class KernelBootConfigEventBusTest {
         List<EventEnvelope<String>> recus = new ArrayList<>();
         eventBus.souscrire("kernel-bootstrap-test", TYPE_DE_TEST, (EventHandler<String>) recus::add);
 
-        EventEnvelope<String> evenement = EventEnvelope.of(TYPE_DE_TEST, UUID.randomUUID(), "charge-utile-de-test");
+        EventEnvelope<String> evenement = EventEnvelope.of(TYPE_DE_TEST, "charge-utile-de-test");
         try {
             eventBus.publier(evenement);
 

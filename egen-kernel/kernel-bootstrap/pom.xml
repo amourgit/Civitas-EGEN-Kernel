@@ -15,31 +15,18 @@
 
   <name>EGEN Kernel — Bootstrap (composition finale)</name>
   <description>
-    La racine de composition — l'app Quarkus reelle, le seul module de tout le
-    Kernel autorise a dependre a la fois de tous les systemes Niveau 0/1 et d'un
-    provider Niveau 2 "system" concret (identity-provider-keycloak). Aucune logique
+    La racine de composition — l'app Quarkus reelle du Kernel. Aucune logique
     metier ici : EgenKernelApplication ne fait que declencher KernelBootSequence et
     journaliser son bilan — voir boot/ et config/.
 
-    Assemble : kernel-sdk, kernel-jpa-support, module-domain, les trois primitifs
-    Niveau 1 (identity, authorization, policy), module-registry (B2),
-    kernel-plugin-engine, plugin-process-grpc-adapter (depuis le 11 septembre 2026 —
-    voir KernelBootConfig#pluginLoader()), kernel-eventbus (eventbus-api +
-    eventbus-kafka-adapter), et identity-provider-keycloak — le seul provider
-    Niveau 2 disponible a ce jour,
-    traite comme une infrastructure coeur (au meme titre que eventbus-kafka-adapter)
-    plutot que comme un plugin metier charge dynamiquement, puisqu'un Kernel sans
-    aucun provider Identite fonctionnel n'a pas grand-chose a faire tourner.
-    N'assemble jamais de module business (organization, reference-data) : ceux-la
-    restent, par construction, des candidats au chargement dynamique via
-    kernel-plugin-engine, jamais des dependances Maven de ce module.
-
-    Consequence de ce large assemblage sur Flyway : identity (V1), authorization
-    (V2) et module-registry (V3) partagent desormais une seule execution Flyway de
-    production (une seule base partagee, un seul jeu de migrations resolu) — voir
-    application.properties. Chaque module garde neanmoins sa propre table
-    d'historique pour SES PROPRES tests autonomes, ou cette renumerotation n'a
-    aucune consequence.
+    Assemble : kernel-sdk, kernel-jpa-support, kernel-plugin-engine,
+    plugin-process-grpc-adapter (voir KernelBootConfig#pluginLoader(), qui choisit
+    entre Pf4jPluginLoader et RpcPluginLoader selon egen.kernel.plugin-loader), et
+    kernel-eventbus (eventbus-api + eventbus-kafka-adapter). N'assemble jamais de
+    service ou de module metier : ceux-la restent, par construction, des candidats
+    au chargement dynamique via kernel-plugin-engine (mode module) ou des processus
+    independants qui s'enregistrent aupres du Kernel (mode service) — jamais des
+    dependances Maven de ce module.
   </description>
 
   <dependencies>
@@ -51,31 +38,6 @@
     <dependency>
       <groupId>africa.civitas.egen</groupId>
       <artifactId>kernel-jpa-support</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>module-domain</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>identity</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>authorization</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>policy</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>module-registry</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -107,25 +69,6 @@
       <artifactId>eventbus-kafka-adapter</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>identity-provider-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <!--
-      Seule exception assumee a la regle d'isolation "*-impl"/providers concrets du
-      pom.xml racine (execution enforce-niveau2-impl-isolation) : ce module EST la
-      racine de composition, le seul endroit ou assembler un provider concret est
-      correct par construction (voir Charte v3 §5). L'override plus bas, dans
-      <build><plugins>, desactive cette regle specifiquement ici, avec la meme
-      justification que celle deja annoncee dans le pom.xml racine.
-    -->
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>identity-provider-keycloak</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-arc</artifactId>
@@ -199,26 +142,6 @@
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-      <!--
-        Desactive, pour ce seul module, la regle d'isolation heritee du pom.xml
-        racine (execution enforce-niveau2-impl-isolation) — l'exception unique et
-        documentee deja annoncee la-bas : kernel-bootstrap EST la racine de
-        composition, le seul endroit ou dependre d'un provider concret
-        (identity-provider-keycloak) en scope compile est correct par construction,
-        jamais une violation du DAG.
-      -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>enforce-niveau2-impl-isolation</id>
-            <configuration>
-              <skip>true</skip>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>

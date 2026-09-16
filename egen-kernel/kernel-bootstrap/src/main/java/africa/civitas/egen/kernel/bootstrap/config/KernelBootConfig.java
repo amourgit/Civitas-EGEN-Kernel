@@ -18,7 +18,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.UUID;
 
 /**
  * Cablage CDI pur — assemble {@link KernelBootSequence} a partir de la configuration
@@ -32,18 +31,11 @@ import java.util.UUID;
  * dans leur propre module. C'est kernel-bootstrap, la racine de composition, qui
  * leur donne une portee CDI, jamais leur module d'origine lui-meme.
  *
- * <p>{@code egen.kernel.contexte-racine} est obligatoire, sans valeur par defaut :
- * une valeur inventee silencieusement serait pire qu'un echec de demarrage franc et
- * explicite — voir le README pour la simplification assumee que represente cet
- * unique Contexte racine au demarrage.
- *
- * <p>{@code egen.kernel.plugin-loader} (depuis le 11 septembre 2026) est le premier
- * exemple, dans ce Kernel, d'une capacite choisie par configuration plutot que par
- * edition de ce fichier : voir {@link #pluginLoader()}. Le meme patron (une
- * propriete de configuration lue dans un seul producteur, jamais une ambiguite de
- * resolution CDI) est le candidat naturel pour toute future capacite a plusieurs
- * implementations concretes — Identite comprise, le jour ou un second provider
- * existera reellement.
+ * <p>{@code egen.kernel.plugin-loader} est le premier exemple, dans ce Kernel, d'une
+ * capacite choisie par configuration plutot que par edition de ce fichier : voir
+ * {@link #pluginLoader()}. Le meme patron (une propriete de configuration lue dans
+ * un seul producteur, jamais une ambiguite de resolution CDI) est le candidat
+ * naturel pour toute future capacite a plusieurs implementations concretes.
  */
 @ApplicationScoped
 public class KernelBootConfig {
@@ -53,9 +45,6 @@ public class KernelBootConfig {
 
     @ConfigProperty(name = "egen.kernel.plugins-directory", defaultValue = "plugins")
     String repertoirePlugins;
-
-    @ConfigProperty(name = "egen.kernel.contexte-racine")
-    UUID contexteRacine;
 
     @ConfigProperty(name = "egen.kernel.plugin-loader", defaultValue = "pf4j")
     String implementationPluginLoader;
@@ -113,9 +102,9 @@ public class KernelBootConfig {
     }
 
     /**
-     * {@link InMemoryEventBus} (Niveau 0, sans dependance externe) reste le repli
-     * par defaut — aucun module charge dynamiquement aujourd'hui n'a encore besoin
-     * de franchir une frontiere de processus pour publier ou souscrire. {@code
+     * {@link InMemoryEventBus} (sans dependance externe) reste le repli par defaut —
+     * aucun module charge dynamiquement aujourd'hui n'a encore besoin de franchir
+     * une frontiere de processus pour publier ou souscrire. {@code
      * KafkaEventBusAdapter} (kernel-eventbus/eventbus-kafka-adapter, deja une
      * dependance de ce module) reste l'alternative pour un deploiement qui en a
      * reellement besoin : l'activer exige de changer ce seul producteur, jamais
@@ -132,6 +121,6 @@ public class KernelBootConfig {
     @ApplicationScoped
     public KernelBootSequence kernelBootSequence() {
         return new KernelBootSequence(
-                new PluginDirectoryScanner(), pluginLifecycleManager, Path.of(repertoirePlugins), contexteRacine);
+                new PluginDirectoryScanner(), pluginLifecycleManager, Path.of(repertoirePlugins));
     }
 }

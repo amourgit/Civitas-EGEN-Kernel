@@ -11,7 +11,7 @@ import java.util.Map;
  * {@code postgres:16}, la meme version que {@code docker-compose.yml} a la racine
  * du depot.
  *
- * <p>Aucun module -impl livre a ce jour ne l'utilise : chacun s'appuie sur Quarkus
+ * <p>Aucun module livre a ce jour ne l'utilise : chacun s'appuie sur Quarkus
  * Dev Services, qui provisionne deja un Postgres ephemere automatiquement des que
  * {@code quarkus-jdbc-postgresql} est present et qu'aucune URL n'est configuree —
  * et ca fonctionne tres bien, comme le prouvent les modules deja livres. Cette

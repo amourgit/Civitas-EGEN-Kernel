@@ -17,8 +17,8 @@ import java.util.stream.Stream;
  * d'un fichier de Manifeste sibling (`&lt;moduleId&gt;.properties`), tous deux
  * directement dans le repertoire, jamais imbriques. Un JAR sans fichier `.properties`
  * du meme nom est ignore silencieusement — ce n'est pas un plugin EGEN valide, PF4J
- * seul ne suffit jamais a le rendre chargeable ici (voir la Charte v3, §1 de
- * l'anatomie du Kernel : le Manifeste est la condition, pas une option).
+ * seul ne suffit jamais a le rendre chargeable ici (voir la Charte d'Architecture,
+ * §6 : le Manifeste est la condition, pas une option).
  *
  * <p>Ne fait aucune verification de gouvernance : voir {@code
  * africa.civitas.egen.kernel.pluginengine.lifecycle.PluginLifecycleManager} pour

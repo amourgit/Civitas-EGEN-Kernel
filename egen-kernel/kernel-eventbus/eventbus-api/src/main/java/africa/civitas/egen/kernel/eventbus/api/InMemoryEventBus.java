@@ -10,9 +10,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Implementation de reference d'{@link EventBus}, sans aucune dependance externe —
- * le repli Niveau 0 toujours disponible, avant meme qu'un courtier externe (Kafka,
- * NATS) ne soit joignable ou configure. Publication synchrone, dans le thread
- * appelant : suffisant pour un seul processus, mais {@link
+ * le repli toujours disponible, avant meme qu'un courtier externe (Kafka, NATS) ne
+ * soit joignable ou configure. Publication synchrone, dans le thread appelant :
+ * suffisant pour un seul processus, mais {@link
  * africa.civitas.egen.kernel.eventbus.kafka.KafkaEventBusAdapter} reste necessaire
  * des qu'un evenement doit franchir une frontiere de processus.
  *

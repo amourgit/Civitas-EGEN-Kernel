@@ -15,16 +15,15 @@
 
   <name>EGEN Kernel — Plugin Engine</name>
   <description>
-    Le mecanisme d'accueil des modules Niveau 2 (§1 de l'anatomie du Kernel) : lit et
-    valide un Manifeste d'Extension (manifest/), decide s'il faut charger le module
-    correspondant en consultant, dans cet ordre strict, KernelPermissionCheck puis
-    ModuleActivationResolver (lifecycle/PluginLifecycleManager), et delegue le
-    chargement physique a une abstraction (loader/PluginLoader). Deux implementations
-    coexistent desormais, sans qu'aucune n'ait exige de changement ici — exactement
-    la garantie que cette abstraction promettait : Pf4jPluginLoader (isolation par
-    classloader, ci-dessous) et RpcPluginLoader (isolation par processus separe,
-    kernel-plugin-process — voir Charte v3 §A.6septies). Le choix entre les deux
-    reste une decision de deploiement, jamais tranchee ici.
+    Le mode d'extension embarque du Kernel (Charte d'Architecture, §6) : lit et
+    valide un Manifeste d'Extension (manifest/), verifie que ses dependances
+    declarees sont deja chargees, et delegue le chargement physique a une
+    abstraction (loader/PluginLoader) — lifecycle/PluginLifecycleManager. Deux
+    implementations coexistent, sans qu'aucune n'ait exige de changement ici —
+    exactement la garantie que cette abstraction promettait : Pf4jPluginLoader
+    (isolation par classloader, ci-dessous) et RpcPluginLoader (isolation par
+    processus separe, kernel-plugin-process). Le choix entre les deux reste une
+    decision de deploiement, jamais tranchee ici.
 
     Trois points d'extensibilite deliberes :
     - ManifestSource (manifest/) : d'ou viennent les donnees brutes d'un Manifeste.
@@ -54,17 +53,6 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>module-domain</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>module-registry</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-arc</artifactId>
     </dependency>
@@ -90,29 +78,12 @@
       <scope>test</scope>
     </dependency>
     <!--
-      Scope test uniquement : fournit FakeKernelPermissionCheck et
-      FakeModuleActivationResolver, canoniques. FakePluginLoader reste une copie
-      locale volontaire (voir le pom.xml de kernel-test-support pour la raison :
-      un cycle de reacteur Maven, puisque kernel-test-support depend deja de
-      module-registry, que ce module utilise aussi directement).
+      Scope test uniquement. FakePluginLoader reste une copie locale volontaire
+      (voir le pom.xml de kernel-test-support pour la raison exacte).
     -->
     <dependency>
       <groupId>africa.civitas.egen</groupId>
       <artifactId>kernel-test-support</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <!--
-      Scope test uniquement : PluginLifecycleManager ne depend, en compile, que du
-      contrat PolitiqueNoyau (kernel-sdk). Ce module concret n'est tire qu'ici, pour
-      tester la logique de decision contre la VRAIE implementation plutot que contre
-      une reimplementation de test qui pourrait diverger silencieusement — sans
-      aucun cout, puisque policy n'a besoin ni de Docker ni de conteneur CDI (voir
-      son propre pom.xml).
-    -->
-    <dependency>
-      <groupId>africa.civitas.egen</groupId>
-      <artifactId>policy</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>

@@ -4,28 +4,29 @@ import africa.civitas.egen.kernel.sdk.event.EventEnvelope;
 import africa.civitas.egen.kernel.sdk.event.EventType;
 
 /**
- * Le Bus d'Evenements de la plateforme (anatomie du Kernel, §4) — neutre de tout
- * protocole concret. Le Kernel ne connait que ce contrat ; {@link
- * africa.civitas.egen.kernel.eventbus.kafka.KafkaEventBusAdapter} (Kafka, Niveau 2,
- * vivant dans ce meme module par decision de la Charte v3 §A.6 — c'est une
+ * Le Bus d'Evenements de la plateforme — l'Event Infrastructure de la Charte
+ * d'Architecture, §5.10 — neutre de tout protocole concret. Le Kernel ne connait
+ * que ce contrat ; {@link
+ * africa.civitas.egen.kernel.eventbus.kafka.KafkaEventBusAdapter} (Kafka, une
  * infrastructure coeur que le Kernel demarre lui-meme, pas un plugin metier
- * optionnel) et {@link InMemoryEventBus} (le repli par defaut, Niveau 0, sans aucune
+ * optionnel) et {@link InMemoryEventBus} (le repli par defaut, sans aucune
  * dependance externe) en sont deux implementations completement interchangeables :
  * aucun code qui publie ou souscrit ne change selon laquelle est active.
  *
- * <p>Principe directeur (anatomie du Kernel, §4) : le Kernel ne sait jamais qui va
- * lire un evenement, ni ce qu'il va en faire — il se contente de la diffusion et de
- * la trace de l'emission. Publier n'est jamais bloquant sur le traitement d'un
- * souscripteur, et l'echec d'un gestionnaire n'affecte jamais les autres ni
- * l'emetteur.
+ * <p>Principe directeur (Charte d'Architecture, §5.10) : le Kernel ne sait jamais
+ * qui va lire un evenement, ni ce qu'il va en faire — il se contente de la
+ * diffusion et de la trace de l'emission. Publier n'est jamais bloquant sur le
+ * traitement d'un souscripteur, et l'echec d'un gestionnaire n'affecte jamais les
+ * autres ni l'emetteur.
  */
 public interface EventBus {
 
     /**
      * Publie {@code evenement}. La verite metier doit deja avoir ete ecrite (en
      * base, par le module emetteur) avant cet appel — ce bus ne porte jamais la
-     * verite lui-meme, seulement son annonce (anatomie du Kernel, §4 : "il ecrit
-     * d'abord la verite en PostgreSQL... ensuite, et seulement ensuite, il publie").
+     * verite lui-meme, seulement son annonce (Charte d'Architecture, §5.10 : "il
+     * ecrit d'abord la verite en base... ensuite, et seulement ensuite, il
+     * publie").
      *
      * @throws EventPublishException si le transport lui-meme echoue (courtier
      *                                 injoignable...) — jamais pour une raison liee a

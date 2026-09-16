@@ -12,10 +12,6 @@
 module africa.civitas.egen.kernel.sdk {
     exports africa.civitas.egen.kernel.sdk.extension;
     exports africa.civitas.egen.kernel.sdk.event;
-    exports africa.civitas.egen.kernel.sdk.contexte;
     exports africa.civitas.egen.kernel.sdk.manifest;
     exports africa.civitas.egen.kernel.sdk.tracabilite;
-    exports africa.civitas.egen.kernel.sdk.permission.identity;
-    exports africa.civitas.egen.kernel.sdk.permission.authorization;
-    exports africa.civitas.egen.kernel.sdk.permission.policy;
 }

@@ -12,9 +12,8 @@ import java.util.Map;
  * Doublure de test de {@code PluginLoader}, entierement en memoire — meme role que
  * son homonyme dans kernel-plugin-engine (petite duplication assumee plutot qu'une
  * dependance de test inter-module, pour rester simple et sans risque). Utilisee ici
- * pour verifier {@link KernelBootSequence} contre de VRAIS
- * KernelPermissionCheck/ModuleActivationResolver/PolitiqueNoyau (via Testcontainers,
- * injectes dans le test), sans avoir besoin d'un plugin JAR physique.
+ * pour verifier {@link KernelBootSequence} sans avoir besoin d'un plugin JAR
+ * physique.
  */
 final class FakePluginLoader implements PluginLoader {
 

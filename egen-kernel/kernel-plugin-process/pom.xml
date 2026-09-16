@@ -28,18 +28,18 @@
     deliberement sur un autre : go-plugin (et Vault en particulier) isole un petit
     nombre de contrats fixes et connus a l'avance (logical.Backend...). Le point
     d'extension d'EGEN (ExtensionPoint) reste generique par construction — n'importe
-    quelle interface, definie par n'importe quel module Niveau 2. Le pont RPC ici est
-    donc lui-meme generique (invocation par nom de methode + arguments serialises),
-    pas un ensemble de services RPC fixes par categorie de plugin.
+    quelle interface, definie par n'importe quel module. Le pont RPC ici est donc
+    lui-meme generique (invocation par nom de methode + arguments serialises), pas
+    un ensemble de services RPC fixes par categorie de plugin.
 
-    - plugin-process-api (Niveau 0) : le protocole de handshake, le lancement de
-      processus, et le pont d'invocation generique (Proxy dynamique cote hote) — pur
-      JDK, aucune dependance externe, transport-agnostique. Le transport reel
+    - plugin-process-api : le protocole de handshake, le lancement de processus, et
+      le pont d'invocation generique (Proxy dynamique cote hote) — pur JDK, aucune
+      dependance externe, transport-agnostique. Le transport reel
       (AppelExtensionTransport) est une interface fonctionnelle que l'adaptateur
       fournit.
-    - plugin-process-grpc-adapter (Niveau 2, "system") : le transport gRPC + mTLS
-      concret, RpcPluginLoader (implementation de PluginLoader), et le runtime
-      minimal execute cote processus plugin.
+    - plugin-process-grpc-adapter : le transport gRPC + mTLS concret,
+      RpcPluginLoader (implementation de PluginLoader), et le runtime minimal
+      execute cote processus plugin.
 
     Limite assumee et documentee au meme titre que pour eventbus-kafka-adapter :
     Maven Central n'etant pas joignable depuis le sandbox ou ce module a ete ecrit,

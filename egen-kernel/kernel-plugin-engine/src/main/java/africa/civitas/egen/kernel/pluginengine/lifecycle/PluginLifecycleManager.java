@@ -1,7 +1,5 @@
 package africa.civitas.egen.kernel.pluginengine.lifecycle;
 
-import africa.civitas.egen.kernel.domain.module.ModuleId;
-import africa.civitas.egen.kernel.moduleregistry.service.ModuleActivationResolver;
 import africa.civitas.egen.kernel.pluginengine.loader.CandidatModule;
 import africa.civitas.egen.kernel.pluginengine.loader.PluginLoadException;
 import africa.civitas.egen.kernel.pluginengine.loader.PluginLoader;
@@ -11,43 +9,35 @@ import africa.civitas.egen.kernel.pluginengine.registry.ExtensionDecouverte;
 import africa.civitas.egen.kernel.pluginengine.registry.ExtensionRegistry;
 import africa.civitas.egen.kernel.sdk.manifest.ManifestValidationException;
 import africa.civitas.egen.kernel.sdk.manifest.ManifesteExtension;
-import africa.civitas.egen.kernel.sdk.permission.authorization.DecisionNoyau;
-import africa.civitas.egen.kernel.sdk.permission.authorization.KernelCapability;
-import africa.civitas.egen.kernel.sdk.permission.authorization.KernelPermissionCheck;
-import africa.civitas.egen.kernel.sdk.permission.identity.KernelSubject;
-import africa.civitas.egen.kernel.sdk.permission.policy.PolitiqueNoyau;
-import africa.civitas.egen.kernel.sdk.permission.policy.PolitiqueNoyauQuestion;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * L'orchestrateur du moteur de plugins — le seul point d'entree pour charger ou
- * decharger un module. Jamais appele directement par un systeme A1-E3 (voir
- * l'anatomie du Kernel, §6) : uniquement depuis kernel-bootstrap, au demarrage, ou
- * depuis une future interface d'administration.
+ * L'orchestrateur du mode d'extension embarque (Charte d'Architecture, §6) — le
+ * seul point d'entree pour charger ou decharger un module. Jamais appele
+ * directement par un service quelconque : uniquement depuis kernel-bootstrap, au
+ * demarrage, ou depuis une future interface d'administration.
  *
  * <p>Le flux exact de {@link #charger}, dans cet ordre strict, jamais permute :
  * <ol>
- *   <li>{@link KernelPermissionCheck} — le sujet demandeur a-t-il le droit de
- *       declencher un chargement (capacite administrative, independante du module
- *       cible) ?</li>
  *   <li>{@link ManifestReader} — le Manifeste du candidat se lit-il et se
- *       construit-il valablement ? Un echec ici consulte {@link PolitiqueNoyau}
- *       ({@link PolitiqueNoyauQuestion#ECHEC_CONSTRUCTION_MANIFESTE}), toujours un
- *       refus.</li>
- *   <li>{@link ModuleActivationResolver} — ce module precis doit-il tourner dans
- *       ce Contexte precis (donnee de Souscription/Activation, independante de
- *       la capacite du sujet) ?</li>
+ *       construit-il valablement ?</li>
  *   <li>Dependances — chaque module que le Manifeste declare requerir est-il deja
  *       charge ?</li>
  *   <li>Seulement alors, {@link PluginLoader#charger} — le chargement physique.</li>
  * </ol>
+ *
+ * <p>Ce gestionnaire ne prend aucune decision de gouvernance : charger ou decharger
+ * un module est une operation administrative simple, jamais soumise a une
+ * autorisation ou une politique portee par le Kernel lui-meme — voir la Charte,
+ * chapitre 4 ("Ce que le Kernel n'est pas"). Toute politique plus fine sur qui a le
+ * droit de declencher ce chargement reste la responsabilite de qui deploie et
+ * exploite le Kernel, jamais la sienne.
  *
  * <p>Cette classe ne prend jamais de dependance directe sur PF4J, Quarkus/CDI mis a
  * part pour son propre cycle de vie de bean : {@link PluginLoader} est une
@@ -58,9 +48,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @ApplicationScoped
 public class PluginLifecycleManager {
 
-    private final KernelPermissionCheck kernelPermissionCheck;
-    private final ModuleActivationResolver moduleActivationResolver;
-    private final PolitiqueNoyau politiqueNoyau;
     private final ManifestReader manifestReader;
     private final ExtensionRegistry extensionRegistry;
     private final PluginLoader pluginLoader;
@@ -69,61 +56,39 @@ public class PluginLifecycleManager {
 
     @Inject
     public PluginLifecycleManager(
-            KernelPermissionCheck kernelPermissionCheck,
-            ModuleActivationResolver moduleActivationResolver,
-            PolitiqueNoyau politiqueNoyau,
             ManifestReader manifestReader,
             ExtensionRegistry extensionRegistry,
             PluginLoader pluginLoader) {
-        this.kernelPermissionCheck = requireNonNull(kernelPermissionCheck, "kernelPermissionCheck");
-        this.moduleActivationResolver = requireNonNull(moduleActivationResolver, "moduleActivationResolver");
-        this.politiqueNoyau = requireNonNull(politiqueNoyau, "politiqueNoyau");
         this.manifestReader = requireNonNull(manifestReader, "manifestReader");
         this.extensionRegistry = requireNonNull(extensionRegistry, "extensionRegistry");
         this.pluginLoader = requireNonNull(pluginLoader, "pluginLoader");
     }
 
     /**
-     * Tente de charger {@code candidat} dans le Contexte {@code contexteCible}, pour le
-     * compte de {@code sujetDemandeur}.
+     * Tente de charger {@code candidat}.
      *
      * @throws PluginLoadException uniquement pour un echec technique imprevu du
      *                               chargement physique lui-meme — jamais pour un
-     *                               refus de gouvernance attendu, toujours restitue
-     *                               comme {@link ResultatChargement.Echec}
+     *                               echec attendu (Manifeste invalide, dependance
+     *                               manquante), toujours restitue comme
+     *                               {@link ResultatChargement.Echec}
      */
-    public ResultatChargement charger(CandidatModule candidat, KernelSubject sujetDemandeur, UUID contexteCible) {
+    public ResultatChargement charger(CandidatModule candidat) {
         if (candidat == null) {
             throw new IllegalArgumentException("candidat ne peut pas etre nul.");
-        }
-        if (sujetDemandeur == null) {
-            throw new IllegalArgumentException("sujetDemandeur ne peut pas etre nul.");
-        }
-        if (contexteCible == null) {
-            throw new IllegalArgumentException("contexteCible ne peut pas etre nul.");
-        }
-
-        DecisionNoyau droitDeCharger = kernelPermissionCheck.verifier(sujetDemandeur, KernelCapability.CHARGER_MODULE);
-        if (!droitDeCharger.autorise()) {
-            return new ResultatChargement.Echec(droitDeCharger.motif());
         }
 
         ManifesteExtension manifeste;
         try {
             manifeste = manifestReader.lire(candidat.manifestSource());
         } catch (ManifestReadException | ManifestValidationException e) {
-            DecisionNoyau refusPolitique = politiqueNoyau.resoudre(PolitiqueNoyauQuestion.ECHEC_CONSTRUCTION_MANIFESTE);
-            return new ResultatChargement.Echec(refusPolitique.motif() + " Cause : " + e.getMessage());
+            return new ResultatChargement.Echec(
+                    "Manifeste invalide ou illisible : " + e.getMessage());
         }
 
         if (manifestesCharges.containsKey(manifeste.moduleId())) {
             return new ResultatChargement.Echec(
                     "Le module '" + manifeste.moduleId() + "' est deja charge.");
-        }
-
-        DecisionNoyau doitTourner = moduleActivationResolver.estActifPour(contexteCible, new ModuleId(manifeste.moduleId()));
-        if (!doitTourner.autorise()) {
-            return new ResultatChargement.Echec(doitTourner.motif());
         }
 
         List<String> dependancesManquantes = manifeste.dependencies().stream()
@@ -143,22 +108,13 @@ public class PluginLifecycleManager {
     }
 
     /**
-     * Tente de decharger le module {@code moduleId}, pour le compte de {@code
-     * sujetDemandeur}. Refuse tant qu'un autre module charge declare en dependre —
-     * jamais de dechargement en cascade implicite : chaque dechargement reste un
-     * acte explicite et delibere.
+     * Tente de decharger le module {@code moduleId}. Refuse tant qu'un autre module
+     * charge declare en dependre — jamais de dechargement en cascade implicite :
+     * chaque dechargement reste un acte explicite et delibere.
      */
-    public ResultatDechargement decharger(String moduleId, KernelSubject sujetDemandeur) {
+    public ResultatDechargement decharger(String moduleId) {
         if (moduleId == null || moduleId.isBlank()) {
             throw new IllegalArgumentException("moduleId ne peut pas etre vide.");
-        }
-        if (sujetDemandeur == null) {
-            throw new IllegalArgumentException("sujetDemandeur ne peut pas etre nul.");
-        }
-
-        DecisionNoyau droitDeDecharger = kernelPermissionCheck.verifier(sujetDemandeur, KernelCapability.DECHARGER_MODULE);
-        if (!droitDeDecharger.autorise()) {
-            return new ResultatDechargement.Echec(droitDeDecharger.motif());
         }
 
         if (!manifestesCharges.containsKey(moduleId)) {
@@ -184,26 +140,13 @@ public class PluginLifecycleManager {
 
     /**
      * Enregistrement manuel d'une extension isolee, sans passer par le chargement
-     * complet d'un module — l'usage prevu de {@link KernelCapability#ENREGISTRER_EXTENSION},
-     * distinct de {@link KernelCapability#CHARGER_MODULE} qui couvre deja
-     * l'enregistrement automatique des extensions d'un module charge normalement.
+     * complet d'un module.
      */
-    public DecisionNoyau enregistrerExtensionManuelle(ExtensionDecouverte decouverte, KernelSubject sujetDemandeur) {
+    public void enregistrerExtensionManuelle(ExtensionDecouverte decouverte) {
         if (decouverte == null) {
             throw new IllegalArgumentException("decouverte ne peut pas etre nulle.");
         }
-        if (sujetDemandeur == null) {
-            throw new IllegalArgumentException("sujetDemandeur ne peut pas etre nul.");
-        }
-
-        DecisionNoyau droit = kernelPermissionCheck.verifier(sujetDemandeur, KernelCapability.ENREGISTRER_EXTENSION);
-        if (!droit.autorise()) {
-            return droit;
-        }
-
         extensionRegistry.enregistrer(decouverte);
-        return DecisionNoyau.autorise(
-                "Extension enregistree manuellement pour le module '" + decouverte.moduleId() + "'.");
     }
 
     public Optional<ManifesteExtension> manifestePour(String moduleId) {

@@ -18,7 +18,8 @@ class ManifesteExtensionTest {
 
         assertEquals("academie", manifest.moduleId());
         assertEquals("1.0.0", manifest.version());
-        assertTrue(manifest.resourceTypesProvided().isEmpty());
+        assertTrue(manifest.eventsEmitted().isEmpty());
+        assertTrue(manifest.eventsConsumed().isEmpty());
         assertTrue(manifest.dependencies().isEmpty());
     }
 
@@ -27,15 +28,12 @@ class ManifesteExtensionTest {
         ManifesteExtension manifest = ManifesteExtension.builder("academie", "2.3.1")
                 .emits("academie.cours.cree")
                 .consumes("identite.personne.creee")
-                .resourceType("videoprojecteur")
-                .resourceType("tableau-interactif")
                 .dependsOn("identite")
                 .dependsOn("notifications")
                 .build();
 
         assertEquals(List.of("academie.cours.cree"), manifest.eventsEmitted());
         assertEquals(List.of("identite.personne.creee"), manifest.eventsConsumed());
-        assertEquals(List.of("videoprojecteur", "tableau-interactif"), manifest.resourceTypesProvided());
         assertEquals(List.of("identite", "notifications"), manifest.dependencies());
     }
 
@@ -64,11 +62,11 @@ class ManifesteExtensionTest {
     void rejectsABlankEntryInAnyDeclarationList() {
         ManifestValidationException exception = assertThrows(ManifestValidationException.class,
                 () -> ManifesteExtension.builder("academie", "1.0.0")
-                        .resourceType("videoprojecteur")
-                        .resourceType("  ")
+                        .emits("academie.cours.cree")
+                        .emits("  ")
                         .build());
 
-        assertTrue(exception.getMessage().contains("resourceTypesProvided"));
+        assertTrue(exception.getMessage().contains("eventsEmitted"));
     }
 
     @Test
@@ -94,20 +92,20 @@ class ManifesteExtensionTest {
     @Test
     void declarationListsAreUnmodifiable() {
         ManifesteExtension manifest = ManifesteExtension.builder("academie", "1.0.0")
-                .resourceType("videoprojecteur")
+                .dependsOn("identite")
                 .build();
 
         assertThrows(UnsupportedOperationException.class,
-                () -> manifest.resourceTypesProvided().add("tableau-interactif"));
+                () -> manifest.dependencies().add("notifications"));
     }
 
     @Test
     void twoManifestsWithTheSameDeclarationsAreEqual() {
         ManifesteExtension first = ManifesteExtension.builder("academie", "1.0.0")
-                .resourceType("videoprojecteur")
+                .dependsOn("identite")
                 .build();
         ManifesteExtension second = ManifesteExtension.builder("academie", "1.0.0")
-                .resourceType("videoprojecteur")
+                .dependsOn("identite")
                 .build();
 
         assertEquals(first, second, "ManifesteExtension est un record : l'egalite doit rester "

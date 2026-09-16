@@ -15,16 +15,16 @@
 
   <name>EGEN Kernel — JPA Support</name>
   <description>
-    Utilitaires de mapping JPA partages par tous les systemes -impl du Kernel — au
-    premier chef, TracabiliteEmbeddable, la projection JPA du Socle de Traçabilite de
-    kernel-sdk. Ce module existe pour une raison structurelle precise : deux modules
-    -impl (ex. identity-provider-keycloak et reference-data-impl) ne doivent jamais dependre l'un
-    de l'autre, mais ils ont tous deux besoin de la meme projection JPA du Socle de
-    Traçabilite. Dupliquer cette classe dans chaque -impl serait une dette immediate
-    (dix copies a maintenir en parallele) ; la centraliser ici, en dehors de tout
-    systeme metier, respecte le DAG de dependances : kernel-jpa-support est une
-    dependance transverse de bas niveau, au meme titre que kernel-sdk, mais avec une
-    dependance JPA que kernel-sdk s'interdit volontairement de porter.
+    Utilitaires de mapping JPA partages par toute implementation qui persiste le
+    Socle de Traçabilite de kernel-sdk — au premier chef, TracabiliteEmbeddable, sa
+    projection JPA. Ce module existe pour une raison structurelle precise : deux
+    implementations independantes ne doivent jamais dependre l'une de l'autre, mais
+    elles ont toutes deux besoin de la meme projection JPA du Socle de Traçabilite.
+    Dupliquer cette classe dans chacune serait une dette immediate ; la centraliser
+    ici, en dehors de tout systeme metier, respecte le DAG de dependances :
+    kernel-jpa-support est une dependance transverse de bas niveau, au meme titre
+    que kernel-sdk, mais avec une dependance JPA que kernel-sdk s'interdit
+    volontairement de porter.
   </description>
 
   <dependencies>

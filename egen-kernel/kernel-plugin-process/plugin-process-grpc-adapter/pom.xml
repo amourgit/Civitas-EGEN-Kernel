@@ -38,8 +38,7 @@
     lancement de processus.
 
     Versions de grpc.version et protoc.version confirmees fonctionnelles par un
-    premier mvn test complet et reel, le 22 aout 2026 (voir Charte v3, §A.6septies) —
-    la seule incertitude qui subsistait sur ce module, la generation de cle privee
+    premier mvn test complet et reel, le 22 aout 2026 — la seule incertitude qui subsistait sur ce module, la generation de cle privee
     (JcaPEMWriter) et l'alignement des versions Bouncy Castle, a ete trouvee et
     corrigee par ce meme build reel.
   </description>

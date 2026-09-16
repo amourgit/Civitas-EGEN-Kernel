@@ -16,7 +16,7 @@
   <name>EGEN Kernel — Event Bus API</name>
   <description>
     Le contrat neutre du Bus d'Evenements (EventBus, EventHandler, Abonnement,
-    EventPublishException) et InMemoryEventBus, son unique implementation Niveau 0 —
+    EventPublishException) et InMemoryEventBus, son implementation de repli —
     thread-safe, sans dependance externe, avec isolation stricte des gestionnaires en
     echec (jamais propage a l'emetteur ni aux autres souscripteurs). Depend
     uniquement de kernel-sdk (EventType, EventEnvelope), zero framework.

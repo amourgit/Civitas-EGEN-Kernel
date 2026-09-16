@@ -7,21 +7,19 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Le Manifeste d'Extension qu'un module metier publie pour s'accrocher au Kernel.
+ * Le Manifeste d'Extension qu'un module publie pour s'accrocher au Kernel, dans le
+ * mode d'extension embarque (Charte d'Architecture, §6).
  *
- * <p>Rattache conceptuellement au Catalogue (Systeme B2, Souscription/Activation), ce
- * manifeste declare exhaustivement ce qu'il emet et ecoute sur le Bus d'Evenements,
- * les Types de Ressource qu'il introduit, et les autres modules dont il depend. Le
- * moteur de plugins (kernel-plugin-engine, via PF4J) lit ce manifeste au demarrage ;
- * la decision d'autoriser effectivement l'activation reste entierement du ressort de
- * la logique metier de B2 — ce manifeste ne fait que decrire, jamais autoriser.
+ * <p>Ce manifeste declare exhaustivement ce que le module emet et ecoute sur le Bus
+ * d'Evenements, et les autres modules dont il depend. Le moteur de plugins
+ * (kernel-plugin-engine, via PF4J) lit ce manifeste au demarrage et delegue le
+ * chargement physique une fois les dependances declarees resolues — ce manifeste ne
+ * fait que decrire, jamais autoriser.
  *
- * <p>Ce manifeste ne declare volontairement rien de plus generique que ces quatre
- * categories : tout vocabulaire propre a un domaine metier (types de ressources
- * specifiques mis a part, deja neutres par nature) — taxonomie, lexique, ou toute
- * autre notion de classification — reste entierement la responsabilite du module
- * Niveau 2 qui la definit, jamais une categorie hardcodee ici. Le Kernel ne suppose
- * jamais quel vocabulaire un module metier a besoin d'etendre.
+ * <p>Ce manifeste ne declare volontairement rien de plus generique que ces trois
+ * categories : tout vocabulaire propre au module lui-meme reste entierement sa
+ * propre responsabilite, jamais une categorie hardcodee ici. Le Kernel ne suppose
+ * jamais quel vocabulaire un module a besoin d'etendre.
  *
  * <p>Toute instance de cette classe est valide par construction : le constructeur
  * canonique rejette immediatement un identifiant mal forme, une version non
@@ -34,7 +32,6 @@ import java.util.regex.Pattern;
  *                       que ce module publie sur le Bus d'Evenements
  * @param eventsConsumed noms de {@link africa.civitas.egen.kernel.sdk.event.EventType}
  *                        que ce module ecoute
- * @param resourceTypesProvided Types de Ressource que ce module declare
  * @param dependencies identifiants d'autres modules requis pour que celui-ci fonctionne
  */
 public record ManifesteExtension(
@@ -42,7 +39,6 @@ public record ManifesteExtension(
         String version,
         List<String> eventsEmitted,
         List<String> eventsConsumed,
-        List<String> resourceTypesProvided,
         List<String> dependencies) {
 
     private static final Pattern MODULE_ID_PATTERN =
@@ -67,7 +63,6 @@ public record ManifesteExtension(
 
         eventsEmitted = normalize("eventsEmitted", eventsEmitted);
         eventsConsumed = normalize("eventsConsumed", eventsConsumed);
-        resourceTypesProvided = normalize("resourceTypesProvided", resourceTypesProvided);
         dependencies = normalize("dependencies", dependencies);
 
         if (dependencies.contains(moduleId)) {
@@ -110,7 +105,6 @@ public record ManifesteExtension(
         private final String version;
         private final List<String> eventsEmitted = new ArrayList<>();
         private final List<String> eventsConsumed = new ArrayList<>();
-        private final List<String> resourceTypesProvided = new ArrayList<>();
         private final List<String> dependencies = new ArrayList<>();
 
         private Builder(String moduleId, String version) {
@@ -128,11 +122,6 @@ public record ManifesteExtension(
             return this;
         }
 
-        public Builder resourceType(String resourceType) {
-            this.resourceTypesProvided.add(resourceType);
-            return this;
-        }
-
         public Builder dependsOn(String moduleId) {
             this.dependencies.add(moduleId);
             return this;
@@ -142,7 +131,7 @@ public record ManifesteExtension(
             return new ManifesteExtension(
                     moduleId, version,
                     eventsEmitted, eventsConsumed,
-                    resourceTypesProvided, dependencies);
+                    dependencies);
         }
     }
 }

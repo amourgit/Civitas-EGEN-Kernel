@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 
 /**
  * Implementation livree d'{@link EventBus} adossee a Kafka — le choix technologique
- * acte pour EGEN (anatomie du Kernel, §4 : retention/relecture longue duree
+ * acte pour EGEN (Charte d'Architecture, §5.10 : retention/relecture longue duree
  * privilegiees sur la latence, pour un systeme vise a 10-20 ans avec des modules
  * ajoutes au fil du temps).
  *
@@ -44,10 +44,14 @@ import java.util.stream.Collectors;
  * {@link EventType#systemeOrigine()}) directe : un seul abonnement Kafka par systeme
  * d'origine ecoute, quel que soit le nombre de types precis qu'il porte.
  *
- * <p><b>Cle de partition</b> : {@code contexteId}, pour que tous les evenements d'un
- * meme Contexte atterrissent sur la meme partition — un
- * ordre de livraison preserve par Contexte, jamais garanti globalement (ce que Kafka
- * ne garantit d'ailleurs jamais au-dela d'une partition).
+ * <p><b>Cle de partition</b> : {@code eventId}, pour une distribution uniforme entre
+ * partitions. Consequence assumee : aucun ordre de livraison n'est garanti entre
+ * deux evenements, meme emis par le meme service — le Kernel ne connait, dans une
+ * enveloppe, aucun identifiant metier stable sur lequel fonder un ordre plus fin, et
+ * n'en invente aucun. Un service dont la logique exige un ordre de traitement precis
+ * doit le porter lui-meme (numero de sequence dans sa charge utile, ou tout autre
+ * mecanisme de sa responsabilite) — jamais une garantie que le Kernel promet a sa
+ * place.
  *
  * <p><b>Limite assumee et documentee sur la charge utile</b> : la charge utile
  * generique ({@code T payload}) traverse Kafka comme une structure JSON, jamais
@@ -118,7 +122,7 @@ public final class KafkaEventBusAdapter implements EventBus, AutoCloseable {
         }
         String topic = topicPour(evenement.type());
         EnvelopeJson enveloppeJson = new EnvelopeJson(
-                evenement.eventId(), evenement.type().name(), evenement.contexteId(),
+                evenement.eventId(), evenement.type().name(),
                 evenement.occurredAt(), evenement.payload());
 
         String json;
@@ -130,7 +134,7 @@ public final class KafkaEventBusAdapter implements EventBus, AutoCloseable {
         }
 
         try {
-            producer.send(new ProducerRecord<>(topic, evenement.contexteId().toString(), json)).get();
+            producer.send(new ProducerRecord<>(topic, evenement.eventId().toString(), json)).get();
         } catch (Exception e) {
             throw new EventPublishException(
                     "Echec de la publication de l'evenement " + evenement.type().name()
@@ -264,7 +268,7 @@ public final class KafkaEventBusAdapter implements EventBus, AutoCloseable {
             EnvelopeJson enveloppeJson = mapper.readValue(json, EnvelopeJson.class);
             type = new EventType(enveloppeJson.type);
             enveloppe = new EventEnvelope<>(
-                    enveloppeJson.eventId, type, enveloppeJson.contexteId,
+                    enveloppeJson.eventId, type,
                     enveloppeJson.occurredAt, enveloppeJson.payload);
         } catch (RuntimeException | JsonProcessingException e) {
             System.err.println("KafkaEventBusAdapter : message illisible ou invalide, ignore : " + e.getMessage());
