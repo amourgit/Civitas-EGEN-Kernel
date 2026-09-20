@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-adapters</artifactId>
+  <packaging>pom</packaging>
+
+  <name>EGEN :: Adapters</name>
+  <description>
+    Agregateur des adapters secondaires — un module par integration technique
+    concrete (voir docs/architecture/07-ports-et-adapters.md et
+    docs/architecture/16-packages-et-stack-technique.md). Un seul module pour
+    l'instant (egen-adapter-nomad) ; egen-adapter-consul, egen-adapter-nats,
+    egen-adapter-vault, egen-adapter-postgres-registry et egen-adapter-otel
+    rejoignent ce reacteur aux phases qui les introduisent
+    (docs/architecture/19-feuille-de-route.md), jamais par anticipation.
+    Regle stricte : aucun module ci-dessous ne depend d'un autre module
+    egen-adapters/* (verifie par maven-enforcer-plugin dans chaque module).
+  </description>
+
+  <modules>
+    <module>egen-adapter-nomad</module>
+  </modules>
+
+</project>

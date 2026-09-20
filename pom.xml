@@ -5,19 +5,17 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>africa.civitas.egen</groupId>
-  <artifactId>egen-platform</artifactId>
+  <artifactId>egen-kernel</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>EGEN Platform</name>
+  <name>EGEN Kernel</name>
   <description>
-    EGEN Kernel — la plateforme technique neutre developpee par CIVITAS Africa qui
-    monte, enregistre, connecte, orchestre et exploite des services independants
-    (voir docs/architecture/charte-v3.md pour ce que "neutre" signifie concretement
-    dans le code, pas seulement dans l'intention). Ce depot racine (reacteur Maven)
-    n'heberge que le Kernel lui-meme (egen-kernel/) : aucun service ni module
-    metier n'y vit jamais comme dependance Maven — voir README.md pour le detail
-    des deux modes d'extension de l'ecosysteme.
+    Control/Composition Plane hexagonal developpe par CIVITAS Africa. EGEN compose
+    des moteurs specialises deja eprouves (Nomad, Consul, Kafka/NATS) plutot que de
+    les reimplementer — voir docs/architecture/README.md pour la reference complete.
+    Ce reacteur ne construit QUE le Kernel : aucun service metier n'y vit jamais
+    comme module ou dependance Maven.
   </description>
 
   <properties>
@@ -29,61 +27,71 @@
     <!-- Versions des plugins Maven, epinglees pour la reproductibilite du build -->
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+    <!--
+      maven-failsafe-plugin : execute les tests d'adapters de niveau 3 (voir
+      docs/architecture/17-strategie-de-tests.md) — suffixe *IT.java, lies a
+      Testcontainers, plus lents que les tests unitaires *Test.java geres par
+      surefire. Lie a la phase verify, donc deja couvert par le "mvn verify"
+      unique de la CI, sans etape separee a ajouter au pipeline.
+    -->
+    <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
     <maven-jar-plugin.version>3.4.1</maven-jar-plugin.version>
     <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+
     <!--
-      SmallRye Jandex (Apache 2.0) — pas l'ancien org.jboss.jandex:jandex-maven-plugin,
-      qui est sous GPL v3 et a ete remplace par ce projet (memes mainteneurs, nouvelles
-      coordonnees). Necessaire pour que tout module publie un index Jandex dans
-      son JAR (META-INF/jandex.idx) — sans quoi Quarkus ne decouvre jamais ses beans
-      CDI quand ce module est consomme comme dependance de test par un autre module.
+      SmallRye Jandex (Apache 2.0) — necessaire pour que tout module publie un index
+      Jandex dans son JAR (META-INF/jandex.idx), sans quoi Quarkus ne decouvre jamais
+      ses beans CDI quand ce module est consomme comme dependance par egen-bootstrap.
     -->
     <jandex-maven-plugin.version>3.6.0</jandex-maven-plugin.version>
 
     <!--
-      Testcontainers (MIT) — utilise directement par kernel-test-support
-      (PostgresTestResource). Non gere par le BOM Quarkus pour l'artefact
-      org.testcontainers:postgresql (contrairement a la plupart des dependances de
-      ce depot) ; import du BOM Testcontainers lui-meme ci-dessous plutot que de
-      fixer une version par artefact individuel. Version non verifiable depuis ce
-      sandbox (Maven Central injoignable) — a confirmer par la CI.
-    -->
-    <testcontainers.version>1.20.4</testcontainers.version>
+      Quarkus — runtime des SEULS modules primaires/de cablage (egen-api,
+      egen-bootstrap ; voir docs/architecture/16-packages-et-stack-technique.md).
+      egen-domain et egen-application n'en dependent JAMAIS. Version epinglee sur
+      la ligne LTS 3.33 (supportee jusqu'en mars 2027) plutot que la derniere
+      version non-LTS, par choix de stabilite long terme. A remonter vers le
+      dernier correctif 3.33.x publie au moment de l'implementation reelle (non
+      verifiable depuis ce sandbox, Maven Central injoignable — confirme par la CI
+      a chaque build).
 
-    <!--
-      Quarkus — runtime du Kernel (voir la decision d'architecture posee dans nos
-      echanges : Quarkus heberge le Kernel, jamais l'inverse ; les contrats restent en
-      Jakarta EE). Version epinglee sur la ligne LTS 3.33 (supportee jusqu'en mars
-      2027) plutot que la derniere version non-LTS, par choix de stabilite long terme.
-      A remonter vers le dernier correctif 3.33.x publie au moment de l'implementation
-      reelle (non verifiable depuis ce sandbox, verifie par la CI a chaque build).
-
-      Le BOM Quarkus gere lui-meme une version coherente de JUnit 5 (jupiter + platform
-      launcher) pour tout le reacteur — y compris kernel-sdk et les modules -api qui ne
-      dependent d'aucun autre artefact Quarkus. Ne JAMAIS importer un junit-bom separe
-      en parallele : les deux BOM se disputeraient alors la gestion de version des
+      Le BOM Quarkus gere lui-meme une version coherente de JUnit 5 (jupiter +
+      platform launcher) pour tout le reacteur. Ne JAMAIS importer un junit-bom
+      separe en parallele : les deux BOM se disputeraient la gestion de version des
       memes artefacts JUnit, avec un risque reel de version splittee entre
-      org.junit.jupiter.* (gere par le premier BOM importe) et
-      org.junit.platform:junit-platform-launcher (tire transitivement par
-      quarkus-junit5) — exactement le bug qui a fait echouer le premier essai de ce
-      module (NoSuchMethodError sur LauncherSession.getStore()).
+      org.junit.jupiter.* et org.junit.platform:junit-platform-launcher.
     -->
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.33.2</quarkus.platform.version>
 
     <!--
-      PF4J (Apache 2.0) — le mecanisme de plugins choisi pour EGEN en remplacement
-      d'OSGi (decision d'architecture posee des le debut). Utilise uniquement par
-      kernel-plugin-engine/Pf4jPluginLoader, isole derriere l'interface PluginLoader.
-      Version non verifiable depuis ce sandbox (Maven Central injoignable) — a
-      confirmer par la CI, qui y a acces reel, et a corriger si necessaire.
+      Testcontainers (MIT) — utilise par les modules egen-adapters/* pour leurs
+      tests de niveau 3 (voir docs/architecture/17-strategie-de-tests.md) : chaque
+      adapter demarre le moteur reel concerne (Nomad, Consul, NATS...) dans un
+      conteneur ephemere. Version non verifiable depuis ce sandbox — a confirmer
+      par la CI.
     -->
-    <pf4j.version>3.12.0</pf4j.version>
+    <testcontainers.version>1.20.4</testcontainers.version>
+
+    <!--
+      ArchUnit (Apache 2.0) — transforme les regles de dependance de
+      docs/architecture/02-principes-fondamentaux.md et 16-packages-et-stack-technique.md
+      en tests qui echouent la CI (voir egen-bootstrap, seul module avec visibilite
+      sur domaine + application + adapters + api). Version non verifiable depuis ce
+      sandbox — a confirmer par la CI.
+    -->
+    <archunit.version>1.3.0</archunit.version>
   </properties>
 
   <modules>
-    <module>egen-kernel</module>
+    <module>egen-domain</module>
+    <module>egen-application</module>
+    <module>egen-adapters</module>
+    <module>egen-contracts</module>
+    <module>egen-api</module>
+    <module>egen-bootstrap</module>
+    <module>egen-test-kit</module>
   </modules>
 
   <dependencyManagement>
@@ -96,16 +104,16 @@
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>org.pf4j</groupId>
-        <artifactId>pf4j</artifactId>
-        <version>${pf4j.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>testcontainers-bom</artifactId>
         <version>${testcontainers.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -131,12 +139,25 @@
           <artifactId>maven-jar-plugin</artifactId>
           <version>${maven-jar-plugin.version}</version>
         </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${maven-failsafe-plugin.version}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
         <!--
-          maven-enforcer-plugin : impose au niveau du build le DAG de dependances du Kernel.
-          La version est fixee ici (pluginManagement) ; l'execution reelle de la regle est
-          declaree plus bas, dans <build><plugins> (pas seulement pluginManagement), pour
-          qu'elle soit heritee et executee dans CHAQUE module du reacteur — voir cette
-          execution pour le detail de la regle.
+          maven-enforcer-plugin : impose au niveau du build certaines regles du DAG
+          de dependances du Kernel (ex. bannedDependencies dans egen-adapters/*
+          pour interdire qu'un adapter depende d'un autre). La version est fixee
+          ici (pluginManagement) ; chaque module active l'execution dont il a
+          besoin dans son propre <build><plugins>.
         -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -163,7 +184,6 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
   </build>
 
 </project>

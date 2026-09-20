@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-test-kit</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Test Kit</name>
+  <description>
+    Doubles de test partages, en memoire, pour les ports secondaires
+    d'egen-application (voir docs/architecture/17-strategie-de-tests.md,
+    niveau 2 ; docs/architecture/16-packages-et-stack-technique.md). Depend
+    d'egen-application pour implementer ses ports. NE PEUT PAS etre
+    consomme en test par egen-application lui-meme (cycle de reacteur
+    Maven) : les tests internes d'egen-application definissent leurs
+    propres doubles locaux (src/test/java) ; ce module sert les modules
+    AVAL (egen-bootstrap, egen-api, et les futurs egen-adapters/* qui
+    voudraient tester une interaction sans dependre d'un vrai moteur
+    externe).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-application</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+
+</project>

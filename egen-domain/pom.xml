@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-domain</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Domain</name>
+  <description>
+    Coeur hexagonal du Kernel — entites et value objects purs (voir
+    docs/architecture/05-modele-de-domaine.md). AUCUNE dependance externe non-test :
+    pas de framework, pas de SDK Nomad/Consul/Kafka, pas d'annotation de
+    persistance. Chaque Value Object se valide a la construction. Cette absence de
+    dependance est verifiee mecaniquement par la suite ArchUnit d'egen-bootstrap
+    (voir docs/architecture/17-strategie-de-tests.md, niveau 4).
+  </description>
+
+  <dependencies>
+    <!-- Aucune dependance de compilation : c'est la regle, pas un oubli. -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+</project>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-adapters</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-adapter-nomad</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Adapters :: Nomad</name>
+  <description>
+    Implementation du DeploymentPort (egen-application) contre l'API HTTP
+    Nomad reelle (voir docs/architecture/07-ports-et-adapters.md, "Deployment
+    Port"). Seul module de ce reacteur a dependre de l'API Nomad — aucun
+    autre adapter n'en depend, et lui-meme ne depend d'aucun autre adapter
+    (regle imposee ci-dessous par maven-enforcer-plugin).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-application</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      Testcontainers (voir docs/architecture/17-strategie-de-tests.md, niveau
+      3) : demarre un vrai Nomad en mode dev pour verifier le mapping contre
+      l'API reelle, pas seulement une documentation. Image officielle
+      hashicorp/nomad.
+    -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!--
+        Garde-fou n6 (docs/architecture/02-principes-fondamentaux.md) rendu
+        mecanique : un adapter ne doit jamais dependre d'un autre adapter, ni
+        des couches primaires (egen-api, egen-bootstrap) qui, elles,
+        assemblent les adapters — jamais l'inverse.
+      -->
+      <!--
+        Active ici (herite de pluginManagement du reacteur racine) car ce
+        module est le premier a porter des tests de niveau 3 (*IT.java,
+        Testcontainers) — voir docs/architecture/17-strategie-de-tests.md.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>ban-cross-adapter-and-upward-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>africa.civitas.egen:egen-api</exclude>
+                    <exclude>africa.civitas.egen:egen-bootstrap</exclude>
+                  </excludes>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

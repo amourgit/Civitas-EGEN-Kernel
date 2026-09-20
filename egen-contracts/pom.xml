@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-contracts</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Contracts</name>
+  <description>
+    Schemas partages entre EGEN et les services de l'ecosysteme (voir
+    docs/architecture/06-service-manifest.md et
+    docs/architecture/16-packages-et-stack-technique.md). Contient
+    actuellement le JSON Schema du ServiceManifest ; rejoint par les .proto
+    (communication machine-a-machine) et la description OpenAPI de l'API de
+    controle quand ces surfaces sont construites (voir
+    docs/architecture/19-feuille-de-route.md, Phase 4-5) — jamais par
+    anticipation. Aucune dependance : ce module ne porte que des ressources.
+  </description>
+
+</project>

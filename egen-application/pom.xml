@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-application</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Application</name>
+  <description>
+    Use cases (ports primaires) et moteur de reconciliation (voir
+    docs/architecture/04-moteur-de-reconciliation.md). Definit les ports
+    secondaires (interfaces uniquement, sous application.port) sans jamais
+    dependre d'un module egen-adapters/* concret ni d'un framework (Quarkus,
+    CDI...) — voir docs/architecture/02-principes-fondamentaux.md. Ne depend
+    que d'egen-domain et du JDK.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-domain</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+</project>
