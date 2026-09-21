@@ -56,7 +56,8 @@ class CoreArchitectureRulesTest {
                 .resideInAnyPackage(ADAPTER_PACKAGE, API_PACKAGE, BOOTSTRAP_PACKAGE)
                 .orShould().dependOnClassesThat()
                 .resideInAnyPackage("io.quarkus..", "jakarta..", "com.fasterxml.jackson..",
-                        "com.hashicorp..", "org.apache.kafka..", "io.nats..");
+                        "com.hashicorp..", "org.apache.kafka..", "io.nats..", "java.sql..",
+                        "javax.sql..", "org.postgresql..");
         rule.check(classes);
     }
 
@@ -104,21 +105,34 @@ class CoreArchitectureRulesTest {
 
     @Test
     void noAdapterModuleDependsOnAnotherAdapterModule() {
-        // Regle a portee generale : verifiee ici pour chaque paire de
-        // sous-packages "adapter.<technologie>" presents sur le classpath.
-        // Vraie par construction tant qu'un seul adapter existe (nomad) ;
-        // ce test devient actif des qu'un second adapter rejoint le reacteur
-        // (voir docs/architecture/19-feuille-de-route.md).
-        ArchRule rule = noClasses()
-                .that().resideInAPackage("africa.civitas.egen.adapter.nomad..")
-                .should().dependOnClassesThat()
-                .resideInAnyPackage(
-                        "africa.civitas.egen.adapter.consul..",
-                        "africa.civitas.egen.adapter.nats..",
-                        "africa.civitas.egen.adapter.kafka..",
-                        "africa.civitas.egen.adapter.vault..",
-                        "africa.civitas.egen.adapter.postgresregistry..",
-                        "africa.civitas.egen.adapter.otel..");
-        rule.check(classes);
+        // Verifie chaque paire d'adapters presents sur le classpath (nomad,
+        // consul, postgres-registry) — vraie par construction pour les
+        // technologies pas encore ajoutees au reacteur (nats, kafka, vault,
+        // otel) ; ce test devient actif pour elles des qu'elles rejoignent
+        // egen-adapters/* (voir docs/architecture/19-feuille-de-route.md).
+        String[] existingAdapterPackages = {
+                "africa.civitas.egen.adapter.nomad..",
+                "africa.civitas.egen.adapter.consul..",
+                "africa.civitas.egen.adapter.postgresregistry..",
+        };
+        String[] futureAdapterPackages = {
+                "africa.civitas.egen.adapter.nats..",
+                "africa.civitas.egen.adapter.kafka..",
+                "africa.civitas.egen.adapter.vault..",
+                "africa.civitas.egen.adapter.otel..",
+        };
+        for (String ownPackage : existingAdapterPackages) {
+            for (String otherPackage : existingAdapterPackages) {
+                if (ownPackage.equals(otherPackage)) {
+                    continue;
+                }
+                noClasses().that().resideInAPackage(ownPackage)
+                        .should().dependOnClassesThat().resideInAPackage(otherPackage)
+                        .check(classes);
+            }
+            noClasses().that().resideInAPackage(ownPackage)
+                    .should().dependOnClassesThat().resideInAnyPackage(futureAdapterPackages)
+                    .check(classes);
+        }
     }
 }

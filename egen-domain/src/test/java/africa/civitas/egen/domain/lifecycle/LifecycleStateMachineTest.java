@@ -16,14 +16,29 @@ class LifecycleStateMachineTest {
     @ParameterizedTest
     @CsvSource({
             "DECLARED, REGISTERED",
-            "REGISTERED, DEPLOYING",
+            "REGISTERED, CONFIGURED",
             "REGISTERED, FAILED",
+            "CONFIGURED, DEPLOYING",
+            "CONFIGURED, FAILED",
             "DEPLOYING, RUNNING",
             "DEPLOYING, FAILED",
+            "RUNNING, DEGRADED",
+            "RUNNING, UPDATING",
+            "RUNNING, STOPPING",
             "RUNNING, FAILED",
-            "RUNNING, STOPPED",
+            "DEGRADED, RUNNING",
+            "DEGRADED, STOPPING",
+            "DEGRADED, FAILED",
             "FAILED, DEPLOYING",
+            "FAILED, STOPPING",
+            "UPDATING, RUNNING",
+            "UPDATING, ROLLED_BACK",
+            "UPDATING, FAILED",
+            "ROLLED_BACK, RUNNING",
+            "STOPPING, STOPPED",
             "STOPPED, DEPLOYING",
+            "STOPPED, REMOVING",
+            "REMOVING, REMOVED",
     })
     void allowsDocumentedTransitions(Phase from, Phase to) {
         assertTrue(machine.isTransitionAllowed(from, to));
@@ -35,9 +50,11 @@ class LifecycleStateMachineTest {
             "DECLARED, RUNNING",
             "DECLARED, DEPLOYING",
             "REGISTERED, RUNNING",
+            "RUNNING, STOPPED",       // doit passer par STOPPING (arret gracieux, voir 09.3)
             "RUNNING, DECLARED",
             "STOPPED, RUNNING",
             "FAILED, RUNNING",
+            "REMOVED, DEPLOYING",     // REMOVED est terminal
     })
     void rejectsUndocumentedTransitions(Phase from, Phase to) {
         assertFalse(machine.isTransitionAllowed(from, to));

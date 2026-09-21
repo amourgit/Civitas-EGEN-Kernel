@@ -5,7 +5,7 @@
   "description": "Contrat technique declare par un service autonome aupres du Kernel EGEN. Voir docs/architecture/06-service-manifest.md. Champs actuellement valides par le domaine (egen-domain) — network/health/dependencies/events/configuration/lifecycle rejoignent ce schema aux phases qui les introduisent (docs/architecture/19-feuille-de-route.md), jamais par anticipation.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "metadata", "runtime", "deployment"],
+  "required": ["apiVersion", "kind", "metadata", "runtime", "deployment", "health"],
   "properties": {
     "apiVersion": {
       "type": "string",
@@ -68,6 +68,37 @@
           "properties": {
             "min": { "type": "integer", "minimum": 0 },
             "max": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["http"],
+      "properties": {
+        "http": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint", "interval", "timeout"],
+          "properties": {
+            "endpoint": { "type": "string", "minLength": 1 },
+            "interval": { "type": "string", "pattern": "^[0-9]+s$" },
+            "timeout": { "type": "string", "pattern": "^[0-9]+s$" },
+            "failuresBeforeUnhealthy": { "type": "integer", "minimum": 1, "default": 3 }
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shutdown": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "gracePeriod": { "type": "string", "pattern": "^[0-9]+s$" }
           }
         }
       }

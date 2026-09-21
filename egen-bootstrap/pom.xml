@@ -42,12 +42,30 @@
     </dependency>
     <dependency>
       <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-adapter-consul</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-adapter-postgres-registry</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
       <artifactId>egen-api</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-arc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-agroal</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>

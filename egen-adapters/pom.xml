@@ -28,6 +28,8 @@
 
   <modules>
     <module>egen-adapter-nomad</module>
+    <module>egen-adapter-consul</module>
+    <module>egen-adapter-postgres-registry</module>
   </modules>
 
 </project>

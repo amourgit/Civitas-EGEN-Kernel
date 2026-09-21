@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-adapters</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-adapter-postgres-registry</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Adapters :: Postgres Registry</name>
+  <description>
+    Implementation du RegistryStorePort (egen-application) en PostgreSQL —
+    persistance transactionnelle du DesiredState avec verrouillage optimiste
+    sur "generation" (voir docs/architecture/08-registry.md). N'utilise que
+    l'API JDBC standard (java.sql/javax.sql) : le pool de connexions
+    (DataSource) est construit et injecte par egen-bootstrap, jamais par ce
+    module — aucune dependance a un driver ni a Quarkus ici (garde-fou : ce
+    module reste un simple JDBC consumer, "Quarkus cantonne a egen-api/
+    egen-bootstrap", voir docs/architecture/16-packages-et-stack-technique.md).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-application</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Driver JDBC : necessaire uniquement pour construire une DataSource
+         de test dans le test Testcontainers ci-dessous. En production, le
+         driver arrive via l'extension Quarkus de egen-bootstrap — ce module
+         n'en depend jamais lui-meme (voir description ci-dessus). -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>ban-cross-adapter-and-upward-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>africa.civitas.egen:egen-adapter-nomad</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-consul</exclude>
+                    <exclude>africa.civitas.egen:egen-api</exclude>
+                    <exclude>africa.civitas.egen:egen-bootstrap</exclude>
+                    <exclude>io.quarkus:*</exclude>
+                  </excludes>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

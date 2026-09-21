@@ -8,6 +8,7 @@ import africa.civitas.egen.application.usecase.DeclareResult;
 import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.ServiceNotFoundException;
+import africa.civitas.egen.application.usecase.StopServiceUseCase;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceManifest;
 import africa.civitas.egen.domain.model.TargetEnvironment;
@@ -43,15 +44,18 @@ public class ServiceResource {
 
     private final DeployServiceUseCase deployServiceUseCase;
     private final GetServiceStatusUseCase getServiceStatusUseCase;
+    private final StopServiceUseCase stopServiceUseCase;
     private final String defaultEnvironment;
 
     @Inject
     public ServiceResource(DeployServiceUseCase deployServiceUseCase,
                             GetServiceStatusUseCase getServiceStatusUseCase,
+                            StopServiceUseCase stopServiceUseCase,
                             @ConfigProperty(name = "egen.environment", defaultValue = "development")
                             String defaultEnvironment) {
         this.deployServiceUseCase = deployServiceUseCase;
         this.getServiceStatusUseCase = getServiceStatusUseCase;
+        this.stopServiceUseCase = stopServiceUseCase;
         this.defaultEnvironment = defaultEnvironment;
     }
 
@@ -94,6 +98,26 @@ public class ServiceResource {
         } catch (ServiceNotFoundException e) {
             throw new NotFoundException(e.getMessage());
         } catch (IllegalArgumentException e) {
+            throw new BadRequestException(e.getMessage());
+        }
+    }
+
+    /**
+     * Action imperative explicite, rare — la norme reste declarative (voir
+     * docs/architecture/13-api-et-contrats.md). Ne fait jamais attendre
+     * l'arret reel : fait passer le service en STOPPING et laisse la
+     * boucle de reconciliation executer l'ordre precis deregister -> grace
+     * period -> stop() (voir docs/architecture/09-cycle-de-vie.md, §9.3).
+     */
+    @POST
+    @Path("/{id}/actions/stop")
+    public Response stop(@PathParam("id") String id) {
+        try {
+            stopServiceUseCase.stop(ServiceId.of(id));
+            return Response.accepted().build();
+        } catch (ServiceNotFoundException e) {
+            throw new NotFoundException(e.getMessage());
+        } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
         }
     }

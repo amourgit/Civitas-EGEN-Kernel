@@ -146,11 +146,40 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
             Instant since = allocation.hasNonNull("CreateTime")
                     ? Instant.ofEpochSecond(0, allocation.get("CreateTime").asLong())
                     : Instant.EPOCH;
+            NetworkEndpoint endpoint = extractNetworkEndpoint(allocation);
             if (!allocationId.isEmpty()) {
-                result.add(new AllocationInfo(allocationId, status.isEmpty() ? "unknown" : status, since));
+                result.add(new AllocationInfo(allocationId, status.isEmpty() ? "unknown" : status,
+                        since, endpoint.address(), endpoint.port()));
             }
         }
         return List.copyOf(result);
+    }
+
+    /**
+     * Extrait l'adresse/port reseau d'une allocation Nomad — les ports
+     * dynamiques sont attribues par le scheduler et ne sont connus qu'a
+     * l'execution (voir {@code Resources.Networks[].DynamicPorts} dans la
+     * reponse de l'API Nomad). Retourne une adresse/port vides si la
+     * structure attendue est absente (allocation pas encore planifiee) —
+     * l'appelant (la boucle de reconciliation) gere cette absence sans
+     * lever d'exception, voir {@code AllocationInfo.hasNetworkInfo()}.
+     */
+    private static NetworkEndpoint extractNetworkEndpoint(JsonNode allocation) {
+        JsonNode networks = allocation.path("Resources").path("Networks");
+        if (!networks.isArray() || networks.isEmpty()) {
+            return new NetworkEndpoint("", 0);
+        }
+        JsonNode network = networks.get(0);
+        String address = textOrEmpty(network, "IP");
+        JsonNode dynamicPorts = network.path("DynamicPorts");
+        int port = 0;
+        if (dynamicPorts.isArray() && !dynamicPorts.isEmpty()) {
+            port = dynamicPorts.get(0).path("Value").asInt(0);
+        }
+        return new NetworkEndpoint(address, port);
+    }
+
+    private record NetworkEndpoint(String address, int port) {
     }
 
     @Override
@@ -193,6 +222,20 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
         ObjectNode group = taskGroups.addObject();
         group.put("Name", id.value());
         group.put("Count", spec.replicas().min());
+
+        // Reserve un port dynamique par allocation, pour que chaque instance
+        // ait une adresse:port a rapporter au Discovery Adapter (voir
+        // DeploymentPort.listAllocations -> ReconciliationEngine). Le
+        // mapping vers le port reellement ecoute par le conteneur applicatif
+        // arrivera avec network.endpoints du manifeste (non encore dans le
+        // domaine — voir docs/architecture/19-feuille-de-route.md) ; en
+        // attendant, ce port reserve suffit a exercer l'enregistrement
+        // Discovery de bout en bout.
+        ArrayNode networks = group.putArray("Networks");
+        ObjectNode network = networks.addObject();
+        ArrayNode dynamicPorts = network.putArray("DynamicPorts");
+        ObjectNode httpPort = dynamicPorts.addObject();
+        httpPort.put("Label", "http");
 
         ArrayNode tasks = group.putArray("Tasks");
         ObjectNode task = tasks.addObject();

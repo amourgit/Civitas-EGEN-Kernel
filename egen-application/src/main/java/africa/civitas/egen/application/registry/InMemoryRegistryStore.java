@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -27,6 +28,7 @@ public final class InMemoryRegistryStore implements RegistryStorePort {
     private final Map<ServiceId, DesiredState> desiredStates = new ConcurrentHashMap<>();
     private final Map<ServiceId, ServiceStatus> statuses = new ConcurrentHashMap<>();
     private final Map<ServiceId, AtomicLong> generations = new ConcurrentHashMap<>();
+    private final Map<ServiceId, List<DesiredState>> historyByService = new ConcurrentHashMap<>();
 
     @Override
     public DesiredState save(DesiredState desiredState) {
@@ -37,6 +39,8 @@ public final class InMemoryRegistryStore implements RegistryStorePort {
         DesiredState withGeneration = new DesiredState(
                 desiredState.manifest(), generation, desiredState.targetEnvironment());
         desiredStates.put(id, withGeneration);
+        historyByService.computeIfAbsent(id, ignored -> new CopyOnWriteArrayList<>())
+                .add(withGeneration);
         return withGeneration;
     }
 
@@ -58,5 +62,10 @@ public final class InMemoryRegistryStore implements RegistryStorePort {
     @Override
     public List<ServiceId> findAllIds() {
         return List.copyOf(desiredStates.keySet());
+    }
+
+    @Override
+    public List<DesiredState> history(ServiceId id) {
+        return List.copyOf(historyByService.getOrDefault(id, List.of()));
     }
 }

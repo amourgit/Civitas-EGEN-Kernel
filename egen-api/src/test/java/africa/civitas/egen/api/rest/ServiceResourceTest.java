@@ -33,6 +33,12 @@ class ServiceResourceTest {
               replicas:
                 min: 1
                 max: 1
+            health:
+              http:
+                endpoint: /health
+                interval: 10s
+                timeout: 2s
+                failuresBeforeUnhealthy: 3
             """;
 
     @Test
@@ -64,5 +70,21 @@ class ServiceResourceTest {
         given()
                 .when().get("/api/v1/services/never-declared-service/status")
                 .then().statusCode(404);
+    }
+
+    @Test
+    void stopActionOnAnUndeclaredServiceReturns404() {
+        given()
+                .when().post("/api/v1/services/never-declared-service/actions/stop")
+                .then().statusCode(404);
+    }
+
+    @Test
+    void discoverOnAServiceWithNoRegisteredInstanceReturnsAnEmptyList() {
+        given()
+                .when().get("/api/v1/discover/never-registered-service")
+                .then().statusCode(200)
+                .body("serviceId", is("never-registered-service"))
+                .body("instances.size()", is(0));
     }
 }

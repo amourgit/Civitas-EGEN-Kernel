@@ -15,15 +15,26 @@ import java.util.Set;
  * docs/architecture/19-feuille-de-route.md, Phase 1) :</p>
  * <pre>
  * DECLARED   -&gt; REGISTERED
- * REGISTERED -&gt; DEPLOYING, FAILED    (FAILED : ex. echec d'adapter au premier appel de create())
+ * REGISTERED -&gt; CONFIGURED, FAILED
+ * CONFIGURED -&gt; DEPLOYING, FAILED
  * DEPLOYING  -&gt; RUNNING, FAILED
- * RUNNING    -&gt; FAILED, STOPPED
- * FAILED     -&gt; DEPLOYING            (nouvelle tentative)
- * STOPPED    -&gt; DEPLOYING            (redeploiement explicite)
+ * RUNNING    -&gt; DEGRADED, UPDATING, STOPPING, FAILED
+ * DEGRADED   -&gt; RUNNING, STOPPING, FAILED
+ * FAILED     -&gt; DEPLOYING, STOPPING     (nouvelle tentative, ou nettoyage)
+ * UPDATING   -&gt; RUNNING, ROLLED_BACK, FAILED
+ * ROLLED_BACK-&gt; RUNNING
+ * STOPPING   -&gt; STOPPED
+ * STOPPED    -&gt; DEPLOYING, REMOVING     (redeploiement explicite, ou suppression)
+ * REMOVING   -&gt; REMOVED
+ * REMOVED    -&gt; (terminal)
  * </pre>
- * <p>Les transitions vers DEGRADED, UPDATING, STOPPING, REMOVING et REMOVED
- * rejoignent cette table quand les phases correspondantes sont ajoutees a
- * {@link Phase} — jamais par anticipation.</p>
+ * <p>V0 vs table complete : la boucle de reconciliation ne pilote
+ * automatiquement aujourd'hui que DECLARED..DEPLOYING..RUNNING/DEGRADED et
+ * STOPPING..STOPPED (arret gracieux, voir 09.3) ; UPDATING, ROLLED_BACK,
+ * REMOVING et REMOVED existent et sont valides ici, mais attendent les use
+ * cases qui les declenchent (mise a jour, suppression — voir
+ * docs/architecture/19-feuille-de-route.md), jamais atteints par
+ * anticipation.</p>
  */
 public final class LifecycleStateMachine {
 
@@ -32,11 +43,18 @@ public final class LifecycleStateMachine {
     private static Map<Phase, Set<Phase>> buildTransitionTable() {
         Map<Phase, Set<Phase>> table = new EnumMap<>(Phase.class);
         table.put(Phase.DECLARED, EnumSet.of(Phase.REGISTERED));
-        table.put(Phase.REGISTERED, EnumSet.of(Phase.DEPLOYING, Phase.FAILED));
+        table.put(Phase.REGISTERED, EnumSet.of(Phase.CONFIGURED, Phase.FAILED));
+        table.put(Phase.CONFIGURED, EnumSet.of(Phase.DEPLOYING, Phase.FAILED));
         table.put(Phase.DEPLOYING, EnumSet.of(Phase.RUNNING, Phase.FAILED));
-        table.put(Phase.RUNNING, EnumSet.of(Phase.FAILED, Phase.STOPPED));
-        table.put(Phase.FAILED, EnumSet.of(Phase.DEPLOYING));
-        table.put(Phase.STOPPED, EnumSet.of(Phase.DEPLOYING));
+        table.put(Phase.RUNNING, EnumSet.of(Phase.DEGRADED, Phase.UPDATING, Phase.STOPPING, Phase.FAILED));
+        table.put(Phase.DEGRADED, EnumSet.of(Phase.RUNNING, Phase.STOPPING, Phase.FAILED));
+        table.put(Phase.FAILED, EnumSet.of(Phase.DEPLOYING, Phase.STOPPING));
+        table.put(Phase.UPDATING, EnumSet.of(Phase.RUNNING, Phase.ROLLED_BACK, Phase.FAILED));
+        table.put(Phase.ROLLED_BACK, EnumSet.of(Phase.RUNNING));
+        table.put(Phase.STOPPING, EnumSet.of(Phase.STOPPED));
+        table.put(Phase.STOPPED, EnumSet.of(Phase.DEPLOYING, Phase.REMOVING));
+        table.put(Phase.REMOVING, EnumSet.of(Phase.REMOVED));
+        table.put(Phase.REMOVED, EnumSet.noneOf(Phase.class));
         return Map.copyOf(table);
     }
 

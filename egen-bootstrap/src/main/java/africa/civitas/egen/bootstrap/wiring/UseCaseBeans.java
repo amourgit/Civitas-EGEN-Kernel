@@ -6,6 +6,8 @@ import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.StopServiceUseCase;
+import africa.civitas.egen.application.usecase.StopServiceUseCaseImpl;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
@@ -35,5 +37,11 @@ public class UseCaseBeans {
     @ApplicationScoped
     public GetServiceStatusUseCase getServiceStatusUseCase() {
         return new GetServiceStatusUseCaseImpl(registryStorePort);
+    }
+
+    @Produces
+    @ApplicationScoped
+    public StopServiceUseCase stopServiceUseCase() {
+        return new StopServiceUseCaseImpl(registryStorePort, workQueue);
     }
 }

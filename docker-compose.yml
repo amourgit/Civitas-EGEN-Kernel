@@ -1,15 +1,14 @@
-# Environnement local pour EGEN Kernel — perimetre Phase 1 uniquement (voir
-# docs/architecture/19-feuille-de-route.md). Consul, NATS JetStream, Vault et
-# PostgreSQL rejoignent ce fichier aux phases qui les introduisent
-# (respectivement Phase 2, Phase 3, Phase 4, Phase 2), jamais par
-# anticipation.
+# Environnement local pour EGEN Kernel — perimetre Phase 1-2 (voir
+# docs/architecture/19-feuille-de-route.md). NATS JetStream et Vault
+# rejoignent ce fichier a leurs phases respectives (Phase 3 et Phase 4),
+# jamais par anticipation.
 services:
 
   # Nomad — le Deployment Adapter y delegue tout (scheduling, allocation,
   # rolling update natif). Mode dev : ACL desactivees, un seul noeud
-  # serveur+client, adapte au developpement local uniquement — jamais a la
-  # production. Voir docs/architecture/07-ports-et-adapters.md, "Deployment
-  # Port + Nomad Adapter".
+  # serveur+client, adapte au developpement local uniquement. Voir
+  # docs/architecture/07-ports-et-adapters.md, "Deployment Port + Nomad
+  # Adapter".
   nomad:
     image: hashicorp/nomad:1.8
     container_name: egen-nomad
@@ -24,3 +23,45 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Consul — le Discovery Adapter y delegue l'enregistrement et la
+  # resolution d'instances saines. Mode dev : ACL desactivees, adapte au
+  # developpement local uniquement. Voir
+  # docs/architecture/07-ports-et-adapters.md, "Discovery Port + Consul
+  # Adapter".
+  consul:
+    image: hashicorp/consul:1.19
+    container_name: egen-consul
+    restart: unless-stopped
+    command: ["agent", "-dev", "-client=0.0.0.0"]
+    ports:
+      - "8500:8500"   # API HTTP + UI (http://localhost:8500)
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8500/v1/status/leader"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # PostgreSQL — persistance du Registry EGEN (DesiredState + ServiceStatus,
+  # verrouillage optimiste sur "generation"). Voir
+  # docs/architecture/08-registry.md.
+  postgres:
+    image: postgres:16-alpine
+    container_name: egen-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: egen_registry
+      POSTGRES_USER: egen
+      POSTGRES_PASSWORD: egen
+    ports:
+      - "5432:5432"
+    volumes:
+      - egen_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U egen -d egen_registry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  egen_postgres_data:

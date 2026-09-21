@@ -14,4 +14,6 @@ public class ServiceManifestDto {
     public MetadataDto metadata;
     public RuntimeDto runtime;
     public DeploymentDto deployment;
+    public HealthDto health;
+    public LifecycleDto lifecycle;
 }

@@ -85,6 +85,8 @@
               <rules>
                 <bannedDependencies>
                   <excludes>
+                    <exclude>africa.civitas.egen:egen-adapter-consul</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-postgres-registry</exclude>
                     <exclude>africa.civitas.egen:egen-api</exclude>
                     <exclude>africa.civitas.egen:egen-bootstrap</exclude>
                   </excludes>

@@ -6,6 +6,8 @@ import africa.civitas.egen.api.dto.ServiceStatusDto;
 import africa.civitas.egen.domain.lifecycle.Condition;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
 import africa.civitas.egen.domain.model.DeploymentSpec;
+import africa.civitas.egen.domain.model.HealthSpec;
+import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.ReplicaRange;
 import africa.civitas.egen.domain.model.RuntimeType;
 import africa.civitas.egen.domain.model.ServiceId;
@@ -13,6 +15,7 @@ import africa.civitas.egen.domain.model.ServiceManifest;
 import africa.civitas.egen.domain.model.ServiceRuntime;
 import africa.civitas.egen.domain.model.ServiceVersion;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -51,7 +54,43 @@ public final class ServiceManifestMapper {
                 dto.deployment.resources.memory,
                 new ReplicaRange(dto.deployment.replicas.min, dto.deployment.replicas.max));
 
-        return new ServiceManifest(id, version, runtime, deployment);
+        if (dto.health == null || dto.health.http == null) {
+            throw new IllegalArgumentException("ServiceManifest.health.http est obligatoire");
+        }
+        HealthSpec health = new HealthSpec(
+                dto.health.http.endpoint,
+                parseSecondsSuffix(dto.health.http.interval, "health.http.interval"),
+                parseSecondsSuffix(dto.health.http.timeout, "health.http.timeout"),
+                dto.health.http.failuresBeforeUnhealthy);
+
+        LifecyclePolicy lifecycle = null;
+        if (dto.lifecycle != null && dto.lifecycle.shutdown != null
+                && dto.lifecycle.shutdown.gracePeriod != null) {
+            lifecycle = new LifecyclePolicy(
+                    parseSecondsSuffix(dto.lifecycle.shutdown.gracePeriod, "lifecycle.shutdown.gracePeriod"));
+        }
+
+        return new ServiceManifest(id, version, runtime, deployment, health, lifecycle);
+    }
+
+    /**
+     * Les durees du manifeste s'ecrivent en secondes suffixees de "s" (ex.
+     * "10s") — voir docs/architecture/06-service-manifest.md. Seul ce
+     * format est necessaire aujourd'hui ; d'autres unites rejoindront ce
+     * parseur si un besoin reel se presente, jamais par anticipation.
+     */
+    private static Duration parseSecondsSuffix(String raw, String fieldName) {
+        if (raw == null || !raw.endsWith("s")) {
+            throw new IllegalArgumentException(
+                    "ServiceManifest." + fieldName + " invalide : \"" + raw
+                            + "\" — attendu un nombre de secondes suffixe de \"s\" (ex. \"10s\")");
+        }
+        try {
+            return Duration.ofSeconds(Long.parseLong(raw.substring(0, raw.length() - 1)));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "ServiceManifest." + fieldName + " invalide : \"" + raw + "\"", e);
+        }
     }
 
     public static ServiceStatusDto toDto(ServiceStatus status) {

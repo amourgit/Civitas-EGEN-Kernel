@@ -1,6 +1,7 @@
 package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.application.port.DeploymentPort;
+import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.reconciliation.ReconciliationEngine;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
@@ -29,13 +30,16 @@ public class ReconciliationEngineBeans {
     @Inject
     DeploymentPort deploymentPort;
 
+    @Inject
+    DiscoveryPort discoveryPort;
+
     private ReconciliationEngine engine;
 
     @Produces
     @ApplicationScoped
     public ReconciliationEngine reconciliationEngine() {
         if (engine == null) {
-            engine = new ReconciliationEngine(workQueue, registryStorePort, deploymentPort);
+            engine = new ReconciliationEngine(workQueue, registryStorePort, deploymentPort, discoveryPort);
         }
         return engine;
     }

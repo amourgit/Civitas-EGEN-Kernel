@@ -38,4 +38,7 @@ public interface RegistryStorePort {
 
     /** Tous les identifiants connus — alimente le resync periodique (voir 04.2). */
     List<ServiceId> findAllIds();
+
+    /** Audit trail des generations successives (voir docs/architecture/08-registry.md). */
+    List<DesiredState> history(ServiceId id);
 }
