@@ -2,9 +2,9 @@ name: EGEN Kernel CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, architecture/blueprint-v4 ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, architecture/blueprint-v4 ]
   workflow_dispatch: {}
 
 permissions:
