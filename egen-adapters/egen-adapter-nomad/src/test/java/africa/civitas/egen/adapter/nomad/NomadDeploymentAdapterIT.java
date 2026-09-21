@@ -9,6 +9,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.MountableFile;
 
 import java.net.URI;
 import java.time.Duration;
@@ -18,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /**
  * Test de niveau 3 (voir docs/architecture/17-strategie-de-tests.md) : demarre
- * un vrai agent Nomad en mode dev via Testcontainers et verifie le mapping de
+ * un vrai agent Nomad via Testcontainers et verifie le mapping de
  * {@link NomadDeploymentAdapter} contre l'API HTTP reelle — pas seulement
  * contre une documentation.
  *
@@ -31,6 +32,17 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
  * couverte par le test de niveau 5 (voir
  * docs/architecture/20-scenario-bout-en-bout.md) dans un environnement
  * dedie.</p>
+ *
+ * <p><b>Serveur seul, sans role client</b> : l'agent est demarre avec la
+ * config {@code nomad/agent-it.hcl} (serveur uniquement) plutot qu'avec
+ * {@code -dev}, qui active aussi un role client dans le meme processus. Ce
+ * role client tente au demarrage un fingerprinting des drivers de tache
+ * (docker/exec) qui manipule les cgroups — operation qui echoue et fait
+ * sortir l'agent en erreur dans un conteneur non privilegie (c'etait la
+ * cause du "ContainerLaunchException" observe en CI, pas une lenteur de
+ * demarrage). Le perimetre ci-dessus ne necessite jamais de role client :
+ * un serveur seul l'exerce integralement, sans exiger de conteneur
+ * privilegie.</p>
  */
 @Testcontainers
 class NomadDeploymentAdapterIT {
@@ -38,7 +50,9 @@ class NomadDeploymentAdapterIT {
     @Container
     static final GenericContainer<?> NOMAD = new GenericContainer<>("hashicorp/nomad:1.8")
             .withExposedPorts(4646)
-            .withCommand("agent", "-dev", "-bind=0.0.0.0", "-log-level=WARN")
+            .withCopyFileToContainer(
+                    MountableFile.forClasspathResource("nomad/agent-it.hcl"), "/etc/nomad.d/agent-it.hcl")
+            .withCommand("agent", "-config=/etc/nomad.d/agent-it.hcl")
             .waitingFor(Wait.forHttp("/v1/status/leader").forStatusCode(200))
             .withStartupTimeout(Duration.ofSeconds(60));
 
