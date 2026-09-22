@@ -26,6 +26,21 @@ import static org.hamcrest.Matchers.is;
  * que le client de test — {@link ServiceResource} lit deja le corps de la
  * requete comme du texte brut cote serveur (voir son {@code @Consumes}), rien
  * n'y a change.</p>
+ *
+ * <p><b>Portee de "Observe" ici</b> : {@link TestUseCaseProducers} ne cable
+ * volontairement qu'un {@code RegistryStorePort} en memoire et une
+ * {@code WorkQueue} — jamais de {@code ReconciliationEngine} (celui-ci vit
+ * dans egen-bootstrap, seul module autorise a tout connaitre, voir
+ * docs/architecture/16-packages-et-stack-technique.md). Un GET juste apres
+ * un POST ne peut donc jamais refleter une reconciliation qui n'existe pas
+ * dans ce cablage : il lit {@link africa.civitas.egen.domain.lifecycle.ServiceStatus#initial()}
+ * (phase {@code DECLARED}, {@code observedGeneration=0}), pas le resultat
+ * d'une convergence. Cette classe verifie donc uniquement que "Declare"
+ * persiste et repond 202+Location, et que "Observe" retourne un statut par
+ * defaut coherent juste apres — pas la convergence complete jusqu'a
+ * {@code RUNNING}, qui releve d'un test de niveau 5 (voir
+ * docs/architecture/17-strategie-de-tests.md) avec un ReconciliationEngine
+ * reellement cable et actif.</p>
  */
 @QuarkusTest
 class ServiceResourceTest {
@@ -80,11 +95,14 @@ class ServiceResourceTest {
                 .then().statusCode(202)
                 .extract().header("Location");
 
+        // observedGeneration reste a 0 ici : aucun ReconciliationEngine n'est
+        // cable dans TestUseCaseProducers, donc rien n'a encore ete "observe"
+        // pour ce service — voir le javadoc de la classe.
         given()
                 .when().get(location)
                 .then().statusCode(200)
                 .body("phase", is("DECLARED"))
-                .body("observedGeneration", is(1));
+                .body("observedGeneration", is(0));
     }
 
     @Test
