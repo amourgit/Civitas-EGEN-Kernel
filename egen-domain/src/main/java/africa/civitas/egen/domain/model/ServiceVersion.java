@@ -66,7 +66,12 @@ public record ServiceVersion(int major, int minor, int patch, String preRelease)
         // plus haute qu'une version avec pre-release, a major.minor.patch egaux.
         if (this.isPreRelease() && !other.isPreRelease()) return -1;
         if (!this.isPreRelease() && other.isPreRelease()) return 1;
-        if (this.isPreRelease() && other.isPreRelease()) {
+        if (this.isPreRelease()) {
+            // Arrivee ici, other.isPreRelease() est necessairement vrai aussi :
+            // s'il etait faux, la condition juste au-dessus
+            // (this.isPreRelease() && !other.isPreRelease()) aurait deja
+            // retourne -1. Qodana signalait cette verification redondante
+            // ("Constant values").
             return this.preRelease.compareTo(other.preRelease);
         }
         return 0;

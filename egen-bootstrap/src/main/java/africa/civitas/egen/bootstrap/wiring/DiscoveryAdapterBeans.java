@@ -20,6 +20,10 @@ public class DiscoveryAdapterBeans {
 
     @Produces
     @ApplicationScoped
+    // Voir DeploymentAdapterBeans.deploymentPort() : meme justification pour
+    // Optional<String> ici — c'est le mode d'injection officiel de
+    // MicroProfile Config pour une propriete sans defaultValue.
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public DiscoveryPort discoveryPort(
             @ConfigProperty(name = "egen.consul.address", defaultValue = "http://localhost:8500")
             String consulAddress,

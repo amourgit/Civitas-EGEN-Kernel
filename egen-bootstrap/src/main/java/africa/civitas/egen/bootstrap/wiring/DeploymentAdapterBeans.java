@@ -22,6 +22,13 @@ public class DeploymentAdapterBeans {
 
     @Produces
     @ApplicationScoped
+    // Optional<String> comme type de parametre est ici le mode d'injection
+    // officiel de MicroProfile Config pour une propriete SANS defaultValue
+    // (voir MicroProfile Config, section "Optional Values") : ce n'est pas un
+    // appel d'API ordinaire concu par nous, mais un point d'injection CDI
+    // renseigne par le conteneur — l'argument habituel contre Optional en
+    // parametre (ergonomie de l'appelant) ne s'applique pas ici.
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public DeploymentPort deploymentPort(
             @ConfigProperty(name = "egen.nomad.address", defaultValue = "http://localhost:4646")
             String nomadAddress,

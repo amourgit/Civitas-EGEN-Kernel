@@ -45,4 +45,19 @@ class ServiceVersionTest {
         assertTrue(v240.compareTo(v241) < 0);
         assertTrue(v240rc.compareTo(v240) < 0);
     }
+
+    @Test
+    void comparesTwoPreReleasesOfTheSameVersionLexically() {
+        ServiceVersion alpha = ServiceVersion.parse("2.4.0-alpha");
+        ServiceVersion beta = ServiceVersion.parse("2.4.0-beta");
+
+        assertTrue(alpha.compareTo(beta) < 0);
+        assertTrue(beta.compareTo(alpha) > 0);
+    }
+
+    @Test
+    void treatsIdenticalVersionsAsEqual() {
+        assertEquals(0, ServiceVersion.parse("2.4.0").compareTo(ServiceVersion.parse("2.4.0")));
+        assertEquals(0, ServiceVersion.parse("2.4.0-rc.1").compareTo(ServiceVersion.parse("2.4.0-rc.1")));
+    }
 }
