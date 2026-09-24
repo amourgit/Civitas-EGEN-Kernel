@@ -149,4 +149,54 @@ class ReconciliationEngineTest {
         engine.reconcile(SERVICE_ID); // grace period ecoulee -> STOPPED
         assertEquals(Phase.STOPPED, currentStatus().phase());
     }
+
+    @Test
+    void blocksOnConfiguredUntilARequiredDependencyIsRunning() {
+        ServiceId dependencyId = ServiceId.of("notification-service");
+        registryStore.saveStatus(SERVICE_ID, new ServiceStatus(Phase.CONFIGURED, java.util.List.of(), 1L));
+        DesiredState withDependency = new DesiredState(
+                aManifest(SHORT_GRACE_PERIOD, java.util.List.of(
+                        new africa.civitas.egen.domain.model.Dependency(dependencyId, ">=1.0.0", true))),
+                0L, TargetEnvironment.of("test"));
+        registryStore.save(withDependency);
+        deploymentPort.setCyclesToConverge(1);
+
+        engine.reconcile(SERVICE_ID); // dependance absente -> reste CONFIGURED
+        assertEquals(Phase.CONFIGURED, currentStatus().phase());
+        assertEquals(0, deploymentPort.createCallCount(SERVICE_ID));
+
+        registryStore.saveStatus(dependencyId, new ServiceStatus(Phase.RUNNING, java.util.List.of(), 1L));
+
+        engine.reconcile(SERVICE_ID); // dependance maintenant RUNNING -> avance
+        assertEquals(Phase.DEPLOYING, currentStatus().phase());
+        assertEquals(1, deploymentPort.createCallCount(SERVICE_ID));
+    }
+
+    @Test
+    void anOptionalDependencyNeverBlocksProgressionToDeploying() {
+        ServiceId dependencyId = ServiceId.of("optional-service");
+        registryStore.saveStatus(SERVICE_ID, new ServiceStatus(Phase.CONFIGURED, java.util.List.of(), 1L));
+        DesiredState withOptionalDependency = new DesiredState(
+                aManifest(SHORT_GRACE_PERIOD, java.util.List.of(
+                        new africa.civitas.egen.domain.model.Dependency(dependencyId, ">=1.0.0", false))),
+                0L, TargetEnvironment.of("test"));
+        registryStore.save(withOptionalDependency);
+
+        engine.reconcile(SERVICE_ID); // dependance optionnelle absente -> avance quand meme
+
+        assertEquals(Phase.DEPLOYING, currentStatus().phase());
+    }
+
+    private static ServiceManifest aManifest(Duration gracePeriod,
+                                              java.util.List<africa.civitas.egen.domain.model.Dependency> dependencies) {
+        return new ServiceManifest(
+                SERVICE_ID,
+                ServiceVersion.parse("2.4.0"),
+                new ServiceRuntime(RuntimeType.CONTAINER,
+                        "registry.civitas.africa/news-service:2.4.0", "python"),
+                new DeploymentSpec("nomad", "registry.civitas.africa/news-service:2.4.0",
+                        "500m", "512Mi", new ReplicaRange(2, 6)),
+                new HealthSpec("/health", Duration.ofSeconds(10), Duration.ofSeconds(2), 3),
+                new LifecyclePolicy(gracePeriod), dependencies);
+    }
 }

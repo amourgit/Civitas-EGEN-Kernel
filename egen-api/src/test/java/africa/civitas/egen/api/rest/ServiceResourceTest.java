@@ -127,4 +127,18 @@ class ServiceResourceTest {
                 .body("serviceId", is("never-registered-service"))
                 .body("instances.size()", is(0));
     }
+
+    @Test
+    void dependencyGraphIncludesDeclaredServicesAndTheirEdges() {
+        given()
+                .contentType("application/yaml")
+                .body(MANIFEST_YAML)
+                .when().post("/api/v1/services")
+                .then().statusCode(202);
+
+        given()
+                .when().get("/api/v1/dependencies/graph")
+                .then().statusCode(200)
+                .body("services", org.hamcrest.Matchers.hasItem("it-fixture-service"));
+    }
 }

@@ -1,7 +1,6 @@
-# Environnement local pour EGEN Kernel — perimetre Phase 1-2 (voir
-# docs/architecture/19-feuille-de-route.md). NATS JetStream et Vault
-# rejoignent ce fichier a leurs phases respectives (Phase 3 et Phase 4),
-# jamais par anticipation.
+# Environnement local pour EGEN Kernel — perimetre Phase 1-3 (voir
+# docs/architecture/19-feuille-de-route.md). Vault rejoint ce fichier en
+# Phase 4, jamais par anticipation.
 services:
 
   # Nomad — le Deployment Adapter y delegue tout (scheduling, allocation,
@@ -59,6 +58,24 @@ services:
       - egen_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U egen -d egen_registry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # NATS JetStream — implementation par defaut du Messaging Adapter (voir
+  # docs/architecture/07-ports-et-adapters.md, "Kafka vs NATS JetStream").
+  # "-js" active JetStream (persistance/replay), necessaire au-dela du
+  # pub/sub ephemere de coeur NATS.
+  nats:
+    image: nats:2.10-alpine
+    container_name: egen-nats
+    restart: unless-stopped
+    command: ["-js"]
+    ports:
+      - "4222:4222"   # protocole client NATS
+      - "8222:8222"   # monitoring HTTP (http://localhost:8222)
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
       interval: 5s
       timeout: 5s
       retries: 10

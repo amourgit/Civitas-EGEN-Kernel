@@ -2,6 +2,8 @@ package africa.civitas.egen.application.usecase;
 
 import africa.civitas.egen.application.registry.InMemoryRegistryStore;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
+import africa.civitas.egen.domain.dependency.CyclicDependencyException;
+import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
@@ -15,8 +17,10 @@ import africa.civitas.egen.domain.model.TargetEnvironment;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DeployServiceUseCaseImplTest {
@@ -47,5 +51,34 @@ class DeployServiceUseCaseImplTest {
         // synchrone au deploiement ici — voir 04.5).
         ServiceId queued = workQueue.take();
         assertEquals(result.serviceId(), queued);
+    }
+
+    @Test
+    void rejectsADeclareThatWouldIntroduceACycleAcrossTheWholeEcosystem() {
+        InMemoryRegistryStore registry = new InMemoryRegistryStore();
+        WorkQueue workQueue = new WorkQueue();
+        DeployServiceUseCase useCase = new DeployServiceUseCaseImpl(registry, workQueue);
+
+        ServiceId newsId = ServiceId.of("news-service");
+        ServiceId notificationId = ServiceId.of("notification-service");
+
+        // notification-service depend deja de news-service (declare en premier).
+        useCase.declare(aManifest(notificationId, List.of(new Dependency(newsId, ">=1.0.0", true))),
+                TargetEnvironment.of("test"));
+
+        // news-service qui declarerait a son tour dependre de notification-service
+        // fermerait un cycle news -> notification -> news : rejete.
+        assertThrows(CyclicDependencyException.class, () -> useCase.declare(
+                aManifest(newsId, List.of(new Dependency(notificationId, ">=1.0.0", true))),
+                TargetEnvironment.of("test")));
+    }
+
+    private static ServiceManifest aManifest(ServiceId id, List<Dependency> dependencies) {
+        return new ServiceManifest(id, ServiceVersion.parse("2.4.0"),
+                new ServiceRuntime(RuntimeType.CONTAINER, "registry.civitas.africa/" + id + ":2.4.0", "python"),
+                new DeploymentSpec("nomad", "registry.civitas.africa/" + id + ":2.4.0",
+                        "500m", "512Mi", new ReplicaRange(2, 6)),
+                new HealthSpec("/health", Duration.ofSeconds(10), Duration.ofSeconds(2), 3),
+                LifecyclePolicy.defaultPolicy(), dependencies);
     }
 }

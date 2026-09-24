@@ -10,6 +10,7 @@ import africa.civitas.egen.domain.lifecycle.ConditionStatus;
 import africa.civitas.egen.domain.lifecycle.LifecycleStateMachine;
 import africa.civitas.egen.domain.lifecycle.Phase;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
+import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.DeploymentObservation;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.DiscoveryObservation;
@@ -18,21 +19,25 @@ import africa.civitas.egen.domain.model.ServiceId;
 import java.lang.System.Logger.Level;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * Le moteur de reconciliation — coeur battant du Kernel (voir
- * docs/architecture/04-moteur-de-reconciliation.md). Depuis la Phase 2, pilote
- * deux ports secondaires : {@link DeploymentPort} (Nomad) et
- * {@link DiscoveryPort} (Consul) — Messaging, Configuration, Secrets et
- * Observability rejoignent la boucle aux phases qui les introduisent (voir
- * docs/architecture/19-feuille-de-route.md).
+ * docs/architecture/04-moteur-de-reconciliation.md). Depuis la Phase 3,
+ * verifie egalement que les dependances REQUIRED sont RUNNING avant de
+ * quitter CONFIGURED (voir docs/architecture/10-gestion-des-dependances.md)
+ * — Configuration, Secrets et Observability rejoignent la boucle aux
+ * phases qui les introduisent (voir docs/architecture/19-feuille-de-route.md).
  *
  * <p>Un seul thread worker consommant la {@link WorkQueue}, resync periodique
  * inconditionnel, retry avec compteur d'echecs consecutifs plafonne. La
@@ -145,11 +150,7 @@ public final class ReconciliationEngine implements AutoCloseable {
             switch (current.phase()) {
                 case DECLARED -> advanceTo(id, current, Phase.REGISTERED, desired.generation());
                 case REGISTERED -> advanceTo(id, current, Phase.CONFIGURED, desired.generation());
-                case CONFIGURED -> {
-                    deploymentPort.create(id, desired.manifest().deployment());
-                    advanceTo(id, current, Phase.DEPLOYING, desired.generation());
-                    workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
-                }
+                case CONFIGURED -> handleConfigured(id, current, desired);
                 case DEPLOYING, RUNNING, DEGRADED -> observeAndConverge(id, current, desired);
                 case STOPPING -> handleStopping(id, current, desired);
                 default -> LOG.log(Level.WARNING,
@@ -159,6 +160,56 @@ public final class ReconciliationEngine implements AutoCloseable {
         } catch (RuntimeException adapterFailure) {
             handleAdapterFailure(id, current, desired, adapterFailure);
         }
+    }
+
+    /**
+     * Verifie que les dependances REQUIRED sont RUNNING avant de deleguer le
+     * deploiement (voir docs/architecture/10-gestion-des-dependances.md,
+     * §10.3) : une dependance required manquante bloque l'ordonnancement
+     * (le service reste en CONFIGURED, reessaie plus tard — la convergence
+     * de chaque service independamment, cycle apres cycle, produit
+     * naturellement le bon ordre global, sans planificateur centralise) ;
+     * une dependance optionnelle manquante ne bloque jamais
+     * (degradation gracieuse), seule la Condition le signale.
+     */
+    private void handleConfigured(ServiceId id, ServiceStatus current, DesiredState desired) {
+        List<Dependency> unsatisfiedRequired = new ArrayList<>();
+        List<Dependency> unsatisfiedOptional = new ArrayList<>();
+        for (Dependency dependency : desired.manifest().dependencies()) {
+            boolean running = registryStorePort.findStatus(dependency.serviceId())
+                    .map(status -> status.phase() == Phase.RUNNING)
+                    .orElse(false);
+            if (!running) {
+                (dependency.required() ? unsatisfiedRequired : unsatisfiedOptional).add(dependency);
+            }
+        }
+
+        if (!unsatisfiedRequired.isEmpty()) {
+            Condition condition = new Condition("DependenciesSatisfied", ConditionStatus.FALSE,
+                    "RequiredDependencyNotRunning", "en attente de : " + names(unsatisfiedRequired),
+                    Instant.now());
+            saveStatus(id, Phase.CONFIGURED, mergeConditions(current.conditions(), condition),
+                    desired.generation());
+            workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
+            return;
+        }
+
+        Condition dependenciesCondition = unsatisfiedOptional.isEmpty()
+                ? new Condition("DependenciesSatisfied", ConditionStatus.TRUE, "AllSatisfied",
+                        "Toutes les dependances declarees sont RUNNING", Instant.now())
+                : new Condition("DependenciesSatisfied", ConditionStatus.FALSE,
+                        "OptionalDependencyUnavailable",
+                        "en attente (facultatif, ne bloque pas) de : " + names(unsatisfiedOptional),
+                        Instant.now());
+
+        deploymentPort.create(id, desired.manifest().deployment());
+        advanceTo(id, current, Phase.DEPLOYING, desired.generation(),
+                mergeConditions(current.conditions(), dependenciesCondition));
+        workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
+    }
+
+    private static String names(List<Dependency> dependencies) {
+        return dependencies.stream().map(d -> d.serviceId().value()).collect(Collectors.joining(", "));
     }
 
     private void observeAndConverge(ServiceId id, ServiceStatus current, DesiredState desired) {
@@ -197,7 +248,7 @@ public final class ReconciliationEngine implements AutoCloseable {
             nextPhase = Phase.DEPLOYING; // premiere convergence pas encore atteinte
         }
 
-        List<Condition> conditions = List.of(
+        List<Condition> updates = List.of(
                 new Condition("DeploymentReady",
                         deploymentConverged ? ConditionStatus.TRUE : ConditionStatus.FALSE,
                         deploymentConverged ? "Converged" : "AwaitingConvergence",
@@ -211,6 +262,7 @@ public final class ReconciliationEngine implements AutoCloseable {
                         "healthyInstances=%d desired=%d".formatted(
                                 discoveryObservation.healthyInstanceCount(), deploymentObservation.desiredCount()),
                         Instant.now()));
+        List<Condition> conditions = mergeConditions(current.conditions(), updates);
 
         if (current.phase() == nextPhase) {
             saveStatus(id, nextPhase, conditions, desired.generation());
@@ -267,6 +319,29 @@ public final class ReconciliationEngine implements AutoCloseable {
         registryStorePort.saveStatus(id, new ServiceStatus(phase, conditions, generation));
     }
 
+    /**
+     * Fusionne des Conditions par {@code type} (modele Kubernetes
+     * Conditions, voir docs/architecture/09-cycle-de-vie.md, §9.2) : chaque
+     * type de Condition (DependenciesSatisfied, DeploymentReady,
+     * DiscoveryReady...) evolue independamment des autres au fil des
+     * phases — une observation de deploiement ne doit jamais effacer la
+     * derniere Condition de dependances connue, et inversement.
+     */
+    private static List<Condition> mergeConditions(List<Condition> existing, Condition update) {
+        return mergeConditions(existing, List.of(update));
+    }
+
+    private static List<Condition> mergeConditions(List<Condition> existing, List<Condition> updates) {
+        Map<String, Condition> byType = new LinkedHashMap<>();
+        for (Condition condition : existing) {
+            byType.put(condition.type(), condition);
+        }
+        for (Condition condition : updates) {
+            byType.put(condition.type(), condition);
+        }
+        return List.copyOf(byType.values());
+    }
+
     private void handleAdapterFailure(ServiceId id, ServiceStatus current, DesiredState desired,
                                        RuntimeException failure) {
         int failures = consecutiveFailures
@@ -279,7 +354,8 @@ public final class ReconciliationEngine implements AutoCloseable {
                 && stateMachine.isTransitionAllowed(current.phase(), Phase.FAILED)) {
             Condition failedCondition = new Condition("DeploymentReady", ConditionStatus.FALSE,
                     "AdapterFailureThresholdExceeded", failure.getMessage(), Instant.now());
-            advanceTo(id, current, Phase.FAILED, desired.generation(), List.of(failedCondition));
+            advanceTo(id, current, Phase.FAILED, desired.generation(),
+                    mergeConditions(current.conditions(), failedCondition));
             consecutiveFailures.remove(id);
             return;
         }

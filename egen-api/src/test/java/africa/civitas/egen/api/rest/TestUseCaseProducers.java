@@ -49,6 +49,12 @@ public class TestUseCaseProducers {
 
     @Produces
     @ApplicationScoped
+    RegistryStorePort registryStorePort() {
+        return registryStorePort;
+    }
+
+    @Produces
+    @ApplicationScoped
     DiscoveryPort discoveryPort() {
         return discoveryPort;
     }

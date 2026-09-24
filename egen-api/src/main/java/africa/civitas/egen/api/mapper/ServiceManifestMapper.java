@@ -6,6 +6,7 @@ import africa.civitas.egen.api.dto.ServiceStatusDto;
 import africa.civitas.egen.domain.lifecycle.Condition;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
 import africa.civitas.egen.domain.model.DeploymentSpec;
+import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.ReplicaRange;
@@ -16,6 +17,7 @@ import africa.civitas.egen.domain.model.ServiceRuntime;
 import africa.civitas.egen.domain.model.ServiceVersion;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -70,7 +72,17 @@ public final class ServiceManifestMapper {
                     parseSecondsSuffix(dto.lifecycle.shutdown.gracePeriod, "lifecycle.shutdown.gracePeriod"));
         }
 
-        return new ServiceManifest(id, version, runtime, deployment, health, lifecycle);
+        List<Dependency> dependencies = new ArrayList<>();
+        if (dto.dependencies != null && dto.dependencies.services != null) {
+            for (var serviceDependencyDto : dto.dependencies.services) {
+                dependencies.add(new Dependency(
+                        ServiceId.of(serviceDependencyDto.name),
+                        serviceDependencyDto.versionConstraint,
+                        serviceDependencyDto.required));
+            }
+        }
+
+        return new ServiceManifest(id, version, runtime, deployment, health, lifecycle, dependencies);
     }
 
     /**
