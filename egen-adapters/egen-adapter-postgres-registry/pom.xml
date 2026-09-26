@@ -87,6 +87,8 @@
                     <exclude>africa.civitas.egen:egen-adapter-nomad</exclude>
                     <exclude>africa.civitas.egen:egen-adapter-consul</exclude>
                     <exclude>africa.civitas.egen:egen-adapter-nats</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-vault</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-otel</exclude>
                     <exclude>africa.civitas.egen:egen-api</exclude>
                     <exclude>africa.civitas.egen:egen-bootstrap</exclude>
                     <exclude>io.quarkus:*</exclude>

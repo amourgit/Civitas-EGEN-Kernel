@@ -57,6 +57,16 @@
     </dependency>
     <dependency>
       <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-adapter-vault</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-adapter-otel</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
       <artifactId>egen-api</artifactId>
       <version>${project.version}</version>
     </dependency>

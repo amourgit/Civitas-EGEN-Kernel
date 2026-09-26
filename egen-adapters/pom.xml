@@ -31,6 +31,8 @@
     <module>egen-adapter-consul</module>
     <module>egen-adapter-postgres-registry</module>
     <module>egen-adapter-nats</module>
+    <module>egen-adapter-vault</module>
+    <module>egen-adapter-otel</module>
   </modules>
 
 </project>

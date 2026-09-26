@@ -57,7 +57,7 @@ class CoreArchitectureRulesTest {
                 .orShould().dependOnClassesThat()
                 .resideInAnyPackage("io.quarkus..", "jakarta..", "com.fasterxml.jackson..",
                         "com.hashicorp..", "org.apache.kafka..", "io.nats..", "java.sql..",
-                        "javax.sql..", "org.postgresql..");
+                        "javax.sql..", "org.postgresql..", "io.opentelemetry..");
         rule.check(classes);
     }
 
@@ -79,7 +79,8 @@ class CoreArchitectureRulesTest {
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("io.quarkus..", "jakarta.enterprise..", "jakarta.ws.rs..",
                         "jakarta.persistence..", "com.fasterxml.jackson..", "io.nats..",
-                        "com.hashicorp..", "java.sql..", "javax.sql..", "org.postgresql..");
+                        "com.hashicorp..", "java.sql..", "javax.sql..", "org.postgresql..",
+                        "io.opentelemetry..");
         rule.check(classes);
     }
 
@@ -116,11 +117,11 @@ class CoreArchitectureRulesTest {
                 "africa.civitas.egen.adapter.consul..",
                 "africa.civitas.egen.adapter.postgresregistry..",
                 "africa.civitas.egen.adapter.nats..",
+                "africa.civitas.egen.adapter.vault..",
+                "africa.civitas.egen.adapter.otel..",
         };
         String[] futureAdapterPackages = {
                 "africa.civitas.egen.adapter.kafka..",
-                "africa.civitas.egen.adapter.vault..",
-                "africa.civitas.egen.adapter.otel..",
         };
         for (String ownPackage : existingAdapterPackages) {
             for (String otherPackage : existingAdapterPackages) {

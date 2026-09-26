@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests de niveau 2 (voir docs/architecture/17-strategie-de-tests.md) :
@@ -37,6 +38,7 @@ class ReconciliationEngineTest {
     private InMemoryRegistryStore registryStore;
     private FakeDeploymentPort deploymentPort;
     private FakeDiscoveryPort discoveryPort;
+    private NoOpObservabilityPort observabilityPort;
     private WorkQueue workQueue;
     private ReconciliationEngine engine;
 
@@ -45,8 +47,10 @@ class ReconciliationEngineTest {
         registryStore = new InMemoryRegistryStore();
         deploymentPort = new FakeDeploymentPort();
         discoveryPort = new FakeDiscoveryPort();
+        observabilityPort = new NoOpObservabilityPort();
         workQueue = new WorkQueue();
-        engine = new ReconciliationEngine(workQueue, registryStore, deploymentPort, discoveryPort);
+        engine = new ReconciliationEngine(workQueue, registryStore, deploymentPort, discoveryPort,
+                observabilityPort);
         registryStore.save(new DesiredState(aManifest(SHORT_GRACE_PERIOD), 0L, TargetEnvironment.of("test")));
     }
 
@@ -115,6 +119,8 @@ class ReconciliationEngineTest {
 
         reconcileNTimes(5); // 5 tentatives de create() consecutives en echec -> FAILED
         assertEquals(Phase.FAILED, currentStatus().phase());
+        assertTrue(observabilityPort.errorsRecorded.get() >= 5,
+                "chaque echec d'adapter doit etre rapporte sur le span courant");
     }
 
     @Test

@@ -91,6 +91,16 @@
       depuis ce sandbox — a confirmer par la CI.
     -->
     <jnats.version>2.20.4</jnats.version>
+
+    <!--
+      OpenTelemetry (Apache 2.0) — implementation du ObservabilityPort (voir
+      docs/architecture/07-ports-et-adapters.md, "Observability Port" et
+      docs/architecture/16-packages-et-stack-technique.md : "OpenTelemetry
+      SDK + Collector"). Le BOM aligne les versions de toutes les
+      sous-dependances OTel (api, sdk, exporter-otlp). Version non
+      verifiable depuis ce sandbox — a confirmer par la CI.
+    -->
+    <opentelemetry.version>1.44.1</opentelemetry.version>
   </properties>
 
   <modules>
@@ -128,6 +138,13 @@
         <groupId>io.nats</groupId>
         <artifactId>jnats</artifactId>
         <version>${jnats.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
