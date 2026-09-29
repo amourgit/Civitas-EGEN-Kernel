@@ -12,7 +12,6 @@ import jakarta.ws.rs.ext.Provider;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -21,6 +20,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * (en-tete HTTP) obligatoire sur toutes les mutations") : un agent ou un
  * client CI qui retente un appel apres un timeout reseau doit pouvoir le
  * faire sans risque de double-declaration.
+ *
+ * <p>Porte par Name Binding (voir {@link IdempotencyRequired}) plutot que
+ * par une correspondance de chemin/methode faite a la main dans ce filtre —
+ * voir le javadoc de {@link IdempotencyRequired} pour le raisonnement
+ * complet (instabilite documentee de {@code UriInfo.getPath()} entre
+ * versions de la specification).</p>
  *
  * <p>Implementation V1, deliberement simple et documentee comme telle :
  * cache en memoire du processus, borne par TTL — suffisant pour une
@@ -33,27 +38,23 @@ import java.util.concurrent.ConcurrentHashMap;
  * (garde-fou n3, docs/architecture/02-principes-fondamentaux.md).</p>
  */
 @Provider
+@IdempotencyRequired
 @Priority(Priorities.HEADER_DECORATOR)
 public class IdempotencyKeyFilter implements ContainerRequestFilter, ContainerResponseFilter {
 
     private static final String HEADER = "Idempotency-Key";
     private static final String CACHE_KEY_PROPERTY = "egen.idempotency.cacheKey";
-    private static final Set<String> MUTATING_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
     private static final Duration TTL = Duration.ofMinutes(10);
 
     private final ConcurrentHashMap<String, CachedResponse> cache = new ConcurrentHashMap<>();
 
     @Override
     public void filter(ContainerRequestContext requestContext) {
-        String method = requestContext.getMethod();
-        if (!MUTATING_METHODS.contains(method) || !requestContext.getUriInfo().getPath().startsWith("api/v1/services")) {
-            return;
-        }
         String key = requestContext.getHeaderString(HEADER);
         if (key == null || key.isBlank()) {
             throw new BadRequestException("En-tete " + HEADER + " obligatoire sur cette mutation");
         }
-        String cacheKey = method + " " + requestContext.getUriInfo().getPath() + " " + key;
+        String cacheKey = requestContext.getMethod() + " " + requestContext.getUriInfo().getPath() + " " + key;
         evictExpired();
         CachedResponse cached = cache.get(cacheKey);
         if (cached != null) {

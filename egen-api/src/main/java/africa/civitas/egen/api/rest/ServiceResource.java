@@ -5,6 +5,7 @@ import africa.civitas.egen.api.dto.ServiceManifestDto;
 import africa.civitas.egen.api.dto.ServiceStatusDto;
 import africa.civitas.egen.api.mapper.ServiceManifestMapper;
 import africa.civitas.egen.api.security.EgenSecurityContext;
+import africa.civitas.egen.api.security.IdempotencyRequired;
 import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.TraceContext;
@@ -86,6 +87,7 @@ public class ServiceResource {
     }
 
     @POST
+    @IdempotencyRequired
     @Consumes({"application/yaml", "application/x-yaml"})
     @Produces(MediaType.APPLICATION_JSON)
     public Response declare(String manifestYaml, @QueryParam("environment") String environment,
@@ -158,6 +160,7 @@ public class ServiceResource {
      * period -> stop() (voir docs/architecture/09-cycle-de-vie.md, §9.3).
      */
     @POST
+    @IdempotencyRequired
     @Path("/{id}/actions/stop")
     public Response stop(@PathParam("id") String id, @HeaderParam("traceparent") String traceparent) {
         try (TraceSpan span = startHttpSpan("http.stop", traceparent)) {
