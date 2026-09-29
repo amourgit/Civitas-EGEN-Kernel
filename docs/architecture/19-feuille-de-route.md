@@ -10,14 +10,14 @@ socle déjà testé, et pour dérisquer en premier les intégrations externes
 **Objectif** : poser les décisions et les garde-fous avant d'écrire la
 première ligne de logique métier du Kernel.
 
-- [ ] Décisions actées et documentées : langage définitif du Kernel (voir
+- [x] Décisions actées et documentées : langage définitif du Kernel (voir
       [16](16-packages-et-stack-technique.md)), NATS vs Kafka en V1 (voir
       [07](07-ports-et-adapters.md#kafka-vs-nats-jetstream--quand-utiliser-lequel)),
       Vault pour les secrets.
-- [ ] Squelette multi-module qui compile : `egen-domain`,
+- [x] Squelette multi-module qui compile : `egen-domain`,
       `egen-application`, `egen-adapters/*`, `egen-api`,
       `egen-contracts`, `egen-bootstrap`, `egen-test-kit`.
-- [ ] Mise en place immédiate des règles de dépendance de build (voir
+- [x] Mise en place immédiate des règles de dépendance de build (voir
       [16.2](16-packages-et-stack-technique.md#regle-de-build-a-faire-respecter-par-loutillage-pas-seulement-la-revue-de-code) /
       [17, niveau 4](17-strategie-de-tests.md#niveau-4--tests-darchitecture-fitness-functions))
       — **avant** d'écrire le premier port, pour qu'aucune violation ne
@@ -31,19 +31,19 @@ première ligne de logique métier du Kernel.
 **Objectif** : prouver le cycle Declare → Resolve → Compose → Delegate →
 Observe → Reconcile de bout en bout sur **un seul** port.
 
-- [ ] `egen-domain` : `ServiceManifest` (version minimale : id, version,
+- [x] `egen-domain` : `ServiceManifest` (version minimale : id, version,
       runtime, deployment), `DesiredState`, `ObservedState`,
       `LifecycleStateMachine` réduite aux phases `DECLARED → REGISTERED →
       DEPLOYING → RUNNING → FAILED/STOPPED`.
-- [ ] `egen-application` : `DeployServiceUseCase`, `ReconciliationEngine`
+- [x] `egen-application` : `DeployServiceUseCase`, `ReconciliationEngine`
       v0 (work queue simple, un seul worker, resync périodique basique —
       pas encore de concurrence bornée avancée).
-- [ ] `DeploymentPort` + `NomadDeploymentAdapter` complet selon le mapping
+- [x] `DeploymentPort` + `NomadDeploymentAdapter` complet selon le mapping
       de [07](07-ports-et-adapters.md#mapping-vers-lapi-http-nomad-v1-port-par-defaut-4646)
       (create/update/scale/stop/remove/getStatus/rollback).
-- [ ] `egen-api` minimal : `POST /api/v1/services`, `GET
+- [x] `egen-api` minimal : `POST /api/v1/services`, `GET
       /api/v1/services/{id}/status`.
-- [ ] Tests niveaux 1, 2, 3 (Testcontainers Nomad), et un premier test de
+- [x] Tests niveaux 1, 2, 3 (Testcontainers Nomad), et un premier test de
       niveau 5 : déployer un service fixture réel, observer sa
       convergence jusqu'à `RUNNING`.
 - **Livrable démontrable** : `curl -X POST /api/v1/services -d
@@ -52,16 +52,16 @@ Observe → Reconcile de bout en bout sur **un seul** port.
 
 ## Phase 2 — Discovery (Consul) + Registry EGEN + cycle de vie complet
 
-- [ ] `DiscoveryPort` + `ConsulDiscoveryAdapter` (voir
+- [x] `DiscoveryPort` + `ConsulDiscoveryAdapter` (voir
       [07](07-ports-et-adapters.md#discovery-port)).
-- [ ] `RegistryStorePort` + adapter PostgreSQL (voir
+- [x] `RegistryStorePort` + adapter PostgreSQL (voir
       [08](08-registry.md)), avec verrouillage optimiste sur
       `generation`.
-- [ ] `LifecycleStateMachine` complète (toutes les phases de
+- [x] `LifecycleStateMachine` complète (toutes les phases de
       [09](09-cycle-de-vie.md)), avec `Conditions`.
-- [ ] Ordre d'arrêt gracieux implémenté et testé explicitement (voir
+- [x] Ordre d'arrêt gracieux implémenté et testé explicitement (voir
       [09](09-cycle-de-vie.md#ordre-darret-gracieux--un-piege-classique)).
-- [ ] `GET /api/v1/discover/{serviceName}` exposé.
+- [x] `GET /api/v1/discover/{serviceName}` exposé.
 - **Livrable démontrable** : deux services fixtures se découvrent
   mutuellement via l'API EGEN (sans IP codée en dur), et un arrêt gracieux
   ne produit aucune erreur côté appelant pendant la fenêtre de
@@ -69,13 +69,13 @@ Observe → Reconcile de bout en bout sur **un seul** port.
 
 ## Phase 3 — Dépendances, ordonnancement, Messaging (NATS)
 
-- [ ] `DependencyGraph` complet : détection de cycle, tri topologique,
+- [x] `DependencyGraph` complet : détection de cycle, tri topologique,
       dégradation gracieuse pour dépendances optionnelles (voir
       [10](10-gestion-des-dependances.md)).
-- [ ] `MessagingPort` + `NatsMessagingAdapter` (voir
+- [x] `MessagingPort` + `NatsMessagingAdapter` (voir
       [07](07-ports-et-adapters.md#mapping-vers-lapi--nats-jetstream)),
       enveloppe CloudEvents.
-- [ ] Ordonnancement du déploiement initial multi-services respectant le
+- [x] Ordonnancement du déploiement initial multi-services respectant le
       graphe de dépendances.
 - **Livrable démontrable** : trois services fixtures liés par dépendances
   `required` se déploient dans le bon ordre ; l'un publie un événement
