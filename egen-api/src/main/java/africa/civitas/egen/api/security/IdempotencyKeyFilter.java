@@ -7,11 +7,15 @@ import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.container.ContainerResponseContext;
 import jakarta.ws.rs.container.ContainerResponseFilter;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -45,6 +49,13 @@ public class IdempotencyKeyFilter implements ContainerRequestFilter, ContainerRe
     private static final String HEADER = "Idempotency-Key";
     private static final String CACHE_KEY_PROPERTY = "egen.idempotency.cacheKey";
     private static final Duration TTL = Duration.ofMinutes(10);
+    // Les noms d'en-tete HTTP sont insensibles a la casse (RFC 7230, section
+    // 3.2) — TreeSet avec CASE_INSENSITIVE_ORDER plutot qu'un Set.of ordinaire.
+    private static final Set<String> REPLAY_EXCLUDED_HEADERS = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    static {
+        REPLAY_EXCLUDED_HEADERS.add("Content-Length");
+        REPLAY_EXCLUDED_HEADERS.add("Date");
+    }
 
     private final ConcurrentHashMap<String, CachedResponse> cache = new ConcurrentHashMap<>();
 
@@ -72,8 +83,22 @@ public class IdempotencyKeyFilter implements ContainerRequestFilter, ContainerRe
         }
         int status = responseContext.getStatus();
         if (status >= 200 && status < 300) {
-            cache.put((String) cacheKey, new CachedResponse(status, responseContext.getEntity(),
-                    responseContext.getMediaType(), Instant.now()));
+            // Toute la reponse originale est rejouee a l'identique en cas de
+            // repetition de la cle, pas seulement son corps : un en-tete
+            // comme Location (voir ServiceResource.declare()) fait partie du
+            // contrat de la reponse au meme titre que le corps JSON.
+            // Content-Length et Date sont exclus expres : ce sont des
+            // en-tetes que le conteneur doit recalculer lui-meme a partir
+            // des octets REELLEMENT ecrits au moment du rejeu (une valeur
+            // Content-Length perimee provenant de la premiere serialisation
+            // pourrait ne plus correspondre au corps effectivement renvoye).
+            MultivaluedMap<String, Object> headers = new MultivaluedHashMap<>();
+            responseContext.getHeaders().forEach((name, values) -> {
+                if (!REPLAY_EXCLUDED_HEADERS.contains(name)) {
+                    headers.put(name, values);
+                }
+            });
+            cache.put((String) cacheKey, new CachedResponse(status, responseContext.getEntity(), headers, Instant.now()));
         }
     }
 
@@ -82,15 +107,13 @@ public class IdempotencyKeyFilter implements ContainerRequestFilter, ContainerRe
         cache.values().removeIf(entry -> entry.storedAt().isBefore(cutoff));
     }
 
-    private record CachedResponse(int status, Object entity, jakarta.ws.rs.core.MediaType mediaType, Instant storedAt) {
+    private record CachedResponse(int status, Object entity, MultivaluedMap<String, Object> headers, Instant storedAt) {
         Response toResponse() {
             Response.ResponseBuilder builder = Response.status(status);
             if (entity != null) {
                 builder.entity(entity);
             }
-            if (mediaType != null) {
-                builder.type(mediaType);
-            }
+            headers.forEach((name, values) -> values.forEach(value -> builder.header(name, value)));
             return builder.header("Idempotency-Replayed", "true").build();
         }
     }
