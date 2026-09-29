@@ -52,7 +52,21 @@ public final class NatsMessagingAdapter implements MessagingPort, AutoCloseable 
     // cote client — le Kernel est seul emetteur de cette association, il la
     // garde donc lui-meme plutot que de la re-derivee a chaque appel.
     private final Map<String, String> streamNameBySubject = new ConcurrentHashMap<>();
-    private final Map<String, JetStreamSubscription> activeSubscriptions = new ConcurrentHashMap<>();
+    private final Map<String, ActiveSubscription> activeSubscriptions = new ConcurrentHashMap<>();
+
+    /**
+     * Un {@link Dispatcher} NATS dedie est cree pour chaque
+     * {@link #subscribe} (jamais partage entre deux souscriptions) —
+     * associe ici a la {@link JetStreamSubscription} qu'il porte pour que
+     * {@link #unsubscribe} puisse le fermer proprement. Une souscription
+     * push JetStream creee via un dispatcher ne peut PAS repondre a
+     * {@code JetStreamSubscription.unsubscribe()} directement (le client
+     * NATS leve {@code IllegalStateException} : "Subscriptions that belong
+     * to a dispatcher cannot respond to unsubscribe directly") — il faut
+     * fermer le dispatcher qui la porte, via {@code Connection.closeDispatcher}.
+     */
+    private record ActiveSubscription(Dispatcher dispatcher, JetStreamSubscription nativeSubscription) {
+    }
 
     /**
      * Se connecte lui-meme a NATS a partir de l'URL fournie — le client NATS
@@ -130,7 +144,7 @@ public final class NatsMessagingAdapter implements MessagingPort, AutoCloseable 
                     message -> handleMessage(message, handler), false, options);
 
             String handle = UUID.randomUUID().toString();
-            activeSubscriptions.put(handle, nativeSubscription);
+            activeSubscriptions.put(handle, new ActiveSubscription(dispatcher, nativeSubscription));
             return new Subscription(subjectOrTopic, consumerGroup, handle);
         } catch (IOException | JetStreamApiException e) {
             throw new MessagingException("Souscription impossible sur \"" + subjectOrTopic
@@ -145,9 +159,12 @@ public final class NatsMessagingAdapter implements MessagingPort, AutoCloseable 
 
     @Override
     public void unsubscribe(Subscription subscription) {
-        JetStreamSubscription nativeSubscription = activeSubscriptions.remove(subscription.nativeHandle());
-        if (nativeSubscription != null && nativeSubscription.isActive()) {
-            nativeSubscription.unsubscribe();
+        ActiveSubscription active = activeSubscriptions.remove(subscription.nativeHandle());
+        if (active != null) {
+            // Voir le javadoc d'ActiveSubscription : jamais
+            // nativeSubscription.unsubscribe() directement sur une
+            // souscription push JetStream portee par un dispatcher.
+            connection.closeDispatcher(active.dispatcher());
         }
     }
 
