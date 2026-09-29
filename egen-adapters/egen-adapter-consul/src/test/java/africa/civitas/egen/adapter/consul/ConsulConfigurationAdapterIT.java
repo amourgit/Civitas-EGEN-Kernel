@@ -71,9 +71,12 @@ class ConsulConfigurationAdapterIT {
         BlockingQueue<ResolvedConfig> notifications = new ArrayBlockingQueue<>(1);
         ConfigWatch watch = adapter.watch(ID, ENV, notifications::add);
 
-        // Laisse le watch etablir sa premiere blocking query avant de publier
-        // le changement qu'il doit detecter.
-        Thread.sleep(500);
+        // Laisse le watch etablir sa ligne de base (currentVersion) puis sa
+        // premiere blocking query avant de publier le changement qu'il doit
+        // detecter — deux allers-retours HTTP desormais (voir le correctif
+        // de ConsulConfigurationAdapter.pollLoop), d'ou une marge un peu
+        // plus large que pour un aller-retour unique.
+        Thread.sleep(800);
         adapter.publish(ID, ENV, new ConfigSet(Map.of("FEATURE_FLAG_COMMENTS", "true")));
 
         ResolvedConfig changed = notifications.poll(10, TimeUnit.SECONDS);

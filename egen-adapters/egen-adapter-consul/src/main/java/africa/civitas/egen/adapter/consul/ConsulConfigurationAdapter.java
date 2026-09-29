@@ -117,7 +117,21 @@ public final class ConsulConfigurationAdapter implements ConfigurationPort {
 
     private void pollLoop(ServiceId id, TargetEnvironment environment, ConfigChangeHandler handler,
                            AtomicBoolean active) {
-        long index = 0;
+        // Etablit d'abord l'index Consul courant SANS notifier le handler :
+        // watch() doit notifier des CHANGEMENTS survenant APRES son appel,
+        // jamais de l'etat deja present au moment ou l'on commence a
+        // observer. Sans cette ligne de base, la toute premiere requete du
+        // watch (index=0) se comporte cote Consul comme une lecture NON
+        // bloquante et renvoie immediatement la valeur deja publiee avant
+        // watch() — ce qui declenchait un onChange "fantome" portant cette
+        // valeur, pas un vrai changement.
+        long index;
+        try {
+            index = currentVersion(id, environment).index();
+        } catch (RuntimeException e) {
+            index = 0;
+        }
+
         while (active.get()) {
             try {
                 HttpResponse<String> response = send(getRequest(keyPath(id, environment), index));
