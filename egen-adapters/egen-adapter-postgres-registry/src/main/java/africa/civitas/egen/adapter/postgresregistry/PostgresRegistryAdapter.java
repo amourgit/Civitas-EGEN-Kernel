@@ -10,6 +10,7 @@ import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
+import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ReplicaRange;
 import africa.civitas.egen.domain.model.RuntimeType;
 import africa.civitas.egen.domain.model.ServiceId;
@@ -298,6 +299,11 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
         ObjectNode node = mapper.createObjectNode();
         node.put("id", manifest.id().value());
         node.put("version", manifest.version().toString());
+        // ownerTeam (Phase 4, voir docs/architecture/14-securite.md) : persiste
+        // explicitement pour que le RBAC de l'API de controle reste correct
+        // apres un redemarrage/reload depuis le Registry, pas seulement au
+        // moment du Declare initial.
+        node.put("ownerTeam", manifest.ownerTeam().isUnassigned() ? null : manifest.ownerTeam().value());
 
         ObjectNode runtime = node.putObject("runtime");
         runtime.put("type", manifest.runtime().type().name());
@@ -349,7 +355,14 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
                         Duration.ofSeconds(health.path("intervalSeconds").asLong()),
                         Duration.ofSeconds(health.path("timeoutSeconds").asLong()),
                         health.path("failuresBeforeUnhealthy").asInt()),
-                new LifecyclePolicy(Duration.ofSeconds(lifecycle.path("shutdownGracePeriodSeconds").asLong())));
+                new LifecyclePolicy(Duration.ofSeconds(lifecycle.path("shutdownGracePeriodSeconds").asLong())),
+                List.of(),
+                ownerTeamFromJson(node));
+    }
+
+    private OwnerTeam ownerTeamFromJson(JsonNode node) {
+        String team = node.path("ownerTeam").asText(null);
+        return (team == null || team.isBlank()) ? null : OwnerTeam.of(team);
     }
 
     private ArrayNode conditionsToJson(List<Condition> conditions) {

@@ -1,11 +1,14 @@
 package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.adapter.nats.NatsMessagingAdapter;
+import africa.civitas.egen.application.observability.ObservedMessagingPort;
 import africa.civitas.egen.application.port.MessagingPort;
+import africa.civitas.egen.application.port.ObservabilityPort;
 import io.quarkus.runtime.ShutdownEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -15,10 +18,16 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * rejoindra cette methode en V2 comme option, jamais par anticipation).
  * Remplacer ou ajouter un second Messaging Adapter se fait en changeant
  * uniquement cette methode (garde-fou n6,
- * docs/architecture/02-principes-fondamentaux.md).
+ * docs/architecture/02-principes-fondamentaux.md). Le bean expose au reste
+ * du Kernel est decore par {@link ObservedMessagingPort} (voir
+ * DeploymentAdapterBeans) ; {@link #onStop} ferme neanmoins l'adapter
+ * concret sous-jacent, jamais le decorateur lui-meme.
  */
 @ApplicationScoped
 public class MessagingAdapterBeans {
+
+    @Inject
+    ObservabilityPort observabilityPort;
 
     private NatsMessagingAdapter adapter;
 
@@ -30,7 +39,7 @@ public class MessagingAdapterBeans {
         if (adapter == null) {
             adapter = new NatsMessagingAdapter(natsUrl);
         }
-        return adapter;
+        return new ObservedMessagingPort(adapter, observabilityPort, "nats");
     }
 
     void onStop(@Observes ShutdownEvent event) throws InterruptedException {

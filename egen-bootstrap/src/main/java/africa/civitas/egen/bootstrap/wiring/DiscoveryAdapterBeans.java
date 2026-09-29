@@ -1,9 +1,12 @@
 package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.adapter.consul.ConsulDiscoveryAdapter;
+import africa.civitas.egen.application.observability.ObservedDiscoveryPort;
 import africa.civitas.egen.application.port.DiscoveryPort;
+import africa.civitas.egen.application.port.ObservabilityPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.net.URI;
@@ -14,9 +17,13 @@ import java.util.Optional;
  * par Consul (voir docs/architecture/07-ports-et-adapters.md). Remplacer ou
  * ajouter un second Discovery Adapter se fait en changeant uniquement cette
  * methode (garde-fou n6, docs/architecture/02-principes-fondamentaux.md).
+ * Decore par {@link ObservedDiscoveryPort} (voir DeploymentAdapterBeans).
  */
 @ApplicationScoped
 public class DiscoveryAdapterBeans {
+
+    @Inject
+    ObservabilityPort observabilityPort;
 
     @Produces
     @ApplicationScoped
@@ -29,6 +36,7 @@ public class DiscoveryAdapterBeans {
             String consulAddress,
             @ConfigProperty(name = "egen.consul.token")
             Optional<String> consulToken) {
-        return new ConsulDiscoveryAdapter(URI.create(consulAddress), consulToken.orElse(null));
+        ConsulDiscoveryAdapter adapter = new ConsulDiscoveryAdapter(URI.create(consulAddress), consulToken.orElse(null));
+        return new ObservedDiscoveryPort(adapter, observabilityPort, "consul");
     }
 }

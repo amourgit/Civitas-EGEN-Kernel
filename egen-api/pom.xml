@@ -45,6 +45,19 @@
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
     <dependency>
+      <!-- Validation du jeton JWT porteur (humains via l'IdP de
+           l'entreprise, machine-a-machine via client-credentials) ET
+           acces type aux claims (JsonWebToken, @Claim), en une seule
+           extension MicroProfile JWT standard — voir
+           docs/architecture/14-securite.md, "Authentification". Choix
+           delibere face a quarkus-oidc : combiner oidc+smallrye-jwt est un
+           second mecanisme d'authentification a part entiere que ce
+           Kernel n'a pas besoin d'ajouter, alors que smallrye-jwt seul
+           couvre deja validation + roles + claims personnalises. -->
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-jwt</artifactId>
+    </dependency>
+    <dependency>
       <groupId>africa.civitas.egen</groupId>
       <artifactId>egen-test-kit</artifactId>
       <version>${project.version}</version>
@@ -53,6 +66,14 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- @TestSecurity — stub d'identite pour les tests HTTP maintenant que
+           ServiceResource exige un appelant authentifie (voir
+           docs/architecture/14-securite.md). -->
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-security</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

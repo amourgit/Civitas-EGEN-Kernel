@@ -72,7 +72,7 @@ class OtelObservabilityAdapterTest {
                     Map.of("service", "news-service")));
             adapter.incrementCounter("egen_services_total", Map.of("phase", "RUNNING"));
             adapter.recordEvent(new ReconciliationEvent(UUID.randomUUID().toString(),
-                    ServiceId.of("news-service"), "reconcile phase=RUNNING", Instant.now()));
+                    ServiceId.of("news-service"), 1L, "reconcile phase=RUNNING", Instant.now()));
             adapter.reportCondition(ServiceId.of("news-service"),
                     new Condition("DeploymentReady", ConditionStatus.TRUE, "Converged", "ok", Instant.now()));
         });

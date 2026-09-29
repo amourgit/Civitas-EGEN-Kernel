@@ -54,6 +54,7 @@ concerné, des **exemples concrets**, et les **pièges connus**.
 | 18 | [Anti-patterns](18-anti-patterns.md) | Ce qu'il ne faut jamais faire, et pourquoi |
 | 19 | [Feuille de route](19-feuille-de-route.md) | Phases livrables + Definition of Done |
 | 20 | [Scénario de bout en bout](20-scenario-bout-en-bout.md) | Walkthrough complet, appel par appel |
+| 21 | [Système d'agents & Gateway](21-systeme-agents-et-gateway.md) | Edge Gateway (Kong), Agent Runtime, Capability Gateway, IAM/Policy — hors du Kernel, en périphérie |
 | — | [Glossaire](glossaire.md) | Vocabulaire EGEN |
 | — | [Références](references.md) | Sources d'inspiration externes |
 

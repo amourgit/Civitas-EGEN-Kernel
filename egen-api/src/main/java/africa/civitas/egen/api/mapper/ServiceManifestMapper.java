@@ -9,6 +9,7 @@ import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
+import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ReplicaRange;
 import africa.civitas.egen.domain.model.RuntimeType;
 import africa.civitas.egen.domain.model.ServiceId;
@@ -82,7 +83,22 @@ public final class ServiceManifestMapper {
             }
         }
 
-        return new ServiceManifest(id, version, runtime, deployment, health, lifecycle, dependencies);
+        // team est optionnel en lecture (retro-compatibilite, voir
+        // docs/architecture/13-api-et-contrats.md) : un manifeste qui ne le
+        // declare pas obtient OwnerTeam.unassigned() (voir OwnerTeam) plutot
+        // que de faire echouer le Declare — le RBAC cote egen-api (voir
+        // docs/architecture/14-securite.md) decide alors explicitement quoi
+        // faire d'un service sans equipe assignee.
+        OwnerTeam ownerTeam = (dto.metadata.team == null || dto.metadata.team.isBlank())
+                ? null
+                : OwnerTeam.of(dto.metadata.team);
+
+        return new ServiceManifest(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam);
+    }
+
+    /** L'equipe declaree dans un manifeste DTO, avant meme sa validation complete par {@link #toDomain}. */
+    public static String teamOf(ServiceManifestDto dto) {
+        return dto.metadata == null ? null : dto.metadata.team;
     }
 
     /**

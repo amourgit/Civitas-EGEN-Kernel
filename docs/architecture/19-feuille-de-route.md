@@ -83,19 +83,51 @@ Observe → Reconcile de bout en bout sur **un seul** port.
 
 ## Phase 4 — Configuration, Secrets, Observabilité de production
 
-- [ ] `ConfigurationPort` (voir [07](07-ports-et-adapters.md#configuration-port)),
+- [x] `ConfigurationPort` (voir [07](07-ports-et-adapters.md#configuration-port)),
       `SecretsPort` + `VaultAdapter` (voir
       [07](07-ports-et-adapters.md#secrets-port)).
-- [ ] `ObservabilityPort` OpenTelemetry complet (traces propagées de bout
-      en bout, métriques de [15.1](15-observabilite.md#les-trois-signaux-standardises-opentelemetry),
-      logs structurés).
-- [ ] Sécurité de base de l'API de contrôle : authentification + RBAC
-      scoped par équipe (voir [13](13-api-et-contrats.md),
-      [14](14-securite.md)).
+- [x] `ObservabilityPort` OpenTelemetry complet : métriques de
+      [15.1](15-observabilite.md#les-trois-signaux-standardises-opentelemetry)
+      au complet (dont `egen_dependency_unresolved_total` et les métriques
+      génériques `egen_adapter_call_duration_seconds`/`_errors_total`,
+      ajoutées via des décorateurs `Observed*Port` — voir
+      `egen-application/observability/`), logs structurés enrichis de
+      serviceId/generation/operationId/traceId, attributs de ressource
+      OTel complets (`service.name/version/namespace`,
+      `deployment.environment`).
+      **Nuance sur "traces propagées de bout en bout" (voir le livrable
+      ci-dessous) : décision explicite, pas un oubli.**
+- [x] Sécurité de base de l'API de contrôle : authentification (jeton
+      MicroProfile JWT — voir [14](14-securite.md)) + RBAC scoped par
+      équipe (`metadata.team` du manifeste, comparé au claim du jeton —
+      voir `egen-api/security/EgenSecurityContext.java`), politique HTTP
+      par défaut refusant tout sauf `/api/v1/health`. `Idempotency-Key`
+      obligatoire sur les mutations, également livré à cette étape (voir
+      [13](13-api-et-contrats.md)) bien que documenté hors de la liste
+      initiale de cette phase — implémentation V1 en mémoire de processus,
+      à remplacer par un stockage partagé le jour où plusieurs instances
+      du Kernel tournent derrière un équilibreur de charge.
 - **Livrable démontrable** : une trace unique dans Jaeger/Tempo montre le
   chemin complet d'un déploiement, de l'appel API jusqu'au premier appel
   applicatif du service déployé ; un tableau de bord Grafana répond en un
   coup d'œil aux questions de [15.2](15-observabilite.md#questions-auxquelles-lobservabilite-egen-doit-repondre-en-un-coup-doeil).
+  **Livré partiellement, par un choix architectural assumé plutôt que par
+  omission** : chaque requête HTTP entrante ouvre son propre span racine
+  (ou enfant d'un `traceparent` entrant), et chaque cycle de réconciliation
+  asynchrone ouvre le sien — conforme à [15](15-observabilite.md) qui pose
+  explicitement les deux comme des racines de spans distinctes. Comme le
+  control plane du Kernel est piloté par événements (`WorkQueue`) et
+  jamais synchrone de bout en bout, la boucle de réconciliation qui
+  effectue le premier appel réseau vers Nomad/Consul se produit
+  généralement plusieurs cycles après le Declare HTTP qui l'a déclenché —
+  les deux spans ne sont donc PAS encore liés en un seul arbre de trace
+  continu dans Jaeger ; ils restent corrélables via `serviceId`/`traceId`
+  dans les logs structurés. Lier littéralement les deux (par ex. persister
+  le `traceparent` d'origine aux côtés du `DesiredState` et l'utiliser
+  comme parent du premier cycle de réconciliation qui le consomme)
+  reste une amélioration ouverte, volontairement non faite par
+  anticipation (garde-fou n3, [02](02-principes-fondamentaux.md)) tant
+  qu'aucun besoin concret de debug ne l'a réclamée.
 
 ## Phase 5 — Moteur de Workflow et communication fabric avancée
 

@@ -25,9 +25,19 @@ public class ObservabilityAdapterBeans {
             @ConfigProperty(name = "egen.otel.endpoint", defaultValue = "http://localhost:4317")
             String otlpEndpoint,
             @ConfigProperty(name = "quarkus.application.name", defaultValue = "egen-kernel")
-            String serviceName) {
+            String serviceName,
+            @ConfigProperty(name = "quarkus.application.version", defaultValue = "0.1.0-SNAPSHOT")
+            String serviceVersion,
+            @ConfigProperty(name = "egen.otel.service-namespace", defaultValue = "egen")
+            String serviceNamespace,
+            @ConfigProperty(name = "egen.deployment-environment", defaultValue = "development")
+            String deploymentEnvironment) {
         if (adapter == null) {
-            adapter = new OtelObservabilityAdapter(otlpEndpoint, serviceName);
+            // Conventions semantiques OTel standard (service.name/version/namespace,
+            // deployment.environment) — voir docs/architecture/07-ports-et-adapters.md,
+            // "Observability Port".
+            adapter = new OtelObservabilityAdapter(otlpEndpoint, serviceName, serviceVersion,
+                    serviceNamespace, deploymentEnvironment);
         }
         return adapter;
     }

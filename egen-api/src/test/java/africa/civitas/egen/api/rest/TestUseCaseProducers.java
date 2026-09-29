@@ -1,6 +1,7 @@
 package africa.civitas.egen.api.rest;
 
 import africa.civitas.egen.application.port.DiscoveryPort;
+import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
 import africa.civitas.egen.application.registry.InMemoryRegistryStore;
@@ -11,6 +12,7 @@ import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
 import africa.civitas.egen.application.usecase.StopServiceUseCase;
 import africa.civitas.egen.application.usecase.StopServiceUseCaseImpl;
 import africa.civitas.egen.testkit.InMemoryDiscoveryPort;
+import africa.civitas.egen.testkit.NoOpObservabilityPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 
@@ -28,6 +30,7 @@ public class TestUseCaseProducers {
     private final RegistryStorePort registryStorePort = new InMemoryRegistryStore();
     private final WorkQueue workQueue = new WorkQueue();
     private final DiscoveryPort discoveryPort = new InMemoryDiscoveryPort();
+    private final ObservabilityPort observabilityPort = new NoOpObservabilityPort();
 
     @Produces
     @ApplicationScoped
@@ -57,5 +60,11 @@ public class TestUseCaseProducers {
     @ApplicationScoped
     DiscoveryPort discoveryPort() {
         return discoveryPort;
+    }
+
+    @Produces
+    @ApplicationScoped
+    ObservabilityPort observabilityPort() {
+        return observabilityPort;
     }
 }

@@ -72,9 +72,34 @@ public final class OtelObservabilityAdapter implements ObservabilityPort, AutoCl
     private final Map<String, DoubleHistogram> histograms = new ConcurrentHashMap<>();
     private final Map<String, LongCounter> counters = new ConcurrentHashMap<>();
 
+    /**
+     * Conserve pour compatibilite (tests, usages simples) — delegue avec des
+     * attributs de ressource neutres. Preferer le constructeur complet en
+     * production (voir docs/architecture/07-ports-et-adapters.md,
+     * "Observability Port" : conventions semantiques standard).
+     */
     public OtelObservabilityAdapter(String otlpEndpoint, String serviceName) {
-        Resource resource = Resource.getDefault().merge(
-                Resource.create(Attributes.of(AttributeKey.stringKey("service.name"), serviceName)));
+        this(otlpEndpoint, serviceName, "0.0.0-unknown", "egen", "development");
+    }
+
+    /**
+     * @param serviceVersion       {@code service.version} OTel — version du
+     *                             Kernel lui-meme (ex. {@code quarkus.application.version}),
+     *                             jamais la version d'un service metier deploye.
+     * @param serviceNamespace     {@code service.namespace} OTel — regroupement logique
+     *                             (ex. l'organisation ou le domaine hebergeant ce Kernel).
+     * @param deploymentEnvironment {@code deployment.environment} OTel (ex. "production",
+     *                             "staging") — voir {@link africa.civitas.egen.domain.model.TargetEnvironment}
+     *                             pour l'environnement CIBLE d'un service deploye, une notion
+     *                             distincte de l'environnement d'execution du Kernel lui-meme.
+     */
+    public OtelObservabilityAdapter(String otlpEndpoint, String serviceName, String serviceVersion,
+                                     String serviceNamespace, String deploymentEnvironment) {
+        Resource resource = Resource.getDefault().merge(Resource.create(Attributes.of(
+                AttributeKey.stringKey("service.name"), serviceName,
+                AttributeKey.stringKey("service.version"), serviceVersion,
+                AttributeKey.stringKey("service.namespace"), serviceNamespace,
+                AttributeKey.stringKey("deployment.environment"), deploymentEnvironment)));
 
         SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
                 .setResource(resource)
@@ -128,19 +153,24 @@ public final class OtelObservabilityAdapter implements ObservabilityPort, AutoCl
     @Override
     public void recordEvent(ReconciliationEvent event) {
         Span current = Span.current();
+        String traceId = current.getSpanContext().isValid() ? current.getSpanContext().getTraceId() : "none";
         if (current.getSpanContext().isValid()) {
             current.addEvent(event.message(), Attributes.of(
                     AttributeKey.stringKey("operation.id"), event.operationId(),
-                    AttributeKey.stringKey("service.id"), event.serviceId().value()));
+                    AttributeKey.stringKey("service.id"), event.serviceId().value(),
+                    AttributeKey.longKey("generation"), event.generation()));
         }
+        // Log structure toujours enrichi de serviceId/generation/operationId/traceId
+        // (voir docs/architecture/15-observabilite.md, "Les trois signaux").
         STRUCTURED_LOG.log(System.Logger.Level.INFO,
-                "operationId={0} serviceId={1} message=\"{2}\"",
-                event.operationId(), event.serviceId().value(), event.message());
+                "operationId={0} serviceId={1} generation={2} traceId={3} message=\"{4}\"",
+                event.operationId(), event.serviceId().value(), event.generation(), traceId, event.message());
     }
 
     @Override
     public void reportCondition(ServiceId id, Condition condition) {
         Span current = Span.current();
+        String traceId = current.getSpanContext().isValid() ? current.getSpanContext().getTraceId() : "none";
         if (current.getSpanContext().isValid()) {
             current.addEvent("condition:" + condition.type(), Attributes.of(
                     AttributeKey.stringKey("condition.status"), condition.status().name(),
@@ -149,8 +179,8 @@ public final class OtelObservabilityAdapter implements ObservabilityPort, AutoCl
         System.Logger.Level level = condition.status() == ConditionStatus.FALSE
                 ? System.Logger.Level.WARNING
                 : System.Logger.Level.INFO;
-        STRUCTURED_LOG.log(level, "serviceId={0} condition={1} status={2} reason=\"{3}\" message=\"{4}\"",
-                id.value(), condition.type(), condition.status(), condition.reason(), condition.message());
+        STRUCTURED_LOG.log(level, "serviceId={0} traceId={1} condition={2} status={3} reason=\"{4}\" message=\"{5}\"",
+                id.value(), traceId, condition.type(), condition.status(), condition.reason(), condition.message());
     }
 
     private static Attributes toAttributes(Map<String, String> attributes) {

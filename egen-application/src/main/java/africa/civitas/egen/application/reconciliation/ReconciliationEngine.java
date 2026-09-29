@@ -166,7 +166,7 @@ public final class ReconciliationEngine implements AutoCloseable {
         }
         DesiredState desired = desiredOpt.get();
         ServiceStatus current = registryStorePort.findStatus(id).orElse(ServiceStatus.initial());
-        observabilityPort.recordEvent(new ReconciliationEvent(operationId, id,
+        observabilityPort.recordEvent(new ReconciliationEvent(operationId, id, desired.generation(),
                 "reconcile phase=" + current.phase(), Instant.now()));
 
         // Etats stables en v0, jamais de retry infini silencieux (garde-fou
@@ -213,6 +213,11 @@ public final class ReconciliationEngine implements AutoCloseable {
                     .orElse(false);
             if (!running) {
                 (dependency.required() ? unsatisfiedRequired : unsatisfiedOptional).add(dependency);
+                // Metrique minimale V1 (voir docs/architecture/15-observabilite.md,
+                // "egen_dependency_unresolved_total{service, dependency}").
+                observabilityPort.incrementCounter("egen_dependency_unresolved_total",
+                        Map.of("service", id.value(), "dependency", dependency.serviceId().value(),
+                                "required", String.valueOf(dependency.required())));
             }
         }
 

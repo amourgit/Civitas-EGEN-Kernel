@@ -1,11 +1,14 @@
 package africa.civitas.egen.api.rest;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import io.restassured.RestAssured;
 import io.restassured.config.EncoderConfig;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
@@ -41,8 +44,20 @@ import static org.hamcrest.Matchers.is;
  * {@code RUNNING}, qui releve d'un test de niveau 5 (voir
  * docs/architecture/17-strategie-de-tests.md) avec un ReconciliationEngine
  * reellement cable et actif.</p>
+ *
+ * <p><b>{@link TestSecurity}</b> : depuis la Phase 4
+ * (docs/architecture/14-securite.md), toute methode de {@link ServiceResource}
+ * exige un appelant authentifie, et une mutation sans equipe declaree dans
+ * le manifeste (le cas de {@code MANIFEST_YAML} ci-dessous, qui ne porte
+ * pas {@code metadata.team}) exige un appelant administrateur (voir
+ * {@code EgenSecurityContext.assertCanDeclare}). Le role {@code egen-admin}
+ * simule ici cet appelant, sans avoir a configurer un IdP OIDC reel pour ce
+ * test au niveau module (voir docs/architecture/17-strategie-de-tests.md,
+ * les tests de niveau 2/3 restent decouples d'une infrastructure externe
+ * reelle).</p>
  */
 @QuarkusTest
+@TestSecurity(user = "test-admin", roles = "egen-admin")
 class ServiceResourceTest {
 
     @BeforeAll
@@ -78,6 +93,11 @@ class ServiceResourceTest {
                 failuresBeforeUnhealthy: 3
             """;
 
+    /** Une valeur fraiche a chaque appel — voir docs/architecture/13-api-et-contrats.md, "Idempotency-Key". */
+    private static String freshIdempotencyKey() {
+        return UUID.randomUUID().toString();
+    }
+
     @Test
     void healthRespondsUp() {
         given()
@@ -90,6 +110,7 @@ class ServiceResourceTest {
     void declareRespondsAcceptedAndStatusIsThenReadable() {
         String location = given()
                 .contentType("application/yaml")
+                .header("Idempotency-Key", freshIdempotencyKey())
                 .body(MANIFEST_YAML)
                 .when().post("/api/v1/services")
                 .then().statusCode(202)
@@ -106,6 +127,39 @@ class ServiceResourceTest {
     }
 
     @Test
+    void declareWithoutIdempotencyKeyIsRejected() {
+        given()
+                .contentType("application/yaml")
+                .body(MANIFEST_YAML)
+                .when().post("/api/v1/services")
+                .then().statusCode(400);
+    }
+
+    @Test
+    void repeatingTheSameIdempotencyKeyReplaysTheFirstResponseInstead() {
+        String key = freshIdempotencyKey();
+
+        String firstLocation = given()
+                .contentType("application/yaml")
+                .header("Idempotency-Key", key)
+                .body(MANIFEST_YAML)
+                .when().post("/api/v1/services")
+                .then().statusCode(202)
+                .extract().header("Location");
+
+        String secondLocation = given()
+                .contentType("application/yaml")
+                .header("Idempotency-Key", key)
+                .body(MANIFEST_YAML)
+                .when().post("/api/v1/services")
+                .then().statusCode(202)
+                .header("Idempotency-Replayed", is("true"))
+                .extract().header("Location");
+
+        org.junit.jupiter.api.Assertions.assertEquals(firstLocation, secondLocation);
+    }
+
+    @Test
     void statusForAnUndeclaredServiceReturns404() {
         given()
                 .when().get("/api/v1/services/never-declared-service/status")
@@ -115,6 +169,7 @@ class ServiceResourceTest {
     @Test
     void stopActionOnAnUndeclaredServiceReturns404() {
         given()
+                .header("Idempotency-Key", freshIdempotencyKey())
                 .when().post("/api/v1/services/never-declared-service/actions/stop")
                 .then().statusCode(404);
     }
@@ -132,6 +187,7 @@ class ServiceResourceTest {
     void dependencyGraphIncludesDeclaredServicesAndTheirEdges() {
         given()
                 .contentType("application/yaml")
+                .header("Idempotency-Key", freshIdempotencyKey())
                 .body(MANIFEST_YAML)
                 .when().post("/api/v1/services")
                 .then().statusCode(202);
