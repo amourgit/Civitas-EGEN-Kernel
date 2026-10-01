@@ -10,7 +10,7 @@ existant — il montre où un système d'agents vient se brancher sur eux.)*
 
 Trois repositories distincts, trois cycles de vie de déploiement distincts,
 réunis seulement au moment du déploiement par une pipeline commune (voir
-[21.8](#218--pipeline-de-déploiement-générale)) :
+[21.8](#218--pipeline-de-deploiement-generale)) :
 
 ```
 Civitas-EGEN-Kernel/          ce dépôt — control plane pur, ne sait rien
@@ -54,7 +54,7 @@ de la gestion d'API (clés, quotas, routage, observabilité de bord).
 Décision actée par le commanditaire : Kong est un projet de déploiement à
 part entière, pas un service interne du Kernel. Il est déclaré dans la
 pipeline générale de déploiement de l'entreprise (voir
-[21.8](#218--pipeline-de-déploiement-générale)), au même titre que le
+[21.8](#218--pipeline-de-deploiement-generale)), au même titre que le
 frontend et le Kernel lui-même — **pas** via un `ServiceManifest` déployé
 *par* le Kernel, puisqu'il se trouve topologiquement *devant* lui et doit
 pouvoir démarrer indépendamment de la santé du Kernel (sinon une panne du
@@ -261,7 +261,7 @@ métier particulier.
   l'Agent Runtime connaît nativement est *« appeler le Capability
   Gateway »* — jamais un client HTTP vers RH, GED ou Finance directement.
   Le catalogue d'outils réel est injecté dynamiquement au démarrage de
-  session (voir [21.4](#214--capability-gateway--le-cœur-du-système)),
+  session (voir [21.4](#214--capability-gateway--le-coeur-du-systeme)),
   pas codé dans le graphe.
 - **Isolation stricte de la mémoire par utilisateur** (et par organisation
   si le système sert plusieurs entreprises) : checkpoints et mémoire
@@ -269,7 +269,7 @@ métier particulier.
   partagée entre deux utilisateurs.
 - **HITL obligatoire sur les opérations `risk: write` ou `risk:
   sensitive`** déclarées dans le descripteur MCP du service
-  ([21.3](#213--le-service-manifest-sétend-jamais-ne-se-casse)) : le
+  ([21.3](#213--le-service-manifest-setend-jamais-ne-se-casse)) : le
   graphe s'arrête sur un `interrupt()`, l'utilisateur (ou un valideur
   désigné par la politique) confirme avant que le Capability Gateway
   n'exécute réellement l'appel.
@@ -339,7 +339,7 @@ doit jamais être réputé fonctionnel sans lui :
    de l'IAM.
 2. Chacun ouvre une session sur l'Agent Gateway. Le catalogue d'outils
    reçu par leurs deux Agent Runtime respectifs **diffère** — c'est la
-   preuve que le filtrage en amont ([21.4](#214--capability-gateway--le-cœur-du-système))
+   preuve que le filtrage en amont ([21.4](#214--capability-gateway--le-coeur-du-systeme))
    fonctionne.
 3. Le premier utilisateur demande une action `risk: write` qu'il a le
    droit d'effectuer : l'agent s'arrête sur une confirmation HITL, il
@@ -364,7 +364,7 @@ doit jamais être réputé fonctionnel sans lui :
    marquée comme non définitive).
 3. IAM (Keycloak) et Policy Engine réel (OpenFGA en premier choix pour sa
    simplicité de modèle ReBAC) ; le test d'acceptation
-   [21.9](#219--test-dacceptation-de-bout-en-bout-du-système-dagents)
+   [21.9](#219--test-dacceptation-de-bout-en-bout-du-systeme-dagents)
    étape 2 devient possible.
 4. Agent Gateway + Agent Runtime avec un seul agent, sans supervisor ni
    swarm encore.

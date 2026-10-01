@@ -1,6 +1,7 @@
 package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.application.port.RegistryStorePort;
+import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
 import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
@@ -27,10 +28,13 @@ public class UseCaseBeans {
     @Inject
     WorkQueue workQueue;
 
+    @Inject
+    PendingDeclareTraces pendingDeclareTraces;
+
     @Produces
     @ApplicationScoped
     public DeployServiceUseCase deployServiceUseCase() {
-        return new DeployServiceUseCaseImpl(registryStorePort, workQueue);
+        return new DeployServiceUseCaseImpl(registryStorePort, workQueue, pendingDeclareTraces);
     }
 
     @Produces
@@ -42,6 +46,6 @@ public class UseCaseBeans {
     @Produces
     @ApplicationScoped
     public StopServiceUseCase stopServiceUseCase() {
-        return new StopServiceUseCaseImpl(registryStorePort, workQueue);
+        return new StopServiceUseCaseImpl(registryStorePort, workQueue, pendingDeclareTraces);
     }
 }

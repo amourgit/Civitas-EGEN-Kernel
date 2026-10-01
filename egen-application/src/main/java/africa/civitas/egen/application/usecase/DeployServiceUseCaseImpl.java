@@ -1,6 +1,8 @@
 package africa.civitas.egen.application.usecase;
 
 import africa.civitas.egen.application.port.RegistryStorePort;
+import africa.civitas.egen.application.port.TraceContext;
+import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
 import africa.civitas.egen.domain.dependency.DependencyGraph;
 import africa.civitas.egen.domain.model.Dependency;
@@ -29,17 +31,41 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
 
     private final RegistryStorePort registryStorePort;
     private final WorkQueue workQueue;
+    private final PendingDeclareTraces pendingDeclareTraces;
 
+    /**
+     * Conserve pour compatibilite (tests, usages qui n'ont pas besoin de
+     * propager de trace) : cree son propre {@link PendingDeclareTraces}
+     * isole, non partage avec un {@code ReconciliationEngine} — le lien de
+     * trace ne fonctionnera donc simplement pas pour cette instance, sans
+     * aucune autre consequence (voir la javadoc de
+     * {@link #declare(ServiceManifest, TargetEnvironment, TraceContext)}).
+     * En production, {@code egen-bootstrap} cable toujours le constructeur
+     * a 3 arguments avec l'instance PARTAGEE injectee.
+     */
     public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue) {
+        this(registryStorePort, workQueue, new PendingDeclareTraces());
+    }
+
+    public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue,
+                                     PendingDeclareTraces pendingDeclareTraces) {
         this.registryStorePort = registryStorePort;
         this.workQueue = workQueue;
+        this.pendingDeclareTraces = pendingDeclareTraces;
     }
 
     @Override
     public DeclareResult declare(ServiceManifest manifest, TargetEnvironment targetEnvironment) {
+        return declare(manifest, targetEnvironment, null);
+    }
+
+    @Override
+    public DeclareResult declare(ServiceManifest manifest, TargetEnvironment targetEnvironment,
+                                  TraceContext triggeringTrace) {
         assertNoCycleIntroduced(manifest);
 
         DesiredState saved = registryStorePort.save(new DesiredState(manifest, 0L, targetEnvironment));
+        pendingDeclareTraces.record(saved.serviceId(), saved.generation(), triggeringTrace);
         workQueue.enqueue(saved.serviceId());
         return new DeclareResult(saved.serviceId(), saved.generation());
     }

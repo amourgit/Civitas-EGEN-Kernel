@@ -4,6 +4,7 @@ import africa.civitas.egen.application.port.DeploymentPort;
 import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
+import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.ReconciliationEngine;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
 import io.quarkus.runtime.ShutdownEvent;
@@ -37,6 +38,9 @@ public class ReconciliationEngineBeans {
     @Inject
     ObservabilityPort observabilityPort;
 
+    @Inject
+    PendingDeclareTraces pendingDeclareTraces;
+
     private ReconciliationEngine engine;
 
     @Produces
@@ -44,7 +48,7 @@ public class ReconciliationEngineBeans {
     public ReconciliationEngine reconciliationEngine() {
         if (engine == null) {
             engine = new ReconciliationEngine(workQueue, registryStorePort, deploymentPort, discoveryPort,
-                    observabilityPort);
+                    observabilityPort, pendingDeclareTraces);
         }
         return engine;
     }

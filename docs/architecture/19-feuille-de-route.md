@@ -129,6 +129,66 @@ Observe → Reconcile de bout en bout sur **un seul** port.
   anticipation (garde-fou n3, [02](02-principes-fondamentaux.md)) tant
   qu'aucun besoin concret de debug ne l'a réclamée.
 
+## Chantier parallèle — Système d'agents & Edge Gateway (hors de ce dépôt)
+
+**Ajouté après coup (voir [21](21-systeme-agents-et-gateway.md)) : ce
+chantier ne figurait pas dans les phases initiales ci-dessus.** Il est
+inséré ici, entre les Phases 4 et 5, parce que c'est exactement le moment
+où il devient possible de commencer — pas avant (il a besoin d'une API de
+contrôle authentifiée et RBAC, livrée en Phase 4), pas forcément après (il
+n'a pas besoin, sauf sur un point précis signalé plus bas, d'attendre la
+Phase 5).
+
+**Ceci n'est pas une phase du Kernel.** Elle ne produit aucun livrable
+dans `Civitas-EGEN-Kernel` (à une seule exception explicite ci-dessous) —
+le code correspondant vit dans deux dépôts séparés,
+`Civitas-EGEN-Edge-Gateway` et `Civitas-EGEN-Agents`, chacun avec son
+propre cycle de release (voir [21.0](21-systeme-agents-et-gateway.md#210--ou-vit-ce-systeme-et-ou-il-ne-vit-pas)).
+Le Kernel reste ce qu'il a toujours été : un control plane qui ne connaît
+ni utilisateurs, ni agents, ni le sens des capacités qu'un service expose
+(garde-fou n°1, [02](02-principes-fondamentaux.md)).
+
+Le détail complet (services, responsabilités, sécurité, ordre de
+construction) est entièrement dans [21](21-systeme-agents-et-gateway.md) —
+cette section ne le duplique pas, elle situe seulement ce chantier par
+rapport aux phases du Kernel ci-dessus et ci-dessous.
+
+- [ ] **Seul point qui touche réellement ce dépôt** : le bloc optionnel
+      `interfaces` dans `ServiceManifest`, additif et rétro-compatible,
+      décrit en [21.3](21-systeme-agents-et-gateway.md#213--le-service-manifest-setend-jamais-ne-se-casse)
+      (`interfaces: [{type: mcp|openapi, ref, riskDefault}]`). Sans lui,
+      aucun service ne peut annoncer ses capacités au Capability Gateway.
+      Prérequis explicite à l'étape 1 de
+      [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommande) —
+      rien de plus, jamais de logique d'interprétation de ce bloc côté
+      Kernel (il reste une chaîne opaque, comme `deployment.image`).
+- [ ] Étapes 1 à 6 de [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommande)
+      (service fixture → Capability Gateway → IAM/Policy Engine → Agent
+      Gateway/Runtime à un seul agent → HITL/audit/quotas → supervisor et
+      swarm) : peuvent démarrer dès aujourd'hui, en parallèle de la Phase
+      5 ci-dessous — aucune des deux ne bloque l'autre.
+- [ ] Étape 7 de [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommande)
+      (brancher le Workflow Engine du Kernel comme outil de l'agent) : la
+      **seule** dépendance stricte envers ce dépôt — ne peut pas commencer
+      avant que `WorkflowEnginePort` (Phase 5 ci-dessous) soit livré.
+- [ ] Étape 8 (services métier réels, un par un, chacun avec son bloc
+      `interfaces`) : en continu, au rythme de `Civitas-EGEN-Business`.
+- [ ] Edge Gateway (Kong ou équivalent, voir
+      [21.1](21-systeme-agents-et-gateway.md#211--edge-gateway-kong--la-porte-dentree-unique)) :
+      projet de déploiement à part entière, jamais un service EGEN déclaré
+      *auprès* du Kernel (il se trouve topologiquement devant lui). Sa
+      mise en place peut commencer indépendamment de tout le reste de ce
+      chantier, dès que la pipeline de déploiement générale
+      ([21.8](21-systeme-agents-et-gateway.md#218--pipeline-de-deploiement-generale))
+      est prête à l'accueillir.
+- **Livrable démontrable** : le test d'acceptation de
+  [21.9](21-systeme-agents-et-gateway.md#219--test-dacceptation-de-bout-en-bout-du-systeme-dagents)
+  passe en entier — deux utilisateurs de deux équipes différentes
+  obtiennent deux catalogues d'outils différents, une action `risk: write`
+  passe par une confirmation HITL et produit un enregistrement d'audit, et
+  une tentative de contournement du catalogue filtré est refusée au niveau
+  du Capability Gateway, pas seulement masquée côté Agent Runtime.
+
 ## Phase 5 — Moteur de Workflow et communication fabric avancée
 
 - [ ] `WorkflowEnginePort` natif (voir [11](11-moteur-de-workflow.md)),

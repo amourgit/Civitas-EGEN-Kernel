@@ -117,7 +117,12 @@ public class ServiceResource {
                 TargetEnvironment targetEnvironment = TargetEnvironment.of(
                         environment != null && !environment.isBlank() ? environment : defaultEnvironment);
 
-                DeclareResult result = deployServiceUseCase.declare(manifest, targetEnvironment);
+                // span.context() propage jusqu'au premier cycle de
+                // reconciliation qui en resulte, meme quand l'appelant n'a
+                // fourni aucun traceparent (le span http.declare lui-meme
+                // sert alors de racine a lier) — voir
+                // PendingDeclareTraces et docs/architecture/15-observabilite.md.
+                DeclareResult result = deployServiceUseCase.declare(manifest, targetEnvironment, span.context());
                 String statusUrl = "/api/v1/services/" + result.serviceId().value() + "/status";
 
                 return Response.accepted(
@@ -168,7 +173,7 @@ public class ServiceResource {
             try {
                 ServiceId serviceId = ServiceId.of(id);
                 assertOwnsOrAdminIfKnown(serviceId);
-                stopServiceUseCase.stop(serviceId);
+                stopServiceUseCase.stop(serviceId, span.context());
                 return Response.accepted().build();
             } catch (ServiceNotFoundException e) {
                 throw new NotFoundException(e.getMessage());

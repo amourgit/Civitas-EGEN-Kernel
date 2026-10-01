@@ -75,6 +75,8 @@ public final class ReconciliationEngine implements AutoCloseable {
     private final ConcurrentHashMap<ServiceId, Instant> stoppingDeregisteredAt =
             new ConcurrentHashMap<>();
 
+    private final PendingDeclareTraces pendingDeclareTraces;
+
     private final Thread worker;
     private final ScheduledExecutorService resyncScheduler =
             Executors.newSingleThreadScheduledExecutor(r -> {
@@ -84,14 +86,29 @@ public final class ReconciliationEngine implements AutoCloseable {
             });
     private volatile boolean running = false;
 
+    /**
+     * Conserve pour compatibilite (tests qui ne verifient pas le lien de
+     * trace declare/reconciliation) : cree son propre
+     * {@link PendingDeclareTraces} isole, jamais partage avec un use case —
+     * le lien de trace ne fonctionne simplement pas pour cette instance.
+     */
     public ReconciliationEngine(WorkQueue workQueue, RegistryStorePort registryStorePort,
                                  DeploymentPort deploymentPort, DiscoveryPort discoveryPort,
                                  ObservabilityPort observabilityPort) {
+        this(workQueue, registryStorePort, deploymentPort, discoveryPort, observabilityPort,
+                new PendingDeclareTraces());
+    }
+
+    public ReconciliationEngine(WorkQueue workQueue, RegistryStorePort registryStorePort,
+                                 DeploymentPort deploymentPort, DiscoveryPort discoveryPort,
+                                 ObservabilityPort observabilityPort,
+                                 PendingDeclareTraces pendingDeclareTraces) {
         this.workQueue = workQueue;
         this.registryStorePort = registryStorePort;
         this.deploymentPort = deploymentPort;
         this.discoveryPort = discoveryPort;
         this.observabilityPort = observabilityPort;
+        this.pendingDeclareTraces = pendingDeclareTraces;
         this.worker = new Thread(this::runLoop, "egen-reconcile-worker");
         this.worker.setDaemon(true);
     }
@@ -141,15 +158,30 @@ public final class ReconciliationEngine implements AutoCloseable {
      * "chaque cycle de reconciliation genere un span racine
      * reconcile(serviceId)") et d'un {@code operationId} correle aux logs
      * (voir docs/architecture/04-moteur-de-reconciliation.md, §4.3).
+     *
+     * <p>Le span racine n'est PAS systematiquement independant : si un
+     * appel Declare ou Stop de l'API de controle a enregistre un contexte
+     * de trace en attente pour cette generation precise (voir
+     * {@link PendingDeclareTraces}), ce cycle — et ceux qui suivront tant
+     * que le premier appel reseau reel n'aura pas eu lieu — devient un
+     * enfant de ce contexte, realisant la propagation de bout en bout
+     * demandee par docs/architecture/15-observabilite.md. Sans contexte en
+     * attente (resync periodique, convergence en cours, generation
+     * perimee), le span racine reste independant comme avant.</p>
      */
     void reconcile(ServiceId id) {
         Instant startedAt = Instant.now();
-        TraceSpan rootSpan = observabilityPort.startSpan("reconcile", null);
+        Optional<DesiredState> desiredOpt = registryStorePort.findById(id);
+        TraceContext triggeringParent = desiredOpt
+                .flatMap(desired -> pendingDeclareTraces.peek(id, desired.generation()))
+                .orElse(null);
+
+        TraceSpan rootSpan = observabilityPort.startSpan("reconcile", triggeringParent);
         rootSpan.setAttribute("service.id", id.value());
         String operationId = UUID.randomUUID().toString();
         rootSpan.setAttribute("operation.id", operationId);
         try {
-            reconcileInternal(id, operationId, rootSpan);
+            reconcileInternal(id, desiredOpt, operationId, rootSpan);
         } finally {
             rootSpan.close();
             double seconds = Duration.between(startedAt, Instant.now()).toNanos() / 1_000_000_000.0;
@@ -158,8 +190,8 @@ public final class ReconciliationEngine implements AutoCloseable {
         }
     }
 
-    private void reconcileInternal(ServiceId id, String operationId, TraceSpan rootSpan) {
-        Optional<DesiredState> desiredOpt = registryStorePort.findById(id);
+    private void reconcileInternal(ServiceId id, Optional<DesiredState> desiredOpt, String operationId,
+                                    TraceSpan rootSpan) {
         if (desiredOpt.isEmpty()) {
             LOG.log(Level.WARNING, "Reconciliation demandee pour un service inconnu : {0}", id);
             return;
@@ -243,6 +275,10 @@ public final class ReconciliationEngine implements AutoCloseable {
 
         withChildSpan(parent, "deployment.create",
                 () -> deploymentPort.create(id, desired.manifest().deployment()));
+        // Premier appel reseau reel effectue pour cette generation : le lien
+        // de trace avec l'appel Declare d'origine a rempli son role (voir
+        // docs/architecture/15-observabilite.md et PendingDeclareTraces).
+        pendingDeclareTraces.clear(id);
         advanceTo(id, current, Phase.DEPLOYING, desired.generation(),
                 mergeConditions(current.conditions(), dependenciesCondition));
         workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
@@ -253,6 +289,11 @@ public final class ReconciliationEngine implements AutoCloseable {
     }
 
     private void observeAndConverge(ServiceId id, ServiceStatus current, DesiredState desired, TraceContext parent) {
+        // Filet de securite : si ce cycle atteint DEPLOYING/RUNNING/DEGRADED
+        // sans etre jamais passe par handleConfigured pour cette generation
+        // dans ce processus (ex. redemarrage du Kernel en cours de
+        // convergence), le lien de trace n'a jamais ete purge — no-op sinon.
+        pendingDeclareTraces.clear(id);
         // Level-triggered : on re-delegue (idempotent) avant d'observer, pour
         // corriger tout ecart meme si un cycle precedent a ete interrompu.
         withChildSpan(parent, "deployment.create",
@@ -336,6 +377,9 @@ public final class ReconciliationEngine implements AutoCloseable {
                     discoveryPort.deregister(id, allocation.allocationId());
                 }
             });
+            // Premier appel reseau reel de ce Stop : voir le meme
+            // raisonnement que dans handleConfigured.
+            pendingDeclareTraces.clear(id);
             stoppingDeregisteredAt.put(id, Instant.now());
             workQueue.requeueAfter(id, gracePeriod);
             return;
