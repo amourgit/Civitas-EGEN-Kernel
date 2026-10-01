@@ -94,9 +94,10 @@ Observe → Reconcile de bout en bout sur **un seul** port.
       `egen-application/observability/`), logs structurés enrichis de
       serviceId/generation/operationId/traceId, attributs de ressource
       OTel complets (`service.name/version/namespace`,
-      `deployment.environment`).
-      **Nuance sur "traces propagées de bout en bout" (voir le livrable
-      ci-dessous) : décision explicite, pas un oubli.**
+      `deployment.environment`). La trace HTTP entrante est liée au
+      premier cycle de réconciliation qui en résulte, jusqu'à son premier
+      appel réseau réel (voir `PendingDeclareTraces` et le livrable
+      ci-dessous — complété après coup, voir l'historique Git).
 - [x] Sécurité de base de l'API de contrôle : authentification (jeton
       MicroProfile JWT — voir [14](14-securite.md)) + RBAC scoped par
       équipe (`metadata.team` du manifeste, comparé au claim du jeton —
@@ -111,23 +112,21 @@ Observe → Reconcile de bout en bout sur **un seul** port.
   chemin complet d'un déploiement, de l'appel API jusqu'au premier appel
   applicatif du service déployé ; un tableau de bord Grafana répond en un
   coup d'œil aux questions de [15.2](15-observabilite.md#questions-auxquelles-lobservabilite-egen-doit-repondre-en-un-coup-doeil).
-  **Livré partiellement, par un choix architectural assumé plutôt que par
-  omission** : chaque requête HTTP entrante ouvre son propre span racine
-  (ou enfant d'un `traceparent` entrant), et chaque cycle de réconciliation
-  asynchrone ouvre le sien — conforme à [15](15-observabilite.md) qui pose
-  explicitement les deux comme des racines de spans distinctes. Comme le
-  control plane du Kernel est piloté par événements (`WorkQueue`) et
-  jamais synchrone de bout en bout, la boucle de réconciliation qui
-  effectue le premier appel réseau vers Nomad/Consul se produit
-  généralement plusieurs cycles après le Declare HTTP qui l'a déclenché —
-  les deux spans ne sont donc PAS encore liés en un seul arbre de trace
-  continu dans Jaeger ; ils restent corrélables via `serviceId`/`traceId`
-  dans les logs structurés. Lier littéralement les deux (par ex. persister
-  le `traceparent` d'origine aux côtés du `DesiredState` et l'utiliser
-  comme parent du premier cycle de réconciliation qui le consomme)
-  reste une amélioration ouverte, volontairement non faite par
-  anticipation (garde-fou n3, [02](02-principes-fondamentaux.md)) tant
-  qu'aucun besoin concret de debug ne l'a réclamée.
+  **Livré en entier.** Le span `http.declare`/`http.stop` et les cycles de
+  réconciliation qu'il déclenche (`reconcile`, puis ses enfants
+  `deployment.create`/`discovery.deregister`) apparaissent désormais comme
+  un seul arbre de trace continu dans Jaeger, grâce a
+  `PendingDeclareTraces` (`egen-application.reconciliation`) : un petit
+  registre en mémoire, jamais persisté ni transitant par la `WorkQueue`
+  (qui reste strictement des clés, voir
+  [04](04-moteur-de-reconciliation.md)), qui relie le contexte de trace
+  HTTP au premier cycle de réconciliation concerné, le temps que ce cycle
+  atteigne son premier appel réseau réel — au-delà, les cycles de
+  convergence et de resync redeviennent des racines indépendantes, exactement
+  la portée que demande [15](15-observabilite.md) ("jusqu'au premier appel
+  réseau", jamais au-delà). Resync périodique et convergence continuent de
+  produire des racines de span indépendantes, conformément à
+  [15](15-observabilite.md).
 
 ## Chantier parallèle — Système d'agents & Edge Gateway (hors de ce dépôt)
 
