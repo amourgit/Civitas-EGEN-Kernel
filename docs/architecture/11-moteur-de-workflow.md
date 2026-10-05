@@ -85,6 +85,29 @@ Kernel — propriété identique à celle offerte par Dapr Workflow ou Temporal,
 indispensable dès qu'un workflow dépasse quelques secondes ou implique un
 appel asynchrone en attente de callback.
 
+```java
+public interface WorkflowStorePort {
+    WorkflowExecution save(WorkflowExecution execution);         // upsert — persiste l'etat COURANT, append-only via WorkflowExecution.withStepResult
+    Optional<WorkflowExecution> findById(ExecutionId id);
+    List<ExecutionId> findRunningExecutions();                   // reprise au demarrage du Kernel (voir ci-dessus)
+    Optional<WorkflowDefinition> findDefinition(WorkflowId id);
+    WorkflowDefinition saveDefinition(WorkflowDefinition definition);
+}
+```
+
+- Implémentation V1 : **PostgreSQL**, le même store que `RegistryStorePort`
+  ([08](08-registry.md)) — pas une base dédiée au Workflow Engine, pour la
+  même raison que `ConfigurationPort` réutilise l'agent Consul déjà présent
+  plutôt que d'introduire un système supplémentaire (garde-fou n3,
+  [02](02-principes-fondamentaux.md)). `WorkflowDefinition`/
+  `WorkflowExecution` sont deux tables distinctes de `desired_state`/
+  `observed_status`, dans la même base.
+- `findRunningExecutions()` est ce qui permet au Moteur de Workflow de
+  reconstruire, après un redémarrage du Kernel, la liste des exécutions
+  à reprendre — exactement le même besoin que
+  `RegistryStorePort.findAllIds()` sert déjà à la boucle de
+  réconciliation des services au démarrage.
+
 ## Compensation — le cœur de la robustesse Saga
 
 Si l'étape `publish` échoue après que `reserve-notification-slot` a

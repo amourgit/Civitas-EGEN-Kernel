@@ -272,3 +272,54 @@ public interface ObservabilityPort {
   par le port — EGEN génère la télémétrie au format OpenTelemetry (OTLP),
   peu importe qui la consomme ensuite. Détail complet :
   [15 — Observabilité](15-observabilite.md).
+
+## Service Invocation Port
+
+**Ajouté en Phase 5** ([19](19-feuille-de-route.md)), absent de la
+rédaction initiale de ce document — le Moteur de Workflow
+([11](11-moteur-de-workflow.md)) est le premier composant du Kernel à
+avoir besoin d'émettre lui-même un appel HTTP sortant vers un service
+déployé (une étape `POST /internal/validate`, par exemple) : aucun des
+six domaines ci-dessus ne couvrait ce besoin.
+
+```java
+public interface ServiceInvocationPort {
+    InvocationResult invoke(URI endpoint, String method, Map<String, String> payload, Duration timeout);
+}
+```
+
+- **Ne fait jamais de découverte lui-même.** `endpoint` est une URI déjà
+  résolue — l'appelant (le Moteur de Workflow, en
+  `egen-application`) obtient l'adresse d'une instance saine via
+  `DiscoveryPort.resolve(ServiceId)` ([Discovery Port](#discovery-port),
+  déjà existant) et construit l'URI à partir de
+  `ResolvedInstance.address()`/`port()`. Séparer strictement résolution et
+  invocation évite de dupliquer dans ce nouveau port une logique de
+  sélection d'instance qui existe déjà.
+- **`payload`/`InvocationResult.body` restent `Map<String, String>`**,
+  jamais un type JSON concret : même garde-fou que `ConfigSet`/
+  `ResolvedConfig` ([Configuration Port](#configuration-port)) — EGEN
+  reste neutre vis-à-vis du contenu métier échangé. C'est l'**adapter**
+  (jamais `egen-application`, voir
+  [02](02-principes-fondamentaux.md)) qui sérialise/désérialise le JSON
+  réel sur le fil, via la bibliothèque de son choix.
+- **Jamais pour une opération `EVENT ...`** d'une étape de workflow — ce
+  cas-là passe par `MessagingPort.publish` ([Messaging
+  Port](#messaging-port)), déjà existant et déjà conçu pour ça. Ce port-ci
+  ne sert que les opérations `operation: "MÉTHODE /chemin"` (voir
+  [11](11-moteur-de-workflow.md), "Définition déclarative d'un workflow").
+- **Timeout obligatoire, jamais un timeout par défaut implicite caché
+  dans l'adapter** — l'appelant connaît le `timeout` propre à l'étape
+  (`Step.timeout()`), c'est la seule source de vérité.
+- Implémentation V1 : `java.net.http.HttpClient` (JDK, zéro dépendance
+  supplémentaire) — pas de bibliothèque HTTP tierce pour un besoin aussi
+  simple (garde-fou n3, [02](02-principes-fondamentaux.md)). La
+  sérialisation JSON du `payload`/`InvocationResult.body` utilise Jackson,
+  déjà présent dans la stack (voir `egen-adapter-postgres-registry`, qui
+  l'utilise déjà pour les mêmes raisons).
+- `InvocationResult` est un DTO neutre : `{ int statusCode, Map<String,
+  String> body }` — un code `4xx`/`5xx` est une réponse valide, jamais une
+  exception : c'est au Moteur de Workflow de décider, selon
+  `RetryPolicy`, si ce statut doit déclencher une nouvelle tentative ou un
+  échec d'étape. Seule une erreur réseau (DNS, connexion refusée, timeout)
+  lève une exception.

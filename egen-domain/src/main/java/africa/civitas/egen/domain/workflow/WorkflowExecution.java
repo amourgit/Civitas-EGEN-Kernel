@@ -53,6 +53,36 @@ public final class WorkflowExecution {
         return new WorkflowExecution(workflowId, executionId, WorkflowExecutionStatus.RUNNING, List.of(), startedAt);
     }
 
+    /**
+     * Reconstruit une execution dans un etat DEJA connu comme valide (lu
+     * depuis la persistance) — contourne deliberement la validation de
+     * {@link WorkflowExecutionStateMachine} : il ne s'agit pas d'une
+     * TRANSITION mais de la restitution d'un fait historique deja valide
+     * au moment ou il a ete persiste (voir
+     * docs/architecture/11-moteur-de-workflow.md, "Durabilite de
+     * l'execution"). Reserve aux adapters {@code WorkflowStorePort} —
+     * jamais utilise par le moteur d'orchestration lui-meme, qui doit
+     * toujours passer par {@link #withStatus} pour une VRAIE transition.
+     */
+    public static WorkflowExecution rehydrate(WorkflowId workflowId, ExecutionId executionId,
+                                               WorkflowExecutionStatus status, List<StepResult> stepResults,
+                                               Instant startedAt) {
+        if (workflowId == null) {
+            throw new IllegalArgumentException("WorkflowExecution.workflowId est obligatoire");
+        }
+        if (executionId == null) {
+            throw new IllegalArgumentException("WorkflowExecution.executionId est obligatoire");
+        }
+        if (status == null) {
+            throw new IllegalArgumentException("WorkflowExecution.status est obligatoire");
+        }
+        if (startedAt == null) {
+            throw new IllegalArgumentException("WorkflowExecution.startedAt est obligatoire");
+        }
+        List<StepResult> copy = stepResults == null ? List.of() : List.copyOf(stepResults);
+        return new WorkflowExecution(workflowId, executionId, status, copy, startedAt);
+    }
+
     public WorkflowId workflowId() {
         return workflowId;
     }

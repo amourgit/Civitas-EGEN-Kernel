@@ -33,6 +33,7 @@
     <module>egen-adapter-nats</module>
     <module>egen-adapter-vault</module>
     <module>egen-adapter-otel</module>
+    <module>egen-adapter-http-invocation</module>
   </modules>
 
 </project>

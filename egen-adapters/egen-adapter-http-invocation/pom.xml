@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-adapters</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-adapter-http-invocation</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Adapters :: HTTP Invocation</name>
+  <description>
+    Implementation du ServiceInvocationPort (egen-application) — voir
+    docs/architecture/07-ports-et-adapters.md, "Service Invocation Port".
+    Ajoute en Phase 5 pour le Moteur de Workflow (voir
+    docs/architecture/11-moteur-de-workflow.md), qui a besoin d'invoquer
+    une operation HTTP interne exposee par un service deploye. Utilise
+    java.net.http.HttpClient (JDK, zero SDK tiers) plutot qu'une
+    bibliotheque HTTP supplementaire pour un besoin aussi simple
+    (garde-fou n3, docs/architecture/02-principes-fondamentaux.md) — seul
+    module de ce reacteur a serialiser/deserialiser du JSON pour ce port
+    (Jackson, deja present dans la stack).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-application</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>ban-cross-adapter-and-upward-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>africa.civitas.egen:egen-adapter-nomad</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-consul</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-postgres-registry</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-nats</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-vault</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-otel</exclude>
+                    <exclude>africa.civitas.egen:egen-api</exclude>
+                    <exclude>africa.civitas.egen:egen-bootstrap</exclude>
+                  </excludes>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

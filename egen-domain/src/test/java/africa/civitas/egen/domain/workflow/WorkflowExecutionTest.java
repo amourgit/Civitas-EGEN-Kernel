@@ -105,6 +105,19 @@ class WorkflowExecutionTest {
     }
 
     @Test
+    void rehydrateRestoresATerminalStatusDirectlyWithoutGoingThroughTransitionValidation() {
+        // Si rehydrate() passait par withStatus(), ce saut RUNNING -> COMPENSATION_FAILED
+        // serait rejete (seul RUNNING -> COMPENSATING est permis) — rehydrate()
+        // doit au contraire l'accepter tel quel, car il ne s'agit pas d'une
+        // transition mais de la restitution d'un fait deja persiste.
+        WorkflowExecution execution = WorkflowExecution.rehydrate(WORKFLOW_ID, EXECUTION_ID,
+                WorkflowExecutionStatus.COMPENSATION_FAILED, List.of(failed(STEP_A, Instant.now())), Instant.now());
+
+        assertEquals(WorkflowExecutionStatus.COMPENSATION_FAILED, execution.status());
+        assertEquals(1, execution.stepResults().size());
+    }
+
+    @Test
     void stayingInTheSameStatusIsAlwaysAllowed() {
         WorkflowExecution execution = WorkflowExecution.start(WORKFLOW_ID, EXECUTION_ID, Instant.now());
         assertEquals(WorkflowExecutionStatus.RUNNING,

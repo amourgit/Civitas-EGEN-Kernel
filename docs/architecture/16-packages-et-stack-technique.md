@@ -30,7 +30,8 @@ egen-kernel/                              (repo racine — build multi-module Ma
 │           ├── SecretsPort.java
 │           ├── ObservabilityPort.java
 │           ├── RegistryStorePort.java
-│           └── WorkflowStorePort.java
+│           ├── WorkflowStorePort.java
+│           └── ServiceInvocationPort.java    # ajoute en Phase 5, voir 07 "Service Invocation Port"
 │
 ├── egen-adapters/                        # UN sous-module PAR intégration externe — dépendances isolées
 │   ├── egen-adapter-nomad/               # dépend du SDK/API Nomad UNIQUEMENT ici
@@ -38,8 +39,9 @@ egen-kernel/                              (repo racine — build multi-module Ma
 │   ├── egen-adapter-nats/                # dépend du client NATS UNIQUEMENT ici
 │   ├── egen-adapter-kafka/               # dépend du client Kafka UNIQUEMENT ici (activable en V2)
 │   ├── egen-adapter-vault/               # secrets
-│   ├── egen-adapter-postgres-registry/   # RegistryStorePort
-│   └── egen-adapter-otel/                # ObservabilityPort
+│   ├── egen-adapter-postgres-registry/   # RegistryStorePort + WorkflowStorePort (meme base, voir 11)
+│   ├── egen-adapter-otel/                # ObservabilityPort
+│   └── egen-adapter-http-invocation/     # ServiceInvocationPort — java.net.http.HttpClient + Jackson, zero SDK tiers
 │
 ├── egen-api/                             # Adapters PRIMAIRES : contrôleurs REST + services gRPC
 │   └── src/main/java/africa/civitas/egen/api/
