@@ -72,10 +72,10 @@ public final class PostgresWorkflowStoreAdapter implements WorkflowStorePort {
     @Override
     public WorkflowExecution save(WorkflowExecution execution) {
         String sql = "INSERT INTO egen_workflow_execution "
-                + "(execution_id, workflow_id, status, started_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, now()) "
+                + "(execution_id, workflow_id, status, started_at, input_json, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, now()) "
                 + "ON CONFLICT (execution_id) DO UPDATE SET "
-                + "status = EXCLUDED.status, updated_at = now()";
+                + "status = EXCLUDED.status, updated_at = now()"; // input_json : immuable, jamais mis a jour
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -83,6 +83,7 @@ public final class PostgresWorkflowStoreAdapter implements WorkflowStorePort {
                 statement.setString(2, execution.workflowId().value());
                 statement.setString(3, execution.status().name());
                 statement.setTimestamp(4, Timestamp.from(execution.startedAt()));
+                statement.setString(5, writeJson(outputToJson(execution.input())));
                 statement.executeUpdate();
             }
             insertNewStepResults(connection, execution);
@@ -96,7 +97,7 @@ public final class PostgresWorkflowStoreAdapter implements WorkflowStorePort {
 
     @Override
     public Optional<WorkflowExecution> findById(ExecutionId id) {
-        String sql = "SELECT workflow_id, status, started_at FROM egen_workflow_execution WHERE execution_id = ?";
+        String sql = "SELECT workflow_id, status, started_at, input_json FROM egen_workflow_execution WHERE execution_id = ?";
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, id.value());
@@ -108,9 +109,10 @@ public final class PostgresWorkflowStoreAdapter implements WorkflowStorePort {
                 WorkflowExecutionStatus status = WorkflowExecutionStatus.valueOf(resultSet.getString("status"));
                 Instant startedAt = resultSet.getTimestamp("started_at").toInstant();
                 List<StepResult> stepResults = readStepResults(connection, id);
-                return Optional.of(WorkflowExecution.rehydrate(workflowId, id, status, stepResults, startedAt));
+                Map<String, String> input = outputFromJson(readJson(resultSet.getString("input_json")));
+                return Optional.of(WorkflowExecution.rehydrate(workflowId, id, status, stepResults, startedAt, input));
             }
-        } catch (SQLException e) {
+        } catch (SQLException | IOException e) {
             throw new WorkflowStoreException("Echec de lecture de WorkflowExecution " + id, e);
         }
     }
@@ -237,7 +239,10 @@ public final class PostgresWorkflowStoreAdapter implements WorkflowStorePort {
                         + "workflow_id VARCHAR(255) NOT NULL, "
                         + "status VARCHAR(64) NOT NULL, "
                         + "started_at TIMESTAMPTZ NOT NULL, "
+                        + "input_json TEXT NOT NULL DEFAULT '{}', "
                         + "updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+                // Bases creees avant l'ajout de input_json (Phase 5, increment 3) :
+                "ALTER TABLE egen_workflow_execution ADD COLUMN IF NOT EXISTS input_json TEXT NOT NULL DEFAULT '{}'",
                 "CREATE TABLE IF NOT EXISTS egen_workflow_step_result ("
                         + "insertion_order BIGSERIAL PRIMARY KEY, "
                         + "execution_id VARCHAR(255) NOT NULL, "

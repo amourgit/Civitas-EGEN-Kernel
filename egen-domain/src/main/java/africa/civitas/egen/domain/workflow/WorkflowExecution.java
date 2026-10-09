@@ -3,6 +3,7 @@ package africa.civitas.egen.domain.workflow;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -29,18 +30,32 @@ public final class WorkflowExecution {
     private final WorkflowExecutionStatus status;
     private final List<StepResult> stepResults;
     private final Instant startedAt;
+    private final Map<String, String> input;
 
     private WorkflowExecution(WorkflowId workflowId, ExecutionId executionId, WorkflowExecutionStatus status,
-                               List<StepResult> stepResults, Instant startedAt) {
+                               List<StepResult> stepResults, Instant startedAt, Map<String, String> input) {
         this.workflowId = workflowId;
         this.executionId = executionId;
         this.status = status;
         this.stepResults = stepResults;
         this.startedAt = startedAt;
+        this.input = input;
     }
 
-    /** Demarre une nouvelle execution, sans aucun resultat d'etape encore. */
+    /** Demarre une nouvelle execution sans entree, sans aucun resultat d'etape encore. */
     public static WorkflowExecution start(WorkflowId workflowId, ExecutionId executionId, Instant startedAt) {
+        return start(workflowId, executionId, startedAt, Map.of());
+    }
+
+    /**
+     * Demarre une nouvelle execution en memorisant son entree
+     * ({@link WorkflowInput#values()}) : necessaire pour qu'une reprise
+     * apres redemarrage du Kernel rejoue les memes payloads (voir
+     * docs/architecture/11-moteur-de-workflow.md, "Durabilite de l'execution").
+     * L'entree est immuable pour toute la vie de l'execution.
+     */
+    public static WorkflowExecution start(WorkflowId workflowId, ExecutionId executionId, Instant startedAt,
+                                           Map<String, String> input) {
         if (workflowId == null) {
             throw new IllegalArgumentException("WorkflowExecution.workflowId est obligatoire");
         }
@@ -50,7 +65,8 @@ public final class WorkflowExecution {
         if (startedAt == null) {
             throw new IllegalArgumentException("WorkflowExecution.startedAt est obligatoire");
         }
-        return new WorkflowExecution(workflowId, executionId, WorkflowExecutionStatus.RUNNING, List.of(), startedAt);
+        return new WorkflowExecution(workflowId, executionId, WorkflowExecutionStatus.RUNNING, List.of(), startedAt,
+                input == null ? Map.of() : Map.copyOf(input));
     }
 
     /**
@@ -67,6 +83,13 @@ public final class WorkflowExecution {
     public static WorkflowExecution rehydrate(WorkflowId workflowId, ExecutionId executionId,
                                                WorkflowExecutionStatus status, List<StepResult> stepResults,
                                                Instant startedAt) {
+        return rehydrate(workflowId, executionId, status, stepResults, startedAt, Map.of());
+    }
+
+    /** Variante restituant aussi l'entree memorisee au demarrage (voir {@link #start(WorkflowId, ExecutionId, Instant, Map)}). */
+    public static WorkflowExecution rehydrate(WorkflowId workflowId, ExecutionId executionId,
+                                               WorkflowExecutionStatus status, List<StepResult> stepResults,
+                                               Instant startedAt, Map<String, String> input) {
         if (workflowId == null) {
             throw new IllegalArgumentException("WorkflowExecution.workflowId est obligatoire");
         }
@@ -80,7 +103,8 @@ public final class WorkflowExecution {
             throw new IllegalArgumentException("WorkflowExecution.startedAt est obligatoire");
         }
         List<StepResult> copy = stepResults == null ? List.of() : List.copyOf(stepResults);
-        return new WorkflowExecution(workflowId, executionId, status, copy, startedAt);
+        return new WorkflowExecution(workflowId, executionId, status, copy, startedAt,
+                input == null ? Map.of() : Map.copyOf(input));
     }
 
     public WorkflowId workflowId() {
@@ -101,6 +125,11 @@ public final class WorkflowExecution {
 
     public Instant startedAt() {
         return startedAt;
+    }
+
+    /** Entree memorisee au demarrage — immuable, jamais interpretee par EGEN. */
+    public Map<String, String> input() {
+        return input;
     }
 
     /**
@@ -146,7 +175,7 @@ public final class WorkflowExecution {
         }
         List<StepResult> updated = new ArrayList<>(stepResults);
         updated.add(result);
-        return new WorkflowExecution(workflowId, executionId, status, List.copyOf(updated), startedAt);
+        return new WorkflowExecution(workflowId, executionId, status, List.copyOf(updated), startedAt, input);
     }
 
     /**
@@ -155,6 +184,6 @@ public final class WorkflowExecution {
      */
     public WorkflowExecution withStatus(WorkflowExecutionStatus newStatus) {
         STATE_MACHINE.assertTransitionAllowed(status, newStatus);
-        return new WorkflowExecution(workflowId, executionId, newStatus, stepResults, startedAt);
+        return new WorkflowExecution(workflowId, executionId, newStatus, stepResults, startedAt, input);
     }
 }

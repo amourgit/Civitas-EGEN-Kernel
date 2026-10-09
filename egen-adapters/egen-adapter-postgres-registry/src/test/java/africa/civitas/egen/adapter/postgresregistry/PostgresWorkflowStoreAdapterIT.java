@@ -106,6 +106,26 @@ class PostgresWorkflowStoreAdapterIT {
     }
 
     @Test
+    void inputSurvivesTheRoundTripAndIsNeverOverwrittenByLaterSaves() {
+        // Sans input persiste, une reprise apres redemarrage du Kernel
+        // rejouerait les etapes avec un payload vide.
+        WorkflowId workflowId = WorkflowId.of("it-fixture-input");
+        ExecutionId executionId = ExecutionId.generate();
+        PostgresWorkflowStoreAdapter adapter = adapter();
+        Instant t0 = Instant.now();
+        Map<String, String> input = Map.of("articleId", "42", "titre", "Libreville \"capitale\"");
+
+        adapter.save(WorkflowExecution.start(workflowId, executionId, t0, input));
+        // Une sauvegarde ulterieure construite SANS input ne doit pas l'ecraser.
+        adapter.save(WorkflowExecution.start(workflowId, executionId, t0)
+                .withStatus(WorkflowExecutionStatus.COMPLETED));
+
+        WorkflowExecution reloaded = adapter.findById(executionId).orElseThrow();
+        assertEquals(input, reloaded.input());
+        assertEquals(WorkflowExecutionStatus.COMPLETED, reloaded.status());
+    }
+
+    @Test
     void savingTwiceWithTheSameStepResultsNeverDuplicatesThem() {
         WorkflowId workflowId = WorkflowId.of("it-fixture-idempotent-save");
         ExecutionId executionId = ExecutionId.generate();

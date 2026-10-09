@@ -123,4 +123,47 @@ class WorkflowExecutionTest {
         assertEquals(WorkflowExecutionStatus.RUNNING,
                 execution.withStatus(WorkflowExecutionStatus.RUNNING).status());
     }
+
+    @Test
+    void startWithoutInputHasAnEmptyInput() {
+        assertTrue(WorkflowExecution.start(WORKFLOW_ID, EXECUTION_ID, Instant.now()).input().isEmpty());
+    }
+
+    @Test
+    void inputIsKeptImmutablyAcrossStepResultsAndStatusTransitions() {
+        Instant t0 = Instant.parse("2026-10-09T10:00:00Z");
+        WorkflowExecution execution = WorkflowExecution
+                .start(WORKFLOW_ID, EXECUTION_ID, t0, java.util.Map.of("articleId", "42"))
+                .withStepResult(succeeded(STEP_A, t0))
+                .withStatus(WorkflowExecutionStatus.COMPENSATING);
+
+        assertEquals(java.util.Map.of("articleId", "42"), execution.input());
+    }
+
+    @Test
+    void inputIsDefensivelyCopied() {
+        java.util.Map<String, String> mutable = new java.util.HashMap<>();
+        mutable.put("k", "v");
+        WorkflowExecution execution = WorkflowExecution.start(WORKFLOW_ID, EXECUTION_ID, Instant.now(), mutable);
+        mutable.put("k2", "v2");
+
+        assertEquals(java.util.Map.of("k", "v"), execution.input());
+        assertThrows(UnsupportedOperationException.class, () -> execution.input().put("x", "y"));
+    }
+
+    @Test
+    void rehydrateRestoresTheStoredInput() {
+        WorkflowExecution execution = WorkflowExecution.rehydrate(WORKFLOW_ID, EXECUTION_ID,
+                WorkflowExecutionStatus.RUNNING, List.of(), Instant.now(), java.util.Map.of("a", "b"));
+
+        assertEquals(java.util.Map.of("a", "b"), execution.input());
+    }
+
+    @Test
+    void legacyRehydrateWithoutInputYieldsAnEmptyInput() {
+        WorkflowExecution execution = WorkflowExecution.rehydrate(WORKFLOW_ID, EXECUTION_ID,
+                WorkflowExecutionStatus.RUNNING, List.of(), Instant.now());
+
+        assertTrue(execution.input().isEmpty());
+    }
 }
