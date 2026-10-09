@@ -2,6 +2,7 @@ package africa.civitas.egen.adapter.postgresregistry;
 
 import africa.civitas.egen.domain.lifecycle.Phase;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
+import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.HealthSpec;
@@ -82,6 +83,36 @@ class PostgresRegistryAdapterIT {
         assertEquals(aManifest(id).version(), reloaded.manifest().version());
         assertEquals(aManifest(id).health().httpEndpoint(), reloaded.manifest().health().httpEndpoint());
         assertEquals(1L, reloaded.generation());
+    }
+
+    @Test
+    void dependenciesSurviveTheRoundTripThroughRealPostgres() {
+        // Non-regression : manifestToJson/manifestFromJson ignoraient 'dependencies'
+        // (liste vide en dur a la lecture) -> DependencyGraph faux apres reload.
+        ServiceId id = ServiceId.of("it-fixture-dependencies");
+        ServiceManifest base = aManifest(id);
+        List<Dependency> dependencies = List.of(
+                new Dependency(ServiceId.of("it-fixture-dep-required"), ">=1.2.0", true),
+                new Dependency(ServiceId.of("it-fixture-dep-optional"), "^2.0", false));
+        ServiceManifest withDependencies = new ServiceManifest(base.id(), base.version(),
+                base.runtime(), base.deployment(), base.health(), base.lifecycle(), dependencies);
+        PostgresRegistryAdapter adapter = adapter();
+
+        adapter.save(new DesiredState(withDependencies, 0L, TargetEnvironment.of("test")));
+
+        DesiredState reloaded = adapter.findById(id).orElseThrow();
+        assertEquals(dependencies, reloaded.manifest().dependencies());
+        assertEquals(dependencies, adapter.history(id).get(0).manifest().dependencies());
+    }
+
+    @Test
+    void manifestWithoutDependenciesReloadsWithAnEmptyList() {
+        ServiceId id = ServiceId.of("it-fixture-no-dependencies");
+        PostgresRegistryAdapter adapter = adapter();
+
+        adapter.save(new DesiredState(aManifest(id), 0L, TargetEnvironment.of("test")));
+
+        assertTrue(adapter.findById(id).orElseThrow().manifest().dependencies().isEmpty());
     }
 
     @Test

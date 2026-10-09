@@ -6,6 +6,7 @@ import africa.civitas.egen.domain.lifecycle.Condition;
 import africa.civitas.egen.domain.lifecycle.ConditionStatus;
 import africa.civitas.egen.domain.lifecycle.Phase;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
+import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.HealthSpec;
@@ -327,6 +328,17 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
         ObjectNode lifecycle = node.putObject("lifecycle");
         lifecycle.put("shutdownGracePeriodSeconds", manifest.lifecycle().shutdownGracePeriod().toSeconds());
 
+        // dependencies (docs/architecture/10-gestion-des-dependances.md) : persistees
+        // explicitement, sinon le DependencyGraph (detection de cycle, ordonnancement,
+        // OptionalDependencyUnavailable) serait faux apres tout reload depuis le Registry.
+        ArrayNode dependencies = node.putArray("dependencies");
+        for (Dependency dependency : manifest.dependencies()) {
+            ObjectNode dep = dependencies.addObject();
+            dep.put("serviceId", dependency.serviceId().value());
+            dep.put("versionConstraint", dependency.versionConstraint());
+            dep.put("required", dependency.required());
+        }
+
         return node;
     }
 
@@ -356,8 +368,20 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
                         Duration.ofSeconds(health.path("timeoutSeconds").asLong()),
                         health.path("failuresBeforeUnhealthy").asInt()),
                 new LifecyclePolicy(Duration.ofSeconds(lifecycle.path("shutdownGracePeriodSeconds").asLong())),
-                List.of(),
+                dependenciesFromJson(node),
                 ownerTeamFromJson(node));
+    }
+
+    /** Champ absent (lignes ecrites avant ce correctif) = aucune dependance, jamais une erreur. */
+    private List<Dependency> dependenciesFromJson(JsonNode node) {
+        List<Dependency> dependencies = new ArrayList<>();
+        for (JsonNode dep : node.path("dependencies")) {
+            dependencies.add(new Dependency(
+                    ServiceId.of(dep.path("serviceId").asText()),
+                    dep.path("versionConstraint").asText(),
+                    dep.path("required").asBoolean(true)));
+        }
+        return List.copyOf(dependencies);
     }
 
     private OwnerTeam ownerTeamFromJson(JsonNode node) {
