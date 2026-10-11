@@ -22,6 +22,7 @@ egen-kernel/                              (repo racine — build multi-module Ma
 │   └── src/main/java/africa/civitas/egen/application/
 │       ├── usecase/                      # DeployServiceUseCase, RegisterServiceUseCase, RunWorkflowUseCase...
 │       ├── reconciliation/               # ReconciliationEngine, WorkQueue, Reconciler<T>, ResyncScheduler
+│       ├── workflow/                     # WorkflowEnginePort, WorkflowEngine (Saga orchestrée, voir 11)
 │       └── port/                         # DÉFINITION des ports secondaires (interfaces uniquement)
 │           ├── DeploymentPort.java
 │           ├── DiscoveryPort.java

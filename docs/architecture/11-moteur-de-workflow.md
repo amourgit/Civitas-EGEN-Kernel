@@ -32,6 +32,22 @@ public interface WorkflowEnginePort {
 }
 ```
 
+> **Précisions d'implémentation (Phase 5, incrément 3 — `WorkflowEngine`,
+> `egen-application.workflow`).** Le port ci-dessus est livré avec trois
+> écarts assumés, documentés ici plutôt que découverts dans le code :
+>
+> - `start` renvoie un **`ExecutionId`** — la « poignée » (`WorkflowExecutionHandle`)
+>   n'a aucun contenu de plus à porter : le statut et les résultats se
+>   relisent via `status(id)` / l'API.
+> - `WorkflowInput` est une `Map<String, String>` neutre (même garde-fou que
+>   `ConfigSet`) et **est persisté avec l'exécution** (`WorkflowExecution.input()`),
+>   faute de quoi une reprise après redémarrage rejouerait les étapes avec un
+>   payload vide.
+> - **`raiseEvent` n'est pas livré.** Une étape `EVENT …` est *fire-and-forget*
+>   (voir ci-dessous) : aucune étape du modèle actuel n'attend un callback, donc
+>   `raiseEvent` n'aurait aucun consommateur. Il sera ajouté avec la première
+>   étape asynchrone qui en a réellement besoin, jamais par anticipation.
+
 ## Définition déclarative d'un workflow
 
 ```yaml
@@ -107,6 +123,78 @@ public interface WorkflowStorePort {
   à reprendre — exactement le même besoin que
   `RegistryStorePort.findAllIds()` sert déjà à la boucle de
   réconciliation des services au démarrage.
+
+## Moteur d'exécution — règles exactes (`WorkflowEngine`)
+
+`WorkflowEngine` implémente `WorkflowEnginePort`. Il n'appelle que des ports
+(`WorkflowStorePort`, `DiscoveryPort`, `ServiceInvocationPort`,
+`MessagingPort`) — jamais un SDK, jamais Nomad/Consul/NATS directement.
+
+**Journal d'exécution : un fait final par tentative.** Le store est
+insert-only avec une clé d'unicité `(execution_id, step_id, attempt)` ; le
+moteur n'écrit donc **aucune ligne intermédiaire `RUNNING`** (elle masquerait
+le résultat final de la même tentative). Le numéro de tentative est
+`max(attempt déjà journalisé pour l'étape) + 1`. Une tentative interrompue
+par un crash n'a laissé aucune trace : elle est simplement rejouée à la
+reprise (**au moins une fois** — les opérations de service doivent donc être
+idempotentes, comme leurs compensations).
+
+**Avancement.** Séquentiel, dans l'ordre topologique de la définition ; une
+étape n'est lancée que lorsque toutes ses dépendances ont réussi. Le champ
+`maxParallelSteps` est accepté et validé mais **le parallélisme n'est pas
+encore exploité** : exécuter séquentiellement respecte toute valeur
+(≥ 1) de façon conservatrice.
+
+**Opérations.**
+
+| Forme | Exécution |
+| --- | --- |
+| `METHODE /chemin` | `DiscoveryPort.resolve(service)` → première instance → `ServiceInvocationPort.invoke` avec `Step.timeout()`. Corps = entrée du workflow pour POST/PUT/PATCH, vide pour GET/DELETE. La sortie de l'étape est le corps de la réponse, journalisé dans `StepResult.output` (le **chaînage des sorties vers les étapes suivantes n'existe pas** : hors périmètre tant qu'il n'est pas spécifié). |
+| `EVENT type` | `MessagingPort.publish` d'un `TechnicalEvent` (`correlationId` = `ExecutionId`, `data` = entrée du workflow en JSON, sujet = `type`). N'attend aucune réponse. |
+
+**Retry.** Une tentative échoue sur : erreur réseau/exception d'adapter,
+aucune instance résolue, ou statut HTTP `5xx`/`408`/`429` → **réessayable**
+tant que le nombre d'échecs journalisés est `< RetryPolicy.maxAttempts`.
+Tout autre `4xx` est un échec **définitif** immédiat (rejouer la même requête
+ne peut pas la rendre valide). Délai entre tentatives : `FIXED` = base,
+`EXPONENTIAL` = base × 2^(échecs−1), plafonné (`WorkflowEngineSettings`).
+
+**Échec définitif d'une étape.** L'étape échouée n'est jamais compensée
+(son effet partiel est de la responsabilité du service) ; seules le sont les
+étapes **réussies** déclarant une `compensation`, en **ordre inverse
+d'exécution**. S'il n'y en a aucune, l'exécution passe directement en
+`FAILED` ; sinon `COMPENSATING`. Chaque compensation est tentée **une seule
+fois** ; si l'une échoue, les suivantes sont **quand même tentées**
+(meilleur effort — laisser plus d'effets non annulés serait pire) et
+l'exécution finit en `COMPENSATION_FAILED`, sinon en `COMPENSATED`.
+
+**`globalTimeout`.** Vérifié avant chaque étape : s'il est dépassé, la
+prochaine étape est journalisée en échec et la compensation démarre. Il
+n'interrompt pas un appel en cours (celui-ci est borné par `Step.timeout()`).
+
+**Approbation manuelle** (`manualApprovalSteps`). Avant la première tentative
+d'une telle étape, le moteur journalise un `StepResult` `PENDING` et passe
+l'exécution en `PAUSED` ; `resume(id)` vaut approbation et l'étape est lancée.
+
+**Pause / reprise / arrêt.** `pause` (RUNNING → PAUSED) prend effet entre
+deux étapes (un appel en cours va à son terme et son résultat est journalisé).
+`terminate` lance la compensation des étapes réussies (statut `COMPENSATING`,
+y compris si un appel est en cours, pour qu'un effet qui aboutirait après
+coup ne reste pas orphelin) ou `FAILED` si rien n'est à annuler. La raison est
+journalisée dans les logs du Kernel, pas persistée (aucun champ dédié dans le
+modèle).
+
+**Reprise au démarrage.** `recoverInterruptedExecutions()` relance toute
+exécution `RUNNING`/`COMPENSATING` renvoyée par
+`WorkflowStorePort.findRunningExecutions()` ; une exécution `PAUSED` attend un
+`resume` explicite.
+
+**Limites connues de cet incrément** (à lever explicitement, jamais en
+silence) : définition non versionnée (une exécution en cours utilise la
+définition stockée la plus récente) ; un seul Kernel pilote une exécution à la
+fois (aucun verrou distribué — cohérent avec l'`Idempotency-Key` en mémoire de
+[13](13-api-et-contrats.md)) ; pas encore de métriques propres au moteur
+(les appels de ports sont déjà instrumentés par les décorateurs `Observed*Port`).
 
 ## Compensation — le cœur de la robustesse Saga
 
