@@ -21,7 +21,7 @@ import java.util.Optional;
  * en base ({@code ON CONFLICT DO NOTHING}) ; ce double le compte dans
  * {@link #droppedConflictingResults} pour que les tests le detectent.
  */
-final class InMemoryWorkflowStore implements WorkflowStorePort {
+public final class InMemoryWorkflowStore implements WorkflowStorePort {
 
     private record Header(WorkflowId workflowId, WorkflowExecutionStatus status, java.time.Instant startedAt,
                           Map<String, String> input) {
