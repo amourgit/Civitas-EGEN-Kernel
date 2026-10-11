@@ -84,6 +84,21 @@ spec:
     manualApprovalSteps: []       # possibilité de marquer une étape comme nécessitant une validation humaine
 ```
 
+**Formats et valeurs par défaut du YAML** (appliqués par
+`WorkflowMapper`, `egen-api`) :
+
+- Durées : un entier suivi de `s`, `m` ou `h` (`10s`, `5m`, `1h`) — rien
+  d'autre (`1.5s`, `PT5S`, `5d` sont refusés avec un message explicite).
+- `timeout` d'étape omis → **30 s** (l'exemple ci-dessus en omet plusieurs :
+  le domaine exige une valeur strictement positive).
+- `retry` omis → aucune nouvelle tentative (`maxAttempts: 1`) ; `backoff`
+  omis → `fixed`.
+- `compensationStrategy` omis → `backward` (la seule valeur existante).
+- `executionPolicy.globalTimeout` est **obligatoire** (aucune valeur par
+  défaut raisonnable n'existe pour une borne de sécurité) ;
+  `maxParallelSteps` omis → `1`.
+- `kind`, s'il est présent, doit valoir `WorkflowDefinition`.
+
 **Point de conception clé** : chaque étape référence une opération exposée
 par le service (HTTP interne, gRPC, ou publication d'événement) — **jamais**
 une logique embarquée dans le workflow lui-même. EGEN orchestre

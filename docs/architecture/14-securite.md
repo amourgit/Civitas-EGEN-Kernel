@@ -22,6 +22,15 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   chemin (`secret/data/<service-name>/*`), jamais un accès transverse.
 - **RBAC de l'API de contrôle EGEN** : scoping par équipe/domaine (voir
   [13](13-api-et-contrats.md)).
+- **Workflows : mutations réservées aux administrateurs.** Une
+  `WorkflowDefinition` orchestre des appels vers des services de
+  *plusieurs* équipes et ne porte aucune équipe propriétaire dans son modèle
+  ([05](05-modele-de-domaine.md)) : il n'y a donc rien à comparer au claim
+  d'équipe du jeton. Tant qu'un modèle de propriété n'existe pas, la seule
+  politique sûre par défaut est de refuser toute mutation (`POST` de
+  définition, démarrage, `pause`/`resume`/`terminate`) aux non-administrateurs ;
+  la lecture reste ouverte à tout appelant authentifié. À revoir si les
+  workflows reçoivent un jour un propriétaire explicite.
 
 ## Ce que le Kernel ne fait jamais en matière de sécurité
 

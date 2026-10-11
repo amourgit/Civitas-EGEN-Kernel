@@ -192,6 +192,10 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
 
 - [ ] `WorkflowEnginePort` natif (voir [11](11-moteur-de-workflow.md)),
       avec compensation Saga orchestrée, durabilité de l'exécution.
+      *État : modèle de domaine, ports (`ServiceInvocationPort`,
+      `WorkflowStorePort`), `WorkflowEngine`, use cases et API REST
+      `/api/v1/workflows` écrits ; case à cocher après validation du build
+      Maven complet et du scénario de [20](20-scenario-bout-en-bout.md).*
 - [ ] Communication Fabric : SDK léger pour au moins deux langages (ex.
       Python + Java) et un mode sidecar de référence (voir
       [12](12-communication-fabric.md)).

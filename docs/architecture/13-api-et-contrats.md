@@ -29,6 +29,29 @@
 /api/v1/adapters                          # introspection : quels adapters sont enregistrés et opérationnels
 ```
 
+### Workflows — contrat détaillé (Phase 5)
+
+| Méthode & chemin | Rôle | Réponse |
+| --- | --- | --- |
+| `POST /api/v1/workflows` (`application/yaml`, voir [11](11-moteur-de-workflow.md)) | déclare ou remplace une `WorkflowDefinition` | `202` + `Location: /api/v1/workflows/{id}` |
+| `GET /api/v1/workflows/{id}` | relit la définition (étapes en ordre topologique) | `200` / `404` |
+| `POST /api/v1/workflows/{id}/executions` (corps JSON optionnel `{"input": {"clé": "valeur"}}`) | démarre une exécution | `202` + `Location: …/executions/{executionId}` |
+| `GET /api/v1/workflows/{id}/executions/{executionId}` | statut, entrée et `StepResult` journalisés | `200` / `404` |
+| `POST …/executions/{executionId}/actions/pause` · `…/resume` · `…/terminate` (corps JSON optionnel `{"reason": "…"}`) | `pause`, `resume`, `terminate` du moteur | `202` / `404` / `409` |
+
+- **Erreurs** : contenu YAML/JSON illisible, workflow invalide (cycle, étape
+  inconnue, durée mal formée…) ou identifiant mal formé → `400` ; définition
+  ou exécution inconnue — *y compris une exécution demandée sous un autre
+  workflow que le sien* → `404` ; transition d'état impossible (ex. `resume`
+  d'une exécution terminée) → `409`.
+- **Autorisation** : lecture pour tout appelant authentifié ; **toute
+  mutation est réservée au rôle administrateur** (`egen.security.admin-role`),
+  voir [14](14-securite.md).
+- **Pas encore livré** : liste des définitions (`GET /api/v1/workflows`) et
+  liste des exécutions d'un workflow — `WorkflowStorePort` n'expose pas de
+  requête de listing ; elle sera ajoutée avec le premier besoin réel (console
+  d'exploitation), pas par anticipation.
+
 ## Versionnage et compatibilité
 
 - **Versionnage sémantique de l'API elle-même** (`/api/v1/`, `/api/v2/`…)

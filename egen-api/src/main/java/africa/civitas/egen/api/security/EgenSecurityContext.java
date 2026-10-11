@@ -61,6 +61,21 @@ public class EgenSecurityContext {
     }
 
     /**
+     * Reserve une operation aux administrateurs EGEN. Utilise pour les
+     * workflows : une {@code WorkflowDefinition} orchestre des appels vers
+     * des services de PLUSIEURS equipes et ne porte aucune equipe
+     * proprietaire dans son modele (voir docs/architecture/11) — il n'existe
+     * donc rien a comparer au claim d'equipe du jeton, et la seule
+     * politique sure par defaut est de refuser toute mutation aux
+     * non-administrateurs (docs/architecture/14-securite.md).
+     */
+    public void assertAdmin() {
+        if (!isAdmin()) {
+            throw new ForbiddenException("Cette operation est reservee aux administrateurs EGEN");
+        }
+    }
+
+    /**
      * Autorise un Declare portant sur l'equipe {@code targetTeam} (extraite
      * du manifeste soumis, avant meme sa construction complete — voir
      * {@code ServiceManifestMapper.teamOf}). Un manifeste qui ne declare

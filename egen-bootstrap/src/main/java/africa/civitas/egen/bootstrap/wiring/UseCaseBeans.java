@@ -1,14 +1,20 @@
 package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.application.port.RegistryStorePort;
+import africa.civitas.egen.application.port.WorkflowStorePort;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
+import africa.civitas.egen.application.usecase.DefineWorkflowUseCase;
+import africa.civitas.egen.application.usecase.DefineWorkflowUseCaseImpl;
 import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.RunWorkflowUseCase;
+import africa.civitas.egen.application.usecase.RunWorkflowUseCaseImpl;
 import africa.civitas.egen.application.usecase.StopServiceUseCase;
 import africa.civitas.egen.application.usecase.StopServiceUseCaseImpl;
+import africa.civitas.egen.application.workflow.WorkflowEnginePort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
@@ -31,6 +37,12 @@ public class UseCaseBeans {
     @Inject
     PendingDeclareTraces pendingDeclareTraces;
 
+    @Inject
+    WorkflowStorePort workflowStorePort;
+
+    @Inject
+    WorkflowEnginePort workflowEnginePort;
+
     @Produces
     @ApplicationScoped
     public DeployServiceUseCase deployServiceUseCase() {
@@ -48,4 +60,17 @@ public class UseCaseBeans {
     public StopServiceUseCase stopServiceUseCase() {
         return new StopServiceUseCaseImpl(registryStorePort, workQueue, pendingDeclareTraces);
     }
+
+    @Produces
+    @ApplicationScoped
+    public DefineWorkflowUseCase defineWorkflowUseCase() {
+        return new DefineWorkflowUseCaseImpl(workflowStorePort);
+    }
+
+    @Produces
+    @ApplicationScoped
+    public RunWorkflowUseCase runWorkflowUseCase() {
+        return new RunWorkflowUseCaseImpl(workflowStorePort, workflowEnginePort);
+    }
 }
+
