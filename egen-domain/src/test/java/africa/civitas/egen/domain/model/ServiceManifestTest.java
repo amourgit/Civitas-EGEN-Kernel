@@ -62,4 +62,34 @@ class ServiceManifestTest {
                         ServiceVersion.parse("2.4.0"), aRuntime(), aDeploymentSpec(), null,
                         LifecyclePolicy.defaultPolicy()));
     }
+
+    @Test
+    void aManifestWithoutAResiliencyBlockReceivesTheDefaults() {
+        ServiceManifest manifest = new ServiceManifest(
+                ServiceId.of("news-service"), ServiceVersion.parse("2.4.0"), aRuntime(),
+                aDeploymentSpec(), aHealthSpec(), null);
+
+        assertEquals(ResiliencyPolicy.defaults(), manifest.resiliency());
+    }
+
+    @Test
+    void theHistoricalEightArgumentConstructorStillWorksAndKeepsTheDefaults() {
+        ServiceManifest manifest = new ServiceManifest(
+                ServiceId.of("news-service"), ServiceVersion.parse("2.4.0"), aRuntime(),
+                aDeploymentSpec(), aHealthSpec(), null, java.util.List.of(), OwnerTeam.unassigned());
+
+        assertEquals(ResiliencyPolicy.defaults(), manifest.resiliency());
+    }
+
+    @Test
+    void aDeclaredResiliencyPolicyIsKept() {
+        ResiliencyPolicy policy = new ResiliencyPolicy(Duration.ofSeconds(10),
+                new ResiliencyPolicy.RetrySpec(3, ResiliencyPolicy.Backoff.EXPONENTIAL, Duration.ofMillis(100)),
+                new ResiliencyPolicy.CircuitBreakerSpec(2, Duration.ofSeconds(5)));
+        ServiceManifest manifest = new ServiceManifest(
+                ServiceId.of("news-service"), ServiceVersion.parse("2.4.0"), aRuntime(),
+                aDeploymentSpec(), aHealthSpec(), null, java.util.List.of(), OwnerTeam.unassigned(), policy);
+
+        assertEquals(policy, manifest.resiliency());
+    }
 }

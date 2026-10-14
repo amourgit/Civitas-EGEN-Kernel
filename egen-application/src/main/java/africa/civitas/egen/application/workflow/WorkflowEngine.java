@@ -7,7 +7,12 @@ import africa.civitas.egen.application.port.ResolvedInstance;
 import africa.civitas.egen.application.port.ResolvedInstances;
 import africa.civitas.egen.application.port.ServiceInvocationPort;
 import africa.civitas.egen.application.port.WorkflowStorePort;
+import africa.civitas.egen.application.resilience.CallClassification;
+import africa.civitas.egen.application.resilience.CircuitBreaker;
+import africa.civitas.egen.application.resilience.ResiliencyPolicyProvider;
+import africa.civitas.egen.application.resilience.ServiceCircuitBreakers;
 import africa.civitas.egen.domain.event.TechnicalEvent;
+import africa.civitas.egen.domain.model.ResiliencyPolicy;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.workflow.ExecutionId;
 import africa.civitas.egen.domain.workflow.Step;
@@ -71,13 +76,23 @@ public final class WorkflowEngine implements WorkflowEnginePort {
     private final Sleeper sleeper;
     private final Executor executor;
     private final WorkflowEngineSettings settings;
+    private final ResiliencyPolicyProvider policies;
+    private final ServiceCircuitBreakers breakers;
 
     private final Object[] locks = new Object[LOCK_STRIPES];
     private final Set<String> driving = ConcurrentHashMap.newKeySet();
 
+    /** Constructeur historique : politique de resilience par defaut pour toutes les cibles. */
     public WorkflowEngine(WorkflowStorePort store, DiscoveryPort discovery, ServiceInvocationPort invocation,
                           MessagingPort messaging, Clock clock, Sleeper sleeper, Executor executor,
                           WorkflowEngineSettings settings) {
+        this(store, discovery, invocation, messaging, clock, sleeper, executor, settings,
+                ResiliencyPolicyProvider.defaultsOnly());
+    }
+
+    public WorkflowEngine(WorkflowStorePort store, DiscoveryPort discovery, ServiceInvocationPort invocation,
+                          MessagingPort messaging, Clock clock, Sleeper sleeper, Executor executor,
+                          WorkflowEngineSettings settings, ResiliencyPolicyProvider policies) {
         this.store = Objects.requireNonNull(store, "store");
         this.discovery = Objects.requireNonNull(discovery, "discovery");
         this.invocation = Objects.requireNonNull(invocation, "invocation");
@@ -86,6 +101,8 @@ public final class WorkflowEngine implements WorkflowEnginePort {
         this.sleeper = Objects.requireNonNull(sleeper, "sleeper");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.policies = Objects.requireNonNull(policies, "policies");
+        this.breakers = new ServiceCircuitBreakers(clock);
         for (int i = 0; i < LOCK_STRIPES; i++) {
             locks[i] = new Object();
         }
@@ -294,7 +311,7 @@ public final class WorkflowEngine implements WorkflowEnginePort {
         int attempt = nextAttempt(execution, step.id());
         int failuresSoFar = failureCount(execution, step.id());
         Instant started = clock.instant();
-        Outcome outcome = perform(execution, step.service(), step.operation(), step.timeout());
+        Outcome outcome = perform(execution, step.service(), step.operation(), step.timeout(), false);
         Instant completed = clock.instant();
 
         if (outcome.success()) {
@@ -391,7 +408,7 @@ public final class WorkflowEngine implements WorkflowEnginePort {
         Step step = pending.get(0);
         StepOperation operation = step.compensationOperation().orElseThrow();
         Instant started = clock.instant();
-        Outcome outcome = perform(execution, step.service(), operation, step.timeout());
+        Outcome outcome = perform(execution, step.service(), operation, step.timeout(), true);
         Instant completed = clock.instant();
         mutate(id, cur -> cur.withStepResult(outcome.success()
                 ? new StepResult(step.id(), StepStatus.COMPENSATED, nextAttempt(cur, step.id()), started,
@@ -434,10 +451,10 @@ public final class WorkflowEngine implements WorkflowEnginePort {
     // ------------------------------------------------------------------
 
     private Outcome perform(WorkflowExecution execution, ServiceId service, StepOperation operation,
-                            Duration timeout) {
+                            Duration timeout, boolean compensation) {
         try {
             return switch (operation) {
-                case StepOperation.Http http -> performHttp(execution, service, http, timeout);
+                case StepOperation.Http http -> performHttp(execution, service, http, timeout, compensation);
                 case StepOperation.Event event -> performEvent(execution, event);
             };
         } catch (RuntimeException e) {
@@ -445,23 +462,51 @@ public final class WorkflowEngine implements WorkflowEnginePort {
         }
     }
 
+    /**
+     * Resilience de la cible (docs/architecture/12, "Politique appliquee par le
+     * Moteur de Workflow") : son circuit breaker et son timeout — pas son retry,
+     * deja porte par l'etape. Une compensation n'est jamais rejetee par un
+     * circuit ouvert (c'est le mecanisme de securite) mais alimente le circuit.
+     */
     private Outcome performHttp(WorkflowExecution execution, ServiceId service, StepOperation.Http http,
-                                Duration timeout) {
+                                Duration stepTimeout, boolean compensation) {
         ResolvedInstances resolved = discovery.resolve(service);
         if (resolved.instances().isEmpty()) {
+            // Aucun appel n'a lieu : rien a enregistrer dans le circuit (et surtout pas
+            // d'essai semi-ouvert consomme sans issue).
             return Outcome.failure("Aucune instance disponible pour le service " + service, true);
         }
-        ResolvedInstance instance = resolved.instances().get(0);
-        URI endpoint = URI.create("http://" + instance.address() + ":" + instance.port() + http.path());
-        boolean hasBody = !http.method().equals("GET") && !http.method().equals("DELETE");
-        InvocationResult result = invocation.invoke(endpoint, http.method(),
-                hasBody ? execution.input() : Map.of(), timeout);
-        if (result.isSuccess()) {
-            return Outcome.success(result.body());
+        ResiliencyPolicy policy = policies.policyFor(service);
+        CircuitBreaker breaker = breakers.forService(service, policy.circuitBreaker());
+        if (!compensation && !breaker.tryAcquire()) {
+            return Outcome.failure("Circuit ouvert pour le service " + service
+                    + " : appel rejete sans acces reseau", true);
         }
-        int status = result.statusCode();
-        boolean retryable = status >= 500 || status == 408 || status == 429;
-        return Outcome.failure("HTTP " + status + " depuis " + service + " (" + http.raw() + ")", retryable);
+        Duration timeout = policy.timeout().compareTo(stepTimeout) < 0 ? policy.timeout() : stepTimeout;
+        boolean recorded = false;
+        try {
+            ResolvedInstance instance = resolved.instances().get(0);
+            URI endpoint = URI.create("http://" + instance.address() + ":" + instance.port() + http.path());
+            boolean hasBody = !http.method().equals("GET") && !http.method().equals("DELETE");
+            InvocationResult result = invocation.invoke(endpoint, http.method(),
+                    hasBody ? execution.input() : Map.of(), timeout);
+            int status = result.statusCode();
+            boolean retryable = CallClassification.isRetryableFailure(status);
+            if (retryable) {
+                breaker.recordFailure();
+            } else {
+                breaker.recordSuccess(); // succes, ou reponse definitive 4xx : le service a repondu
+            }
+            recorded = true;
+            if (result.isSuccess()) {
+                return Outcome.success(result.body());
+            }
+            return Outcome.failure("HTTP " + status + " depuis " + service + " (" + http.raw() + ")", retryable);
+        } finally {
+            if (!recorded) {
+                breaker.recordFailure(); // erreur reseau, delai depasse, exception inattendue
+            }
+        }
     }
 
     private Outcome performEvent(WorkflowExecution execution, StepOperation.Event event) {

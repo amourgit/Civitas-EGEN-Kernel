@@ -5,7 +5,14 @@
   "description": "Contrat technique declare par un service autonome aupres du Kernel EGEN. Voir docs/architecture/06-service-manifest.md. Champs actuellement valides par le domaine (egen-domain) — network/health/dependencies/events/configuration/lifecycle rejoignent ce schema aux phases qui les introduisent (docs/architecture/19-feuille-de-route.md), jamais par anticipation.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apiVersion", "kind", "metadata", "runtime", "deployment", "health"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "runtime",
+    "deployment",
+    "health"
+  ],
   "properties": {
     "apiVersion": {
       "type": "string",
@@ -18,7 +25,10 @@
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version"],
+      "required": [
+        "name",
+        "version"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -30,44 +40,103 @@
           "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
           "description": "SemVer — voir domain.model.ServiceVersion."
         },
-        "team": { "type": "string" },
-        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
-        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+        "team": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
       }
     },
     "runtime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "artifact"],
+      "required": [
+        "type",
+        "artifact"
+      ],
       "properties": {
-        "type": { "type": "string", "enum": ["container", "binary", "external", "vm"] },
-        "artifact": { "type": "string", "minLength": 1 },
-        "language": { "type": "string", "description": "Informatif uniquement — jamais interprete par EGEN." }
+        "type": {
+          "type": "string",
+          "enum": [
+            "container",
+            "binary",
+            "external",
+            "vm"
+          ]
+        },
+        "artifact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "description": "Informatif uniquement — jamais interprete par EGEN."
+        }
       }
     },
     "deployment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["adapter", "image", "resources", "replicas"],
+      "required": [
+        "adapter",
+        "image",
+        "resources",
+        "replicas"
+      ],
       "properties": {
-        "adapter": { "type": "string", "minLength": 1, "description": "Doit correspondre a un Deployment Adapter enregistre dans le Kernel." },
-        "image": { "type": "string", "minLength": 1 },
+        "adapter": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Doit correspondre a un Deployment Adapter enregistre dans le Kernel."
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1
+        },
         "resources": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["cpu", "memory"],
+          "required": [
+            "cpu",
+            "memory"
+          ],
           "properties": {
-            "cpu": { "type": "string", "minLength": 1 },
-            "memory": { "type": "string", "minLength": 1 }
+            "cpu": {
+              "type": "string",
+              "minLength": 1
+            },
+            "memory": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "replicas": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["min", "max"],
+          "required": [
+            "min",
+            "max"
+          ],
           "properties": {
-            "min": { "type": "integer", "minimum": 0 },
-            "max": { "type": "integer", "minimum": 0 }
+            "min": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         }
       }
@@ -75,17 +144,36 @@
     "health": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["http"],
+      "required": [
+        "http"
+      ],
       "properties": {
         "http": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["endpoint", "interval", "timeout"],
+          "required": [
+            "endpoint",
+            "interval",
+            "timeout"
+          ],
           "properties": {
-            "endpoint": { "type": "string", "minLength": 1 },
-            "interval": { "type": "string", "pattern": "^[0-9]+s$" },
-            "timeout": { "type": "string", "pattern": "^[0-9]+s$" },
-            "failuresBeforeUnhealthy": { "type": "integer", "minimum": 1, "default": 3 }
+            "endpoint": {
+              "type": "string",
+              "minLength": 1
+            },
+            "interval": {
+              "type": "string",
+              "pattern": "^[0-9]+s$"
+            },
+            "timeout": {
+              "type": "string",
+              "pattern": "^[0-9]+s$"
+            },
+            "failuresBeforeUnhealthy": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            }
           }
         }
       }
@@ -98,7 +186,62 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "gracePeriod": { "type": "string", "pattern": "^[0-9]+s$" }
+            "gracePeriod": {
+              "type": "string",
+              "pattern": "^[0-9]+s$"
+            }
+          }
+        }
+      }
+    },
+    "resiliency": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Politique demandee a tous les appelants de ce service (docs/architecture/06 et 12). Tout champ omis prend sa valeur par defaut.",
+      "properties": {
+        "timeout": {
+          "type": "string",
+          "pattern": "^[0-9]+(ms|s|m|h)$",
+          "description": "Par tentative ; defaut 30s."
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Tentatives totales, premiere incluse ; defaut 1."
+            },
+            "backoff": {
+              "enum": [
+                "fixed",
+                "exponential"
+              ],
+              "description": "Defaut fixed."
+            },
+            "baseDelay": {
+              "type": "string",
+              "pattern": "^[0-9]+(ms|s|m|h)$",
+              "description": "Defaut 200ms."
+            }
+          }
+        },
+        "circuitBreaker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "failureThreshold": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Echecs consecutifs ; defaut 5."
+            },
+            "openDuration": {
+              "type": "string",
+              "pattern": "^[0-9]+(ms|s|m|h)$",
+              "description": "Defaut 30s."
+            }
           }
         }
       }

@@ -3,6 +3,7 @@ package africa.civitas.egen.adapter.postgresregistry;
 import africa.civitas.egen.domain.lifecycle.Phase;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
 import africa.civitas.egen.domain.model.Dependency;
+import africa.civitas.egen.domain.model.ResiliencyPolicy;
 import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.HealthSpec;
@@ -83,6 +84,33 @@ class PostgresRegistryAdapterIT {
         assertEquals(aManifest(id).version(), reloaded.manifest().version());
         assertEquals(aManifest(id).health().httpEndpoint(), reloaded.manifest().health().httpEndpoint());
         assertEquals(1L, reloaded.generation());
+    }
+
+    @Test
+    void resiliencyPolicySurvivesTheRoundTripAndRowsWithoutItReloadWithDefaults() throws Exception {
+        ServiceId id = ServiceId.of("it-fixture-resiliency");
+        ServiceManifest base = aManifest(id);
+        ResiliencyPolicy policy = new ResiliencyPolicy(Duration.ofSeconds(10),
+                new ResiliencyPolicy.RetrySpec(3, ResiliencyPolicy.Backoff.EXPONENTIAL, Duration.ofMillis(150)),
+                new ResiliencyPolicy.CircuitBreakerSpec(2, Duration.ofSeconds(5)));
+        ServiceManifest withPolicy = new ServiceManifest(base.id(), base.version(), base.runtime(),
+                base.deployment(), base.health(), base.lifecycle(), base.dependencies(), base.ownerTeam(), policy);
+        PostgresRegistryAdapter adapter = adapter();
+
+        adapter.save(new DesiredState(withPolicy, 0L, TargetEnvironment.of("test")));
+
+        assertEquals(policy, adapter.findById(id).orElseThrow().manifest().resiliency());
+
+        // Ligne ecrite avant l'introduction du champ : on retire la cle du JSON stocke.
+        try (java.sql.Connection connection = java.sql.DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+             java.sql.PreparedStatement statement = connection.prepareStatement(
+                     "UPDATE egen_desired_state SET manifest_json = (manifest_json::jsonb - 'resiliency')::text "
+                             + "WHERE service_id = ?")) {
+            statement.setString(1, id.value());
+            statement.executeUpdate();
+        }
+        assertEquals(ResiliencyPolicy.defaults(), adapter.findById(id).orElseThrow().manifest().resiliency());
     }
 
     @Test

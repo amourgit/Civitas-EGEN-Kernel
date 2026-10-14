@@ -30,7 +30,7 @@ import java.util.List;
 public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
                                DeploymentSpec deployment, HealthSpec health,
                                LifecyclePolicy lifecycle, List<Dependency> dependencies,
-                               OwnerTeam ownerTeam) {
+                               OwnerTeam ownerTeam, ResiliencyPolicy resiliency) {
 
     public ServiceManifest {
         if (id == null) {
@@ -52,21 +52,34 @@ public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRunti
             lifecycle = LifecyclePolicy.defaultPolicy();
         }
         dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
+        if (resiliency == null) {
+            resiliency = ResiliencyPolicy.defaults();
+        }
         if (ownerTeam == null) {
             ownerTeam = OwnerTeam.unassigned();
         }
+    }
+
+    /**
+     * Convenience historique (Phase 4) : sans bloc {@code resiliency} — recoit
+     * {@link ResiliencyPolicy#defaults()} (docs/architecture/06-service-manifest.md).
+     */
+    public ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
+                            DeploymentSpec deployment, HealthSpec health, LifecyclePolicy lifecycle,
+                            List<Dependency> dependencies, OwnerTeam ownerTeam) {
+        this(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam, null);
     }
 
     /** Convenience historique (Phase 1-3) : delegue avec {@link OwnerTeam#unassigned()}. */
     public ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
                             DeploymentSpec deployment, HealthSpec health, LifecyclePolicy lifecycle,
                             List<Dependency> dependencies) {
-        this(id, version, runtime, deployment, health, lifecycle, dependencies, null);
+        this(id, version, runtime, deployment, health, lifecycle, dependencies, null, null);
     }
 
     /** Convenience : construit un manifeste sans dependance declaree ni equipe assignee. */
     public ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
                             DeploymentSpec deployment, HealthSpec health, LifecyclePolicy lifecycle) {
-        this(id, version, runtime, deployment, health, lifecycle, List.of(), null);
+        this(id, version, runtime, deployment, health, lifecycle, List.of(), null, null);
     }
 }

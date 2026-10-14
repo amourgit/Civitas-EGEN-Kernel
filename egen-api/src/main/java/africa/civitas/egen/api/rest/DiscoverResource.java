@@ -2,8 +2,10 @@ package africa.civitas.egen.api.rest;
 
 import africa.civitas.egen.api.dto.DiscoverResponseDto;
 import africa.civitas.egen.api.dto.ResolvedInstanceDto;
-import africa.civitas.egen.application.port.DiscoveryPort;
+import africa.civitas.egen.api.mapper.ResiliencyMapper;
 import africa.civitas.egen.application.port.ResolvedInstance;
+import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
+import africa.civitas.egen.application.usecase.ServiceResolution;
 import africa.civitas.egen.domain.model.ServiceId;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -22,11 +24,11 @@ import jakarta.ws.rs.core.MediaType;
 @Path("/api/v1/discover")
 public class DiscoverResource {
 
-    private final DiscoveryPort discoveryPort;
+    private final ResolveServiceUseCase resolveServiceUseCase;
 
     @Inject
-    public DiscoverResource(DiscoveryPort discoveryPort) {
-        this.discoveryPort = discoveryPort;
+    public DiscoverResource(ResolveServiceUseCase resolveServiceUseCase) {
+        this.resolveServiceUseCase = resolveServiceUseCase;
     }
 
     @GET
@@ -39,13 +41,15 @@ public class DiscoverResource {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e.getMessage());
         }
-        var instances = discoveryPort.resolve(id).instances().stream()
+        ServiceResolution resolution = resolveServiceUseCase.resolve(id);
+        var instances = resolution.instances().instances().stream()
                 .map(DiscoverResource::toDto)
                 .toList();
-        return new DiscoverResponseDto(id.value(), instances);
+        return new DiscoverResponseDto(id.value(), instances, ResiliencyMapper.toView(resolution.resiliency()));
     }
 
     private static ResolvedInstanceDto toDto(ResolvedInstance instance) {
         return new ResolvedInstanceDto(instance.instanceId(), instance.address(), instance.port());
     }
 }
+

@@ -29,6 +29,24 @@
 /api/v1/adapters                          # introspection : quels adapters sont enregistrés et opérationnels
 ```
 
+### Découverte — `GET /api/v1/discover/{serviceName}`
+
+Répond `200` avec les instances saines **et**, lorsque le service est
+déclaré, la politique `resiliency` de sa cible (valeurs effectives, défauts
+appliqués — voir [06](06-service-manifest.md#resilience-declaree-par-la-cible-resiliency)) :
+
+```json
+{ "serviceId": "notification-service",
+  "instances": [ { "instanceId": "…", "address": "10.0.0.7", "port": 8080 } ],
+  "resiliency": { "timeoutMillis": 10000,
+                  "retry": { "maxAttempts": 3, "backoff": "exponential", "baseDelayMillis": 200 },
+                  "circuitBreaker": { "failureThreshold": 5, "openDurationMillis": 30000 } } }
+```
+
+Un service inconnu du Registry (mais présent dans le Discovery) reçoit les
+valeurs par défaut. C'est ce que consomment les SDK et le sidecar
+([12](12-communication-fabric.md)).
+
 ### Workflows — contrat détaillé (Phase 5)
 
 | Méthode & chemin | Rôle | Réponse |

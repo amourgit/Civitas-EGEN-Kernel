@@ -17,4 +17,5 @@ public class ServiceManifestDto {
     public HealthDto health;
     public LifecycleDto lifecycle;
     public DependenciesDto dependencies;
+    public ResiliencyDto resiliency;
 }

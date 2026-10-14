@@ -174,6 +174,13 @@ Tout autre `4xx` est un échec **définitif** immédiat (rejouer la même requê
 ne peut pas la rendre valide). Délai entre tentatives : `FIXED` = base,
 `EXPONENTIAL` = base × 2^(échecs−1), plafonné (`WorkflowEngineSettings`).
 
+**Résilience de la cible.** En plus du retry de l'étape, chaque appel HTTP
+passe par le circuit breaker du service cible et respecte son `timeout`
+(voir [12](12-communication-fabric.md#semantique-normative-de-la-resilience) :
+le Moteur n'applique pas le retry de la cible, celui de l'étape suffit).
+Circuit ouvert → tentative en échec **réessayable**, sans accès réseau.
+Une compensation n'est jamais rejetée par un circuit ouvert.
+
 **Échec définitif d'une étape.** L'étape échouée n'est jamais compensée
 (son effet partiel est de la responsabilité du service) ; seules le sont les
 étapes **réussies** déclarant une `compensation`, en **ordre inverse

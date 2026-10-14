@@ -83,6 +83,10 @@ final class EngineFakes {
             unavailable.add(id);
         }
 
+        void makeAvailable(ServiceId id) {
+            unavailable.remove(id);
+        }
+
         @Override
         public void register(ServiceInstanceRegistration registration) {
         }

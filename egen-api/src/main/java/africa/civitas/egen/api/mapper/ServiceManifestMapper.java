@@ -93,7 +93,8 @@ public final class ServiceManifestMapper {
                 ? null
                 : OwnerTeam.of(dto.metadata.team);
 
-        return new ServiceManifest(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam);
+        return new ServiceManifest(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam,
+                ResiliencyMapper.toDomain(dto.resiliency));
     }
 
     /** L'equipe declaree dans un manifeste DTO, avant meme sa validation complete par {@link #toDomain}. */

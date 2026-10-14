@@ -1,0 +1,1036 @@
+{
+  "version": 1,
+  "description": "Contrat de resilience partage (docs/architecture/12-communication-fabric.md, 'Semantique normative de la resilience'). Rejoue par le Kernel (scope=breaker), le SDK Java et le SDK Python (tous scopes). Une 'call' fournit le resultat de chaque tentative reseau, dans l'ordre ; les tentatives non consommees sont ignorees. 'advanceMillis' avance l'horloge simulee. Sorties : status:<code> | error:timeout | error:network | rejected:circuit_open.",
+  "defaults": {
+    "timeoutMillis": 30000,
+    "retry": {
+      "maxAttempts": 1,
+      "backoff": "fixed",
+      "baseDelayMillis": 200
+    },
+    "circuitBreaker": {
+      "failureThreshold": 5,
+      "openDurationMillis": 30000
+    }
+  },
+  "maxBackoffMillis": 30000,
+  "scenarios": [
+    {
+      "name": "success-keeps-circuit-closed",
+      "scope": "breaker",
+      "description": "Les succes ne changent rien.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "204"
+          ],
+          "expect": {
+            "result": "status:204",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "opens-after-threshold-consecutive-failures",
+      "scope": "breaker",
+      "description": "3 echecs consecutifs ouvrent le circuit ; l'appel suivant est rejete SANS tentative reseau.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "rejected:circuit_open",
+            "attemptsMade": 0,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a-success-resets-the-consecutive-counter",
+      "scope": "breaker",
+      "description": "Les echecs doivent etre CONSECUTIFS : un succes remet le compteur a zero.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a-definitive-4xx-counts-as-a-success",
+      "scope": "breaker",
+      "description": "Un 404 est une reponse du service : jamais reessaye, et il remet le compteur a zero.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "404"
+          ],
+          "expect": {
+            "result": "status:404",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "network-timeout-408-429-count-as-failures",
+      "scope": "breaker",
+      "description": "Erreur reseau, delai depasse et 429 sont des echecs reessayables.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "network"
+          ],
+          "expect": {
+            "result": "error:network",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "timeout"
+          ],
+          "expect": {
+            "result": "error:timeout",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "429"
+          ],
+          "expect": {
+            "result": "status:429",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "408-counts-as-a-failure",
+      "scope": "breaker",
+      "description": "408 = echec reessayable.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 1,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "408"
+          ],
+          "expect": {
+            "result": "status:408",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "half-open-probe-success-closes",
+      "scope": "breaker",
+      "description": "Apres openDuration, UN essai : un succes referme le circuit et remet le compteur a zero.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "advanceMillis": 1000
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "half-open-probe-failure-reopens-with-a-new-window",
+      "scope": "breaker",
+      "description": "Un essai en echec rouvre le circuit pour une NOUVELLE fenetre complete, comptee depuis l'essai.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "advanceMillis": 1000
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "advanceMillis": 999
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "rejected:circuit_open",
+            "attemptsMade": 0,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "advanceMillis": 1
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a-rejection-never-extends-the-open-window",
+      "scope": "breaker",
+      "description": "Un rejet n'est pas un echec : la fenetre d'ouverture n'est pas prolongee.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "advanceMillis": 500
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "rejected:circuit_open",
+            "attemptsMade": 0,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "advanceMillis": 500
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "stays-open-until-the-full-duration-elapsed",
+      "scope": "breaker",
+      "description": "999 ms sur 1000 : toujours ouvert.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        },
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "advanceMillis": 999
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "rejected:circuit_open",
+            "attemptsMade": 0,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "no-retry-by-default",
+      "scope": "full",
+      "description": "maxAttempts=1 : une seule tentative, la reponse 503 est rendue telle quelle.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 1,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "fixed-backoff",
+      "scope": "full",
+      "description": "fixed = baseDelay a chaque attente.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 3,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503",
+            "503",
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 3,
+            "sleepsMillis": [
+              200,
+              200
+            ],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "exponential-backoff",
+      "scope": "full",
+      "description": "exponential = baseDelay x 2^(n-1).",
+      "policy": {
+        "retry": {
+          "maxAttempts": 4,
+          "backoff": "exponential",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503",
+            "503",
+            "503",
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 4,
+            "sleepsMillis": [
+              200,
+              400,
+              800
+            ],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "exponential-backoff-is-capped-at-30s",
+      "scope": "full",
+      "description": "Plafond de 30 000 ms.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 5,
+          "backoff": "exponential",
+          "baseDelayMillis": 20000
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503",
+            "503",
+            "503",
+            "503",
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 5,
+            "sleepsMillis": [
+              20000,
+              30000,
+              30000,
+              30000
+            ],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "definitive-4xx-is-never-retried",
+      "scope": "full",
+      "description": "4xx hors 408/429 : rendu immediatement.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 3,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "404",
+            "200"
+          ],
+          "expect": {
+            "result": "status:404",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "exhausted-retries-return-the-last-outcome",
+      "scope": "full",
+      "description": "Pas d'attente apres la derniere tentative ; le dernier resultat est rendu.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 3,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503",
+            "502",
+            "500"
+          ],
+          "expect": {
+            "result": "status:500",
+            "attemptsMade": 3,
+            "sleepsMillis": [
+              200,
+              200
+            ],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "timeout-and-network-are-retried",
+      "scope": "full",
+      "description": "Delai depasse et erreur reseau sont reessayables.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 3,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "timeout",
+            "network",
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 3,
+            "sleepsMillis": [
+              200,
+              200
+            ],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "429-and-408-are-retried",
+      "scope": "full",
+      "description": "429 et 408 sont reessayables.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 3,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "429",
+            "408",
+            "200"
+          ],
+          "expect": {
+            "result": "status:200",
+            "attemptsMade": 3,
+            "sleepsMillis": [
+              200,
+              200
+            ],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "exhausted-network-failure-is-reported-as-error",
+      "scope": "full",
+      "description": "Sans reponse HTTP, le resultat est error:<nature>.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 2,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 100,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "network",
+            "network"
+          ],
+          "expect": {
+            "result": "error:network",
+            "attemptsMade": 2,
+            "sleepsMillis": [
+              200
+            ],
+            "breaker": "CLOSED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "circuit-opening-mid-series-stops-the-retries",
+      "scope": "full",
+      "description": "Le circuit s'ouvre a la 2e tentative : on n'attend pas et on ne reessaie pas.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 5,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 2,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503",
+            "503",
+            "200"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 2,
+            "sleepsMillis": [
+              200
+            ],
+            "breaker": "OPEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "open-circuit-rejects-before-any-retry",
+      "scope": "full",
+      "description": "Circuit ouvert : rejet immediat, zero tentative, zero attente.",
+      "policy": {
+        "retry": {
+          "maxAttempts": 3,
+          "backoff": "fixed",
+          "baseDelayMillis": 200
+        },
+        "circuitBreaker": {
+          "failureThreshold": 1,
+          "openDurationMillis": 1000
+        }
+      },
+      "steps": [
+        {
+          "call": [
+            "503",
+            "503",
+            "503"
+          ],
+          "expect": {
+            "result": "status:503",
+            "attemptsMade": 1,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        },
+        {
+          "call": [
+            "200"
+          ],
+          "expect": {
+            "result": "rejected:circuit_open",
+            "attemptsMade": 0,
+            "sleepsMillis": [],
+            "breaker": "OPEN"
+          }
+        }
+      ]
+    }
+  ]
+}

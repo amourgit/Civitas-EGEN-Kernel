@@ -113,6 +113,17 @@ configuration:
       provider: vault
       path: secret/data/news-service/db
 
+# --- RÉSILIENCE DEMANDÉE À TOUS CEUX QUI APPELLENT CE SERVICE (optionnel) ----
+resiliency:
+  timeout: 10s                       # par tentative ; défaut 30s
+  retry:
+    maxAttempts: 3                   # tentatives TOTALES (la première incluse) ; défaut 1 = aucun retry
+    backoff: exponential             # fixed | exponential ; défaut fixed
+    baseDelay: 200ms                 # défaut 200ms
+  circuitBreaker:
+    failureThreshold: 5              # échecs consécutifs qui ouvrent le circuit ; défaut 5
+    openDuration: 30s                # avant l'essai semi-ouvert ; défaut 30s
+
 # --- POLITIQUE DE CYCLE DE VIE ----------------------------------------------
 lifecycle:
   startupOrder: after-dependencies   # after-dependencies | independent
@@ -134,6 +145,25 @@ lifecycle:
 - Une logique de traitement des événements — EGEN transporte, il
   n'interprète pas `data`.
 
+## Résilience déclarée par la cible (`resiliency`)
+
+Bloc **optionnel et additif** (un manifeste qui l'ignore reste valide et
+inchangé). Il suit le modèle « target-based » de Dapr : la politique est
+déclarée **une seule fois, par le service appelé**, et appliquée
+uniformément par tous ses appelants (SDK, sidecar, Moteur de Workflow) — pas
+recodée dans chaque appelant. La sémantique exacte (ce qui compte comme un
+échec, la machine à états du circuit breaker, les règles de retry) est
+normative dans [12](12-communication-fabric.md#semantique-normative-de-la-resilience).
+
+- Chaque champ omis prend sa valeur par défaut (indiquée ci-dessus) ; un
+  service **sans** bloc `resiliency` reçoit les mêmes valeurs par défaut —
+  il n'existe pas d'appel inter-services « non protégé ».
+- Durées : un entier suivi de `ms`, `s`, `m` ou `h`.
+- Bornes (validation à `Declare`) : `timeout` > 0 ; `maxAttempts` entre 1 et
+  10 ; `baseDelay` > 0 ; `failureThreshold` ≥ 1 ; `openDuration` > 0.
+- Ce bloc ne dit **jamais** *quoi* appeler ni *comment interpréter* une
+  réponse métier : il ne porte que des seuils techniques.
+
 ## Validation du manifeste (obligatoire avant tout `Declare`)
 
 1. Schéma JSON/YAML strict (rejette les champs inconnus — évite la dérive
@@ -149,3 +179,5 @@ lifecycle:
    `DEGRADED`/`BLOCKED` avec une `Condition` explicite (voir
    [09](09-cycle-de-vie.md#conditions)) — jamais un rejet silencieux ni un
    crash.
+5. Bornes du bloc `resiliency` (voir ci-dessus), refusées avec un message
+   nommant le champ fautif.

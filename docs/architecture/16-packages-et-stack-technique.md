@@ -59,6 +59,11 @@ egen-kernel/                              (repo racine — build multi-module Ma
 │   └── src/main/java/africa/civitas/egen/bootstrap/
 │       └── EgenKernelApplication.java    # seul module autorisé à connaître domaine ET adapters simultanément
 │
+├── egen-sdk-java/                        # SDK léger Java (Communication Fabric, voir 12) — JDK seul, AUCUNE dépendance vers egen-domain
+├── egen-sidecar/                         # sidecar de référence (voir 12) — construit sur egen-sdk-java, écoute 127.0.0.1
+├── sdk/                                  # SDK non-JVM et contrat partagé (hors build Maven)
+│   ├── contract/resiliency-contract.json # scénarios exécutés par le Kernel, le SDK Java ET le SDK Python
+│   └── python/                           # paquet egen_sdk (stdlib seule)
 └── egen-test-kit/                        # doubles de test partagés : InMemoryDeploymentPort, InMemoryDiscoveryPort...
     └── src/main/java/africa/civitas/egen/testkit/
 ```

@@ -1,15 +1,19 @@
 package africa.civitas.egen.bootstrap.wiring;
 
+import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.WorkflowStorePort;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
+import africa.civitas.egen.application.resilience.ResiliencyPolicyProvider;
 import africa.civitas.egen.application.usecase.DefineWorkflowUseCase;
 import africa.civitas.egen.application.usecase.DefineWorkflowUseCaseImpl;
 import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
+import africa.civitas.egen.application.usecase.ResolveServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.RunWorkflowUseCase;
 import africa.civitas.egen.application.usecase.RunWorkflowUseCaseImpl;
 import africa.civitas.egen.application.usecase.StopServiceUseCase;
@@ -43,6 +47,12 @@ public class UseCaseBeans {
     @Inject
     WorkflowEnginePort workflowEnginePort;
 
+    @Inject
+    DiscoveryPort discoveryPort;
+
+    @Inject
+    ResiliencyPolicyProvider resiliencyPolicyProvider;
+
     @Produces
     @ApplicationScoped
     public DeployServiceUseCase deployServiceUseCase() {
@@ -71,6 +81,12 @@ public class UseCaseBeans {
     @ApplicationScoped
     public RunWorkflowUseCase runWorkflowUseCase() {
         return new RunWorkflowUseCaseImpl(workflowStorePort, workflowEnginePort);
+    }
+
+    @Produces
+    @ApplicationScoped
+    public ResolveServiceUseCase resolveServiceUseCase() {
+        return new ResolveServiceUseCaseImpl(discoveryPort, resiliencyPolicyProvider);
     }
 }
 

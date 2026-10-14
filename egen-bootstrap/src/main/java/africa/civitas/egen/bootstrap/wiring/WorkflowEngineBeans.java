@@ -4,6 +4,7 @@ import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.MessagingPort;
 import africa.civitas.egen.application.port.ServiceInvocationPort;
 import africa.civitas.egen.application.port.WorkflowStorePort;
+import africa.civitas.egen.application.resilience.ResiliencyPolicyProvider;
 import africa.civitas.egen.application.workflow.Sleeper;
 import africa.civitas.egen.application.workflow.WorkflowEngine;
 import africa.civitas.egen.application.workflow.WorkflowEnginePort;
@@ -47,6 +48,9 @@ public class WorkflowEngineBeans {
     @Inject
     MessagingPort messagingPort;
 
+    @Inject
+    ResiliencyPolicyProvider resiliencyPolicyProvider;
+
     @ConfigProperty(name = "egen.workflow.retry.base-backoff-millis", defaultValue = "500")
     long baseBackoffMillis;
 
@@ -68,7 +72,8 @@ public class WorkflowEngineBeans {
             engine = new WorkflowEngine(workflowStorePort, discoveryPort, serviceInvocationPort, messagingPort,
                     Clock.systemUTC(), Sleeper.threadSleep(), executor,
                     new WorkflowEngineSettings(Duration.ofMillis(baseBackoffMillis),
-                            Duration.ofMillis(maxBackoffMillis)));
+                            Duration.ofMillis(maxBackoffMillis)),
+                    resiliencyPolicyProvider);
         }
         return engine;
     }

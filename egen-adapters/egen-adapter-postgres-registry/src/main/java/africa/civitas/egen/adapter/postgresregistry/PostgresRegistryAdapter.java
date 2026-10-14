@@ -13,6 +13,7 @@ import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ReplicaRange;
+import africa.civitas.egen.domain.model.ResiliencyPolicy;
 import africa.civitas.egen.domain.model.RuntimeType;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceManifest;
@@ -339,6 +340,20 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
             dep.put("required", dependency.required());
         }
 
+        // resiliency (docs/architecture/06 + 12) : durees en millisecondes, valeurs
+        // EFFECTIVES (defauts inclus) — un changement futur des defauts ne modifie
+        // donc jamais silencieusement le comportement d'un manifeste deja persiste.
+        ResiliencyPolicy resiliency = manifest.resiliency();
+        ObjectNode resiliencyNode = node.putObject("resiliency");
+        resiliencyNode.put("timeoutMillis", resiliency.timeout().toMillis());
+        ObjectNode retry = resiliencyNode.putObject("retry");
+        retry.put("maxAttempts", resiliency.retry().maxAttempts());
+        retry.put("backoff", resiliency.retry().backoff().name());
+        retry.put("baseDelayMillis", resiliency.retry().baseDelay().toMillis());
+        ObjectNode breaker = resiliencyNode.putObject("circuitBreaker");
+        breaker.put("failureThreshold", resiliency.circuitBreaker().failureThreshold());
+        breaker.put("openDurationMillis", resiliency.circuitBreaker().openDuration().toMillis());
+
         return node;
     }
 
@@ -369,7 +384,32 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
                         health.path("failuresBeforeUnhealthy").asInt()),
                 new LifecyclePolicy(Duration.ofSeconds(lifecycle.path("shutdownGracePeriodSeconds").asLong())),
                 dependenciesFromJson(node),
-                ownerTeamFromJson(node));
+                ownerTeamFromJson(node),
+                resiliencyFromJson(node));
+    }
+
+    /** Champ absent (lignes ecrites avant ce champ) = valeurs par defaut, jamais une erreur. */
+    private ResiliencyPolicy resiliencyFromJson(JsonNode node) {
+        JsonNode resiliency = node.path("resiliency");
+        if (resiliency.isMissingNode() || resiliency.isNull()) {
+            return ResiliencyPolicy.defaults();
+        }
+        JsonNode retry = resiliency.path("retry");
+        JsonNode breaker = resiliency.path("circuitBreaker");
+        return new ResiliencyPolicy(
+                Duration.ofMillis(resiliency.path("timeoutMillis").asLong(
+                        ResiliencyPolicy.DEFAULT_TIMEOUT.toMillis())),
+                new ResiliencyPolicy.RetrySpec(
+                        retry.path("maxAttempts").asInt(ResiliencyPolicy.RetrySpec.DEFAULT_MAX_ATTEMPTS),
+                        ResiliencyPolicy.Backoff.valueOf(retry.path("backoff").asText(
+                                ResiliencyPolicy.Backoff.FIXED.name())),
+                        Duration.ofMillis(retry.path("baseDelayMillis").asLong(
+                                ResiliencyPolicy.RetrySpec.DEFAULT_BASE_DELAY.toMillis()))),
+                new ResiliencyPolicy.CircuitBreakerSpec(
+                        breaker.path("failureThreshold").asInt(
+                                ResiliencyPolicy.CircuitBreakerSpec.DEFAULT_FAILURE_THRESHOLD),
+                        Duration.ofMillis(breaker.path("openDurationMillis").asLong(
+                                ResiliencyPolicy.CircuitBreakerSpec.DEFAULT_OPEN_DURATION.toMillis()))));
     }
 
     /** Champ absent (lignes ecrites avant ce correctif) = aucune dependance, jamais une erreur. */
