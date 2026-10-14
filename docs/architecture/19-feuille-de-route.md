@@ -190,21 +190,37 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
 
 ## Phase 5 — Moteur de Workflow et communication fabric avancée
 
-- [ ] `WorkflowEnginePort` natif (voir [11](11-moteur-de-workflow.md)),
+- [x] `WorkflowEnginePort` natif (voir [11](11-moteur-de-workflow.md)),
       avec compensation Saga orchestrée, durabilité de l'exécution.
-      *État : modèle de domaine, ports (`ServiceInvocationPort`,
-      `WorkflowStorePort`), `WorkflowEngine`, use cases et API REST
-      `/api/v1/workflows` écrits ; case à cocher après validation du build
-      Maven complet et du scénario de [20](20-scenario-bout-en-bout.md).*
-- [ ] Communication Fabric : SDK léger pour au moins deux langages (ex.
-      Python + Java) et un mode sidecar de référence (voir
+      *Livré : modèle de domaine, ports (`ServiceInvocationPort`,
+      `WorkflowStorePort`), `WorkflowEngine`, use cases, API REST
+      `/api/v1/workflows` ; validé par le build Maven complet de la CI
+      (tests unitaires, tests d'adapters PostgreSQL, API Quarkus, ArchUnit)
+      et par `PublishArticleWorkflowScenarioIT` (voir ci-dessous).*
+- [x] Communication Fabric : SDK léger pour au moins deux langages (Java et
+      Python) et un mode sidecar de référence (voir
       [12](12-communication-fabric.md)).
-- [ ] Résilience configurable (retry/timeout/circuit breaking) appliquée
+      *Livré : `egen-sdk-java`, `sdk/python`, `egen-sidecar`. La
+      publication d'événements par le SDK reste à faire : elle attend
+      `POST /api/v1/events/publish`, pas encore implémenté côté Kernel.*
+- [x] Résilience configurable (retry/timeout/circuit breaking) appliquée
       uniformément.
-- **Livrable démontrable** : le scénario complet de
+      *Livré : bloc `resiliency` du manifeste ([06](06-service-manifest.md)),
+      sémantique normative et contrat exécutable partagé par le Kernel, le
+      SDK Java et le SDK Python ([12](12-communication-fabric.md),
+      [17](17-strategie-de-tests.md)), appliquée par le Moteur de Workflow
+      et servie par `discover`.*
+- [ ] **Livrable démontrable** : le scénario complet de
   [20 — Scénario de bout en bout](20-scenario-bout-en-bout.md) s'exécute
   de bout en bout, y compris un cas de compensation déclenché
   volontairement.
+      *État : la partie 2 (workflow, compensation, reprise après crash) est
+      automatisée avec un vrai moteur, un vrai adapter HTTP et un vrai
+      PostgreSQL (`PublishArticleWorkflowScenarioIT`). Reste à faire : le
+      rejeu complet de la partie 1 et de la partie 2 avec de vrais Nomad,
+      Consul, NATS et Vault (test de niveau 5, voir
+      [17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-regression-architecturale)) —
+      il n'existe pas encore de test de niveau 5 dans le dépôt.*
 
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 
