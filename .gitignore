@@ -17,3 +17,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# SDK Python
+__pycache__/
+*.pyc
+*.egg-info/

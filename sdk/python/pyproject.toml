@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "egen-sdk"
+version = "0.1.0"
+description = "SDK leger de la Communication Fabric EGEN : decouverte, appel avec resilience, propagation de contexte"
+requires-python = ">=3.10"
+# AUCUNE dependance d'execution : bibliotheque standard uniquement (docs/architecture/12).
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["egen_sdk*"]

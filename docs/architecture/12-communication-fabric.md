@@ -89,8 +89,11 @@ logique que l'attribut d'événement `egen_correlation_id` de
 tiret bas (les proxies courants, nginx en tête, les suppriment).
 
 **mTLS.** Le SDK accepte un `SSLContext` (Java) / `ssl.SSLContext` (Python)
-et le transmet tel quel à son client HTTP ; le sidecar lit son matériel
-depuis l'environnement. Aucun des deux ne gère de certificats lui-même
+et le transmet tel quel à son client HTTP ; **lorsqu'un contexte est fourni,
+les services cibles sont adressés en `https`** (sans contexte, en `http`). Le
+sidecar n'expose pas encore cette option : il parle `http` aux cibles tant que
+leur terminaison TLS est assurée par le maillage (Consul Connect) hors du
+processus. Aucun des deux ne gère de certificats lui-même
 (voir [14](14-securite.md)).
 
 **Politique appliquée par le Moteur de Workflow.** L'étape d'un workflow

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-kernel</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-sdk-java</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: SDK Java</name>
+  <description>
+    SDK leger de la Communication Fabric (voir docs/architecture/12-communication-fabric.md) :
+    decouverte, appel avec resilience (retry, timeout, circuit breaker) et propagation de
+    contexte. AUCUNE dependance hors JDK, et AUCUNE dependance vers un module du Kernel
+    (egen-domain compris) : il ne parle que l'API de controle (voir 13-api-et-contrats.md).
+    Ces deux regles sont imposees ci-dessous par maven-enforcer-plugin.
+  </description>
+
+  <dependencies>
+    <!-- Aucune dependance de compilation : c'est la regle, pas un oubli. -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>jdk-only-no-kernel-dependency</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>*</exclude>
+                  </excludes>
+                  <includes>
+                    <include>*:*:*:*:test</include>
+                  </includes>
+                  <message>egen-sdk-java n'admet aucune dependance hors scope test (voir docs/architecture/12).</message>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

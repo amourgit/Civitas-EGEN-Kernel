@@ -94,3 +94,25 @@ redémarrage brutal du Kernel en plein cycle de réconciliation — pour
 valider concrètement la propriété d'idempotence et de reprise sur
 laquelle repose toute l'architecture (voir
 [04.3](04-moteur-de-reconciliation.md#idempotence--condition-de-survie-de-la-boucle)).
+
+## Tests de contrat inter-langages (Communication Fabric)
+
+La résilience ([12](12-communication-fabric.md#semantique-normative-de-la-resilience))
+est implémentée trois fois (Kernel, SDK Java, SDK Python). Pour qu'elles ne
+divergent jamais, la sémantique est **exécutable** :
+`sdk/contract/resiliency-contract.json` liste des scénarios (réponses
+scriptées → résultat, nombre de tentatives, attentes, état du circuit) que
+chaque implémentation rejoue dans sa suite habituelle :
+
+| Implémentation | Scénarios rejoués | Où |
+| --- | --- | --- |
+| Kernel (`CircuitBreaker`) | `scope: breaker` | `CircuitBreakerContractTest` (`egen-application`) |
+| SDK Java | tous | `ResiliencyContractTest` (`egen-sdk-java`) |
+| SDK Python | tous | `sdk/python/tests/test_contract.py` |
+
+Règle : **toute évolution de la sémantique commence par ce fichier** ; un
+scénario ajouté doit faire échouer les trois suites avant que l'on corrige
+les trois implémentations. Les SDK sont par ailleurs testés contre de vrais
+serveurs HTTP locaux (`com.sun.net.httpserver`, `http.server`) — jamais contre
+un mock du client HTTP, qui ne vérifierait ni les délais ni les refus de
+connexion.

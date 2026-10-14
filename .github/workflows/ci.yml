@@ -25,6 +25,11 @@ jobs:
           java-version: '21'
           cache: maven
 
+      - name: Tester le SDK Python (stdlib seule, contrat de resilience partage)
+        run: |
+          cd sdk/python
+          python3 -m unittest discover -s tests -t . -v
+
       - name: Construire et tester tout le reacteur Maven
         id: build
         continue-on-error: true

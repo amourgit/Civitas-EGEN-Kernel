@@ -111,6 +111,8 @@
     <module>egen-api</module>
     <module>egen-bootstrap</module>
     <module>egen-test-kit</module>
+    <module>egen-sdk-java</module>
+    <module>egen-sidecar</module>
   </modules>
 
   <dependencyManagement>
