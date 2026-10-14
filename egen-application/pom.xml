@@ -34,6 +34,16 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <!--
+      Test uniquement : CircuitBreakerContractTest rejoue sdk/contract/resiliency-contract.json
+      (docs/architecture/12). Le code de production d'egen-application reste sans Jackson (ArchUnit,
+      niveau 4 : DO_NOT_INCLUDE_TESTS) ; la version est geree par le BOM Quarkus du parent.
+    -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
 </project>
