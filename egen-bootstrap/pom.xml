@@ -97,6 +97,21 @@
       <artifactId>archunit-junit5</artifactId>
       <scope>test</scope>
     </dependency>
+    <!--
+      Scenario d'acceptation du Moteur de Workflow (docs/architecture/20, partie 2) :
+      vrai PostgreSQL via Testcontainers, comme les tests de niveau 3 des adapters.
+      Le driver JDBC vient deja de quarkus-jdbc-postgresql.
+    -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -112,6 +127,11 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <!-- Execute les *IT (scenarios d'acceptation avec Testcontainers) a la phase verify. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

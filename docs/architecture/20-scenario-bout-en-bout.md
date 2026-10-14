@@ -57,3 +57,80 @@ parties prenantes non techniques.
    GET /api/v1/services/news-service/status
    → { phase: "RUNNING", observedGeneration: 1, conditions: [...], instances: 2 }
 ```
+
+## Partie 2 — Workflow : publier un article, avec compensation volontaire
+
+La partie 1 montre le Kernel *maintenir un état désiré*. Cette partie montre
+le Moteur de Workflow *orchestrer plusieurs services à travers un échec*
+([11](11-moteur-de-workflow.md)). Le workflow est celui de référence,
+`publish-article-workflow`, déclaré **tel quel** en YAML (voir le doc 11).
+`news-service` et `notification-service` sont supposés `RUNNING` (partie 1).
+
+```
+9. DEFINE
+   Client ──POST /api/v1/workflows  (Content-Type: application/yaml, Idempotency-Key: …)──▶ EGEN API
+   rôle administrateur requis (voir 14) ; WorkflowMapper valide la forme (durées s/m/h, kind),
+   WorkflowDefinition valide le graphe (étapes inconnues, cycles) ; persistée ;
+   répond 202 Accepted + Location: /api/v1/workflows/publish-article-workflow
+
+10. RUN
+   Client ──POST /api/v1/workflows/publish-article-workflow/executions
+              {"input": {"articleId": "42"}}──▶ EGEN API
+   RunWorkflowUseCase charge la définition, WorkflowEngine crée l'exécution (RUNNING, entrée
+   persistée) et la pilote sur un thread virtuel ; répond 202 + Location: …/executions/{id}
+
+11. EXECUTE (cas nominal)
+   Dans l'ordre topologique, pour chaque étape HTTP :
+   DiscoveryPort.resolve(service) → circuit breaker de la cible (voir 12) → ServiceInvocationPort.invoke
+   → un StepResult final par tentative est journalisé (clé unique exécution/étape/tentative) :
+     validate-content        ✔  POST news-service /internal/validate
+     reserve-notification-slot ✔ POST notification-service /internal/reserve-slot
+     publish                 ✔  POST news-service /internal/publish
+     notify-subscribers      ✔  EVENT africa.civitas.news.article.published.v1
+                                 (CloudEvent corrélé à l'exécution, data = l'entrée en JSON)
+   → exécution COMPLETED
+
+12. COMPENSATE (échec volontaire de l'étape intermédiaire `publish`)
+   POST news-service /internal/publish répond 500
+   → l'étape n'a pas de retry (maxAttempts 1) : échec DÉFINITIF, journalisé dans la MÊME sauvegarde
+     que le passage en COMPENSATING (jamais un échec visible sans son effet sur le statut)
+   → compensations des SEULES étapes réussies qui en déclarent une, en ordre INVERSE :
+       reserve-notification-slot  →  POST notification-service /internal/release-slot  ✔
+       validate-content           →  (aucune compensation déclarée : ignorée)
+     `publish`, qui a échoué, n'est PAS compensée (son effet partiel est l'affaire du service) ;
+     `notify-subscribers` n'a jamais été lancée : aucun événement ne part.
+   → exécution COMPENSATED
+
+13. CRASH DU KERNEL PENDANT L'EXÉCUTION (durabilité)
+   Le Kernel s'arrête après `validate-content` (RUNNING, un résultat journalisé, l'entrée persistée).
+   Au redémarrage, recoverInterruptedExecutions() relit l'exécution depuis le store :
+   `validate-content` n'est PAS rejouée, les étapes restantes s'exécutent avec l'entrée d'origine.
+
+14. CLIENT — À TOUT MOMENT
+   GET /api/v1/workflows/publish-article-workflow/executions/{id}
+   → { status: "COMPENSATED", input: {...}, stepResults: [ …un résultat final par tentative… ] }
+```
+
+Commandes de l'environnement complet (à exécuter contre un Kernel démarré
+avec Nomad, Consul, NATS, PostgreSQL et Vault ; `$TOKEN` = jeton du rôle
+administrateur) :
+
+```bash
+curl -si -X POST localhost:8080/api/v1/workflows \
+  -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $(uuidgen)" \
+  -H "Content-Type: application/yaml" --data-binary @publish-article-workflow.yaml
+curl -si -X POST localhost:8080/api/v1/workflows/publish-article-workflow/executions \
+  -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"input": {"articleId": "42"}}'
+curl -s localhost:8080/api/v1/workflows/publish-article-workflow/executions/$EXECUTION_ID \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Test automatisé de cette partie** : `PublishArticleWorkflowScenarioIT`
+(`egen-bootstrap`). Vrai moteur, vrai adapter HTTP, vrai PostgreSQL
+(Testcontainers) et de vrais serveurs HTTP de fixtures ; le YAML du doc 11
+y est parsé tel quel. Il rejoue les étapes 11, 12 et 13 et vérifie l'ordre
+exact des appels. Il n'inclut pas Nomad, Consul ni NATS : la découverte est
+en mémoire et le messaging est un enregistreur — le rejeu complet, avec
+`curl`, reste le test de niveau 5 de l'environnement complet
+([17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-regression-architecturale)).
