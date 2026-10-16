@@ -18,4 +18,7 @@ public class ServiceManifestDto {
     public LifecycleDto lifecycle;
     public DependenciesDto dependencies;
     public ResiliencyDto resiliency;
+    public EventsDto events;
+    public ConfigurationDto configuration;
+    public java.util.List<ServiceInterfaceDto> interfaces;
 }

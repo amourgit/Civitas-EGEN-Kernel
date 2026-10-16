@@ -18,7 +18,7 @@ première ligne de logique métier du Kernel.
       `egen-application`, `egen-adapters/*`, `egen-api`,
       `egen-contracts`, `egen-bootstrap`, `egen-test-kit`.
 - [x] Mise en place immédiate des règles de dépendance de build (voir
-      [16.2](16-packages-et-stack-technique.md#regle-de-build-a-faire-respecter-par-loutillage-pas-seulement-la-revue-de-code) /
+      [16.2](16-packages-et-stack-technique.md#règle-de-build-à-faire-respecter-par-loutillage-pas-seulement-la-revue-de-code) /
       [17, niveau 4](17-strategie-de-tests.md#niveau-4--tests-darchitecture-fitness-functions))
       — **avant** d'écrire le premier port, pour qu'aucune violation ne
       s'accumule dès le départ.
@@ -39,7 +39,7 @@ Observe → Reconcile de bout en bout sur **un seul** port.
       v0 (work queue simple, un seul worker, resync périodique basique —
       pas encore de concurrence bornée avancée).
 - [x] `DeploymentPort` + `NomadDeploymentAdapter` complet selon le mapping
-      de [07](07-ports-et-adapters.md#mapping-vers-lapi-http-nomad-v1-port-par-defaut-4646)
+      de [07](07-ports-et-adapters.md#mapping-vers-lapi-http-nomad-v1-port-par-défaut-4646)
       (create/update/scale/stop/remove/getStatus/rollback).
 - [x] `egen-api` minimal : `POST /api/v1/services`, `GET
       /api/v1/services/{id}/status`.
@@ -60,7 +60,7 @@ Observe → Reconcile de bout en bout sur **un seul** port.
 - [x] `LifecycleStateMachine` complète (toutes les phases de
       [09](09-cycle-de-vie.md)), avec `Conditions`.
 - [x] Ordre d'arrêt gracieux implémenté et testé explicitement (voir
-      [09](09-cycle-de-vie.md#ordre-darret-gracieux--un-piege-classique)).
+      [09](09-cycle-de-vie.md#ordre-darrêt-gracieux--un-piège-classique)).
 - [x] `GET /api/v1/discover/{serviceName}` exposé.
 - **Livrable démontrable** : deux services fixtures se découvrent
   mutuellement via l'API EGEN (sans IP codée en dur), et un arrêt gracieux
@@ -87,7 +87,7 @@ Observe → Reconcile de bout en bout sur **un seul** port.
       `SecretsPort` + `VaultAdapter` (voir
       [07](07-ports-et-adapters.md#secrets-port)).
 - [x] `ObservabilityPort` OpenTelemetry complet : métriques de
-      [15.1](15-observabilite.md#les-trois-signaux-standardises-opentelemetry)
+      [15.1](15-observabilite.md#les-trois-signaux-standardisés-opentelemetry)
       au complet (dont `egen_dependency_unresolved_total` et les métriques
       génériques `egen_adapter_call_duration_seconds`/`_errors_total`,
       ajoutées via des décorateurs `Observed*Port` — voir
@@ -142,7 +142,7 @@ Phase 5).
 dans `Civitas-EGEN-Kernel` (à une seule exception explicite ci-dessous) —
 le code correspondant vit dans deux dépôts séparés,
 `Civitas-EGEN-Edge-Gateway` et `Civitas-EGEN-Agents`, chacun avec son
-propre cycle de release (voir [21.0](21-systeme-agents-et-gateway.md#210--ou-vit-ce-systeme-et-ou-il-ne-vit-pas)).
+propre cycle de release (voir [21.0](21-systeme-agents-et-gateway.md#210--où-vit-ce-système-et-où-il-ne-vit-pas)).
 Le Kernel reste ce qu'il a toujours été : un control plane qui ne connaît
 ni utilisateurs, ni agents, ni le sens des capacités qu'un service expose
 (garde-fou n°1, [02](02-principes-fondamentaux.md)).
@@ -154,34 +154,34 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
 
 - [ ] **Seul point qui touche réellement ce dépôt** : le bloc optionnel
       `interfaces` dans `ServiceManifest`, additif et rétro-compatible,
-      décrit en [21.3](21-systeme-agents-et-gateway.md#213--le-service-manifest-setend-jamais-ne-se-casse)
+      décrit en [21.3](21-systeme-agents-et-gateway.md#213--le-service-manifest-sétend-jamais-ne-se-casse)
       (`interfaces: [{type: mcp|openapi, ref, riskDefault}]`). Sans lui,
       aucun service ne peut annoncer ses capacités au Capability Gateway.
       Prérequis explicite à l'étape 1 de
-      [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommande) —
+      [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommandé) —
       rien de plus, jamais de logique d'interprétation de ce bloc côté
       Kernel (il reste une chaîne opaque, comme `deployment.image`).
-- [ ] Étapes 1 à 6 de [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommande)
+- [ ] Étapes 1 à 6 de [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommandé)
       (service fixture → Capability Gateway → IAM/Policy Engine → Agent
       Gateway/Runtime à un seul agent → HITL/audit/quotas → supervisor et
       swarm) : peuvent démarrer dès aujourd'hui, en parallèle de la Phase
       5 ci-dessous — aucune des deux ne bloque l'autre.
-- [ ] Étape 7 de [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommande)
+- [ ] Étape 7 de [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommandé)
       (brancher le Workflow Engine du Kernel comme outil de l'agent) : la
       **seule** dépendance stricte envers ce dépôt — ne peut pas commencer
       avant que `WorkflowEnginePort` (Phase 5 ci-dessous) soit livré.
 - [ ] Étape 8 (services métier réels, un par un, chacun avec son bloc
       `interfaces`) : en continu, au rythme de `Civitas-EGEN-Business`.
 - [ ] Edge Gateway (Kong ou équivalent, voir
-      [21.1](21-systeme-agents-et-gateway.md#211--edge-gateway-kong--la-porte-dentree-unique)) :
+      [21.1](21-systeme-agents-et-gateway.md#211--edge-gateway-kong--la-porte-dentrée-unique)) :
       projet de déploiement à part entière, jamais un service EGEN déclaré
       *auprès* du Kernel (il se trouve topologiquement devant lui). Sa
       mise en place peut commencer indépendamment de tout le reste de ce
       chantier, dès que la pipeline de déploiement générale
-      ([21.8](21-systeme-agents-et-gateway.md#218--pipeline-de-deploiement-generale))
+      ([21.8](21-systeme-agents-et-gateway.md#218--pipeline-de-déploiement-générale))
       est prête à l'accueillir.
 - **Livrable démontrable** : le test d'acceptation de
-  [21.9](21-systeme-agents-et-gateway.md#219--test-dacceptation-de-bout-en-bout-du-systeme-dagents)
+  [21.9](21-systeme-agents-et-gateway.md#219--test-dacceptation-de-bout-en-bout-du-système-dagents)
   passe en entier — deux utilisateurs de deux équipes différentes
   obtiennent deux catalogues d'outils différents, une action `risk: write`
   passe par une confirmation HITL et produit un enregistrement d'audit, et
@@ -219,7 +219,7 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
       PostgreSQL (`PublishArticleWorkflowScenarioIT`). Reste à faire : le
       rejeu complet de la partie 1 et de la partie 2 avec de vrais Nomad,
       Consul, NATS et Vault (test de niveau 5, voir
-      [17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-regression-architecturale)) —
+      [17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-régression-architecturale)) —
       il n'existe pas encore de test de niveau 5 dans le dépôt.*
 
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
@@ -229,7 +229,7 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
       local, ou `KubernetesDeploymentAdapter`) **sans modifier
       `egen-domain` ni `egen-application`** — c'est le test ultime de la
       promesse architecturale.
-- [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-a-introduire-progressivement)).
+- [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
 - [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).
 - [ ] Documentation opérateur complète (runbooks pour les scénarios
@@ -280,7 +280,7 @@ trimestrielle.
       et correctement compensé.
 - [ ] La divergence entre désiré et observé est mesurée en continu
       (métrique `egen_reconcile_failures_total` suivie, SLO de
-      [15.3](15-observabilite.md#slo-du-kernel-lui-meme) respecté).
+      [15.3](15-observabilite.md#slo-du-kernel-lui-même) respecté).
 
 **Qualité**
 

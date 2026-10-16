@@ -124,6 +124,12 @@ resiliency:
     failureThreshold: 5              # échecs consécutifs qui ouvrent le circuit ; défaut 5
     openDuration: 30s                # avant l'essai semi-ouvert ; défaut 30s
 
+# --- INTERFACES ANNONCÉES À LA COUCHE AGENTIQUE (optionnel) -----------------
+interfaces:                          # opaque pour le Kernel — voir 21.3
+  - type: openapi                    # mcp | openapi | … (liste ouverte)
+    ref: /internal/openapi.json
+    riskDefault: read                # read | write | sensitive | … (optionnel, liste ouverte)
+
 # --- POLITIQUE DE CYCLE DE VIE ----------------------------------------------
 lifecycle:
   startupOrder: after-dependencies   # after-dependencies | independent
@@ -145,6 +151,82 @@ lifecycle:
 - Une logique de traitement des événements — EGEN transporte, il
   n'interprète pas `data`.
 
+## Événements et configuration — ce que fait le Kernel
+
+**`events`.** Le Kernel ne lit jamais le contenu d'un événement ; il ne
+s'intéresse qu'au `type`, qui sert de **sujet de messagerie**. Un `type` ne
+contient donc ni espace ni caractère générique (`*`, `>`) — sans quoi un
+manifeste pourrait capter ou polluer d'autres sujets — et n'est déclaré
+qu'une fois dans `publishes` et une fois dans `consumes`. À la réconciliation
+(voir [04](04-moteur-de-reconciliation.md) et la Condition
+`MessagingBindingsReady`, [09](09-cycle-de-vie.md)), le Kernel garantit
+**un flux de messagerie par type d'événement**, publié *ou* consommé, nommé
+de façon déterministe à partir du type
+([12](12-communication-fabric.md#flux-dévénements)) : l'ordre de déclaration
+entre publieur et consommateur n'a ainsi aucune importance. `schemaRef`,
+`subscriptionGroup` et `deadLetter` sont conservés tels quels ;
+`deadLetter` n'est **pas encore appliqué** par le Kernel (il décrit la
+consommation, que le service réalise via son SDK).
+
+**`configuration`.** Aucune valeur n'y figure jamais, et EGEN ne stocke jamais
+un secret — uniquement une référence.
+
+- `required[]` : `key` (une lettre ou `_`, puis lettres, chiffres, `_`, `.`
+  ou `-`), `type`, `default`. Le doc ne fixe pas le vocabulaire des types ; il
+  est **fermé** : `string` (défaut si omis), `boolean` (`true`/`false`),
+  `integer`, `number`. Un `default` doit être du type déclaré. Une clé sans
+  `default` **doit** être fournie par la configuration d'environnement.
+- `secretsRefs[]` : `key`, `provider`, `path` obligatoires. Le Kernel
+  vérifie à la réconciliation que la référence se résout (Condition
+  `ConfigResolved`) ; il ne lit jamais la valeur.
+- Une clé n'est déclarée qu'une fois, **configuration et secrets confondus**.
+
+**`dependencies.resources`.** Ressources externes nommées, non-service
+(`name`, `type`, `params` à valeurs scalaires). Elles sont **référencées, pas
+gérées en V1** ([20](20-scenario-bout-en-bout.md), étape 2) : le Kernel les
+stocke et les restitue, n'interprète ni `type` ni `params`, et ne provisionne
+rien — c'est hors du périmètre du Deployment Adapter. Un nom n'est déclaré
+qu'une fois.
+
+## Interfaces annoncées (`interfaces`)
+
+Bloc **optionnel et additif**, ajouté pour la couche agentique
+([21](21-systeme-agents-et-gateway.md), 21.3) : un manifeste qui l'ignore
+reste valide et inchangé, et tout consommateur qui ne le comprend pas
+l'ignore. Chaque entrée porte `type`, `ref` et, facultativement,
+`riskDefault`.
+
+**Opaque pour le Kernel, comme `deployment.image`** : il stocke et restitue
+ces chaînes, n'ouvre jamais `ref`, n'interprète jamais `type` ni
+`riskDefault`, et **ne valide aucune valeur contre une liste fermée**. C'est
+ce qui permet d'ajouter `grpc`, ou un nouveau niveau de risque, sans migrer
+le Kernel. Seule la forme est contrôlée (`type` et `ref` non vides).
+
+## Blocs pris en charge par le Kernel
+
+Le schéma est **strict** : tout champ inconnu est refusé (`400`, champ
+nommé). Le tableau dit, pour chaque bloc du schéma annoté ci-dessus, ce que
+cette version du Kernel accepte ; un champ du schéma annoté qui n'y figure
+pas est refusé explicitement plutôt qu'accepté puis ignoré en silence
+(configurer un autoscaling qui n'aurait aucun effet serait pire qu'un refus).
+
+| Bloc | Pris en charge | Refusé aujourd'hui |
+| --- | --- | --- |
+| `metadata` | `name`, `version`, `team` | `labels`, `annotations` |
+| `runtime` | `type`, `language`, `artifact` (optionnel : défaut `deployment.image`) | — |
+| `deployment` | `adapter`, `image`, `resources`, `replicas.min/max` | `replicas.autoscaling`, `updateStrategy`, `placement` |
+| `network` | — | le bloc entier |
+| `health` | `http` | `readiness` |
+| `dependencies` | `services`, `resources` (référencées, jamais gérées en V1) | — |
+| `events` | `publishes`, `consumes` (dont `schemaRef`, `subscriptionGroup`, `deadLetter`) | — |
+| `configuration` | `required`, `secretsRefs` | — |
+| `resiliency` | le bloc entier | — |
+| `interfaces` | le bloc entier | — |
+| `lifecycle` | `shutdown.gracePeriod` | `startupOrder`, `shutdown.drainConnections`, `manualApprovalRequired` |
+
+Chaque ligne « Refusé » rejoindra la colonne « Pris en charge » avec la phase
+qui en implémente le comportement, jamais avant.
+
 ## Résilience déclarée par la cible (`resiliency`)
 
 Bloc **optionnel et additif** (un manifeste qui l'ignore reste valide et
@@ -153,7 +235,7 @@ déclarée **une seule fois, par le service appelé**, et appliquée
 uniformément par tous ses appelants (SDK, sidecar, Moteur de Workflow) — pas
 recodée dans chaque appelant. La sémantique exacte (ce qui compte comme un
 échec, la machine à états du circuit breaker, les règles de retry) est
-normative dans [12](12-communication-fabric.md#semantique-normative-de-la-resilience).
+normative dans [12](12-communication-fabric.md#sémantique-normative-de-la-résilience).
 
 - Chaque champ omis prend sa valeur par défaut (indiquée ci-dessus) ; un
   service **sans** bloc `resiliency` reçoit les mêmes valeurs par défaut —

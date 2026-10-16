@@ -85,6 +85,30 @@ fois* après chaque changement réel.
   sinon on crée une boucle infinie où observer l'état déclenche une
   nouvelle réconciliation qui remet à jour le statut, etc.
 
+## Ce que « Diff & Plan » prépare avant de déléguer
+
+Avant tout appel au Deployment Adapter, le moteur lève, dans cet ordre, les
+conditions qui rendent le plan exécutable — chacune se lit dans une Condition
+du statut ([09](09-cycle-de-vie.md#sémantique-des-conditions-v1)) :
+
+1. **Configuration et secrets** (`ConfigResolved`, phase `REGISTERED`) :
+   chaque référence de secret se résout via le Secrets Port, chaque clé
+   requise a une valeur ou un défaut du bon type. Jamais une valeur de secret
+   n'est lue ni journalisée.
+2. **Dépendances** (`DependenciesSatisfied`, phase `CONFIGURED`) : voir
+   [10](10-gestion-des-dependances.md).
+3. **Flux d'événements** (`MessagingBindingsReady`, phase `CONFIGURED`) : un
+   flux par type d'événement publié ou consommé
+   ([12](12-communication-fabric.md#flux-dévénements)).
+4. **Délégation** : seulement alors, le déploiement est demandé au Deployment
+   Adapter.
+
+Une condition non satisfaite **retient** le service à sa phase et le dit ;
+elle n'est jamais un échec silencieux ni une boucle de retry muette. Les
+flux sont de plus **re-garantis à chaque cycle** (level-triggered, idempotent) :
+un broker qui perd ses flux est réparé au cycle suivant, et un broker
+indisponible n'est visible que dans la Condition d'un service qui tourne.
+
 ## Idempotence — condition de survie de la boucle
 
 Chaque opération de `Delegate` doit être conçue pour être **rejouée sans

@@ -4,7 +4,7 @@ Ce scénario canonique — déployer `news-service` en 2.4.0, avec ses
 dépendances, le rendre découvrable, connecter ses événements, maintenir
 son état désiré — détaille **exactement** ce que fait le Kernel, appel par
 appel. Rejoué **littéralement** comme test de niveau 5 (voir
-[17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-regression-architecturale))
+[17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-régression-architecturale))
 avec de vraies commandes `curl` contre un environnement Testcontainers, il
 constitue le test d'acceptation le plus important du projet — celui qui
 doit figurer en premier dans la CI et dans toute démonstration à des
@@ -22,12 +22,16 @@ parties prenantes non techniques.
    → interroge RegistryStorePort : les deux sont RUNNING en versions compatibles ✅
    → résout dependencies.resources: primary-db, cache (référencées, pas gérées en V1 — hors périmètre Deployment Adapter)
    → résout configuration.secretsRefs via SecretsPort (Vault) → obtient une référence de montage, pas la valeur
+   → vérifie configuration.required : chaque clé a une valeur d'environnement ou un défaut, du type déclaré
+   → Condition ConfigResolved=True ; sinon le service reste REGISTERED et la Condition dit pourquoi (voir 09)
 
 3. COMPOSE
    Le planificateur construit le plan d'exécution :
    a) DeploymentPort.create(spec) — car dependencies required sont déjà RUNNING, pas de blocage d'ordonnancement
    b) DiscoveryPort.registerHealthCheck (sera appelé après confirmation du déploiement)
-   c) MessagingPort.createTopicOrStream pour "africa.civitas.news.article.created.v1" (si absent)
+   c) MessagingPort.createTopicOrStream : un flux par type d'événement publié OU consommé, dont
+      "africa.civitas.news.article.created.v1" (si absent) — Condition MessagingBindingsReady=True ;
+      le déploiement (a) n'est demandé qu'une fois les flux garantis (voir 12, « Flux d'événements »)
 
 4. DELEGATE (avec operationId=op-8841, propagé dans tous les appels et logs)
    → PUT /v1/jobs (Nomad) : job "news-service" créé, resources 500m CPU / 512Mi RAM, replicas min=2
@@ -42,7 +46,8 @@ parties prenantes non techniques.
 6. RECONCILE
    DeploymentObservation.healthyCount (2) >= desiredCount (2) ET DiscoveryObservation confirme 2 instances saines
    → Phase passe de DEPLOYING à RUNNING
-   → Condition DeploymentReady=True, DiscoveryReady=True, DependenciesSatisfied=True
+   → Conditions ManifestValid, ConfigResolved, DependenciesSatisfied, MessagingBindingsReady,
+     DeploymentReady, DiscoveryReady toutes à True (sémantique et `reason` : voir 09)
    → observedGeneration=1 (= generation du DesiredState traité)
    → Événement de réconciliation émis (trace OpenTelemetry complète, du POST initial jusqu'à ce statut)
 
@@ -133,4 +138,4 @@ y est parsé tel quel. Il rejoue les étapes 11, 12 et 13 et vérifie l'ordre
 exact des appels. Il n'inclut pas Nomad, Consul ni NATS : la découverte est
 en mémoire et le messaging est un enregistreur — le rejeu complet, avec
 `curl`, reste le test de niveau 5 de l'environnement complet
-([17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-regression-architecturale)).
+([17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-régression-architecturale)).

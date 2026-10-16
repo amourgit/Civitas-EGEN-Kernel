@@ -2,6 +2,9 @@ package africa.civitas.egen.adapter.postgresregistry;
 
 import africa.civitas.egen.domain.lifecycle.Phase;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
+import africa.civitas.egen.domain.model.ConfigurationSpec;
+import africa.civitas.egen.domain.model.EventSpec;
+import africa.civitas.egen.domain.model.ServiceInterface;
 import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.ResiliencyPolicy;
 import africa.civitas.egen.domain.model.DeploymentSpec;
@@ -84,6 +87,55 @@ class PostgresRegistryAdapterIT {
         assertEquals(aManifest(id).version(), reloaded.manifest().version());
         assertEquals(aManifest(id).health().httpEndpoint(), reloaded.manifest().health().httpEndpoint());
         assertEquals(1L, reloaded.generation());
+    }
+
+    @Test
+    void eventsConfigurationAndInterfacesSurviveTheRoundTripAndOlderRowsReloadWithoutThem() throws Exception {
+        ServiceId id = ServiceId.of("it-fixture-blocks");
+        ServiceManifest base = aManifest(id);
+        EventSpec events = new EventSpec(
+                List.of(new EventSpec.Published("africa.civitas.news.article.created.v1", "schemas/created.json"),
+                        new EventSpec.Published("africa.civitas.news.article.updated.v1", null)),
+                List.of(new EventSpec.Consumed("africa.civitas.notification.delivery-failed.v1", "news-service-consumers",
+                        new EventSpec.DeadLetter(5, "exponential-backoff")),
+                        new EventSpec.Consumed("africa.civitas.other.v1", null, null)));
+        ConfigurationSpec configuration = new ConfigurationSpec(
+                List.of(new ConfigurationSpec.Key("FEATURE_FLAG_COMMENTS", "boolean", "false"),
+                        new ConfigurationSpec.Key("PAGE_SIZE", "integer", null)),
+                List.of(new ConfigurationSpec.SecretReferenceSpec("DB_PASSWORD", "vault", "secret/data/news-service/db")));
+        List<ServiceInterface> interfaces = List.of(new ServiceInterface("openapi", "/internal/openapi.json", "read"),
+                new ServiceInterface("mcp", "mcp://news", null));
+        ServiceManifest full = new ServiceManifest(base.id(), base.version(), base.runtime(), base.deployment(),
+                base.health(), base.lifecycle(), base.dependencies(), base.ownerTeam(), base.resiliency(),
+                events, configuration, interfaces,
+                List.of(new africa.civitas.egen.domain.model.ResourceReference("primary-db", "postgres",
+                        java.util.Map.of("sizeGb", "20")),
+                        new africa.civitas.egen.domain.model.ResourceReference("cache", "redis", null)));
+        PostgresRegistryAdapter adapter = adapter();
+
+        adapter.save(new DesiredState(full, 0L, TargetEnvironment.of("test")));
+
+        ServiceManifest reloaded = adapter.findById(id).orElseThrow().manifest();
+        assertEquals(events, reloaded.events());
+        assertEquals(configuration, reloaded.configuration());
+        assertEquals(interfaces, reloaded.interfaces());
+        assertEquals(full.resources(), reloaded.resources());
+
+        // Lignes ecrites avant ces champs : on retire les trois cles du JSON stocke.
+        try (java.sql.Connection connection = java.sql.DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+             java.sql.PreparedStatement statement = connection.prepareStatement(
+                     "UPDATE egen_desired_state SET manifest_json = "
+                             + "(manifest_json::jsonb - 'events' - 'configuration' - 'interfaces' - 'resources')::text "
+                             + "WHERE service_id = ?")) {
+            statement.setString(1, id.value());
+            statement.executeUpdate();
+        }
+        ServiceManifest legacy = adapter.findById(id).orElseThrow().manifest();
+        assertEquals(EventSpec.none(), legacy.events());
+        assertEquals(ConfigurationSpec.none(), legacy.configuration());
+        assertEquals(List.of(), legacy.interfaces());
+        assertEquals(List.of(), legacy.resources());
     }
 
     @Test

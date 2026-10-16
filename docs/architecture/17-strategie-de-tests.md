@@ -19,7 +19,7 @@ mémoire** des ports secondaires fournies par `egen-test-kit`
 la logique d'orchestration du cycle Declare → Resolve → Compose → Delegate
 (voir [04](04-moteur-de-reconciliation.md)) — par exemple, vérifier qu'un
 `DeployServiceUseCase` appelle bien `DiscoveryPort.deregister()` avant
-`DeploymentPort.stop()` (voir [09](09-cycle-de-vie.md#ordre-darret-gracieux--un-piege-classique)),
+`DeploymentPort.stop()` (voir [09](09-cycle-de-vie.md#ordre-darrêt-gracieux--un-piège-classique)),
 sans dépendre d'un vrai Consul.
 
 ## Niveau 3 — Tests d'adapters avec Testcontainers
@@ -77,7 +77,7 @@ scénarios représentatifs :
 - **Scénario de panne et reconvergence** : tuer une allocation Nomad
   manuellement, vérifier que la boucle de réconciliation détecte la
   divergence et la corrige dans le délai du SLO (voir
-  [15](15-observabilite.md#slo-du-kernel-lui-meme)).
+  [15](15-observabilite.md#slo-du-kernel-lui-même)).
 - **Scénario de workflow avec compensation** : forcer l'échec d'une étape
   intermédiaire, vérifier que les compensations s'exécutent dans le bon
   ordre.
@@ -97,7 +97,7 @@ laquelle repose toute l'architecture (voir
 
 ## Tests de contrat inter-langages (Communication Fabric)
 
-La résilience ([12](12-communication-fabric.md#semantique-normative-de-la-resilience))
+La résilience ([12](12-communication-fabric.md#sémantique-normative-de-la-résilience))
 est implémentée trois fois (Kernel, SDK Java, SDK Python). Pour qu'elles ne
 divergent jamais, la sémantique est **exécutable** :
 `sdk/contract/resiliency-contract.json` liste des scénarios (réponses

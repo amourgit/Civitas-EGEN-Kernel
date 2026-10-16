@@ -5,7 +5,7 @@
 - **REST/JSON** (OpenAPI 3.1) : pour les intégrations humaines/outillage
   (console web, CLI, CI/CD, scripts d'exploitation). Toutes les mutations
   (`POST`, `PUT`, `PATCH`) sur des ressources de premier niveau retournent
-  `202 Accepted` (voir [04.5](04-moteur-de-reconciliation.md#anti-pattern-a-bannir--la-reconciliation-synchrone-dans-lapi))
+  `202 Accepted` (voir [04.5](04-moteur-de-reconciliation.md#anti-pattern-à-bannir--la-réconciliation-synchrone-dans-lapi))
   avec un `Location` pointant vers la ressource de statut.
 - **gRPC/Protobuf** : pour les intégrations machine-à-machine à fort
   volume ou basse latence (ex. un système CI qui déclenche des milliers de
@@ -33,7 +33,7 @@
 
 Répond `200` avec les instances saines **et**, lorsque le service est
 déclaré, la politique `resiliency` de sa cible (valeurs effectives, défauts
-appliqués — voir [06](06-service-manifest.md#resilience-declaree-par-la-cible-resiliency)) :
+appliqués — voir [06](06-service-manifest.md#résilience-déclarée-par-la-cible-resiliency)) :
 
 ```json
 { "serviceId": "notification-service",

@@ -6,6 +6,9 @@ import africa.civitas.egen.domain.lifecycle.Condition;
 import africa.civitas.egen.domain.lifecycle.ConditionStatus;
 import africa.civitas.egen.domain.lifecycle.Phase;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
+import africa.civitas.egen.domain.model.ConfigurationSpec;
+import africa.civitas.egen.domain.model.EventSpec;
+import africa.civitas.egen.domain.model.ServiceInterface;
 import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.DesiredState;
@@ -14,6 +17,7 @@ import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ReplicaRange;
 import africa.civitas.egen.domain.model.ResiliencyPolicy;
+import africa.civitas.egen.domain.model.ResourceReference;
 import africa.civitas.egen.domain.model.RuntimeType;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceManifest;
@@ -37,6 +41,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -354,6 +359,65 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
         breaker.put("failureThreshold", resiliency.circuitBreaker().failureThreshold());
         breaker.put("openDurationMillis", resiliency.circuitBreaker().openDuration().toMillis());
 
+        // events, configuration, interfaces (docs/architecture/06 et 21.3) : blocs optionnels.
+        // Aucune valeur de secret n'existe dans le manifeste, seulement des references.
+        ObjectNode events = node.putObject("events");
+        ArrayNode publishes = events.putArray("publishes");
+        for (EventSpec.Published published : manifest.events().publishes()) {
+            ObjectNode item = publishes.addObject();
+            item.put("type", published.type());
+            if (published.schemaRef() != null) {
+                item.put("schemaRef", published.schemaRef());
+            }
+        }
+        ArrayNode consumes = events.putArray("consumes");
+        for (EventSpec.Consumed consumed : manifest.events().consumes()) {
+            ObjectNode item = consumes.addObject();
+            item.put("type", consumed.type());
+            if (consumed.subscriptionGroup() != null) {
+                item.put("subscriptionGroup", consumed.subscriptionGroup());
+            }
+            if (consumed.deadLetter() != null) {
+                ObjectNode deadLetter = item.putObject("deadLetter");
+                deadLetter.put("maxRetries", consumed.deadLetter().maxRetries());
+                deadLetter.put("strategy", consumed.deadLetter().strategy());
+            }
+        }
+        ObjectNode configuration = node.putObject("configuration");
+        ArrayNode required = configuration.putArray("required");
+        for (ConfigurationSpec.Key key : manifest.configuration().required()) {
+            ObjectNode item = required.addObject();
+            item.put("key", key.key());
+            item.put("type", key.type());
+            if (key.defaultValue() != null) {
+                item.put("default", key.defaultValue());
+            }
+        }
+        ArrayNode secretsRefs = configuration.putArray("secretsRefs");
+        for (ConfigurationSpec.SecretReferenceSpec ref : manifest.configuration().secretsRefs()) {
+            ObjectNode item = secretsRefs.addObject();
+            item.put("key", ref.key());
+            item.put("provider", ref.provider());
+            item.put("path", ref.path());
+        }
+        ArrayNode resources = node.putArray("resources");
+        for (ResourceReference resource : manifest.resources()) {
+            ObjectNode item = resources.addObject();
+            item.put("name", resource.name());
+            item.put("type", resource.type());
+            ObjectNode params = item.putObject("params");
+            resource.params().forEach(params::put);
+        }
+        ArrayNode interfaces = node.putArray("interfaces");
+        for (ServiceInterface serviceInterface : manifest.interfaces()) {
+            ObjectNode item = interfaces.addObject();
+            item.put("type", serviceInterface.type());
+            item.put("ref", serviceInterface.ref());
+            if (serviceInterface.riskDefault() != null) {
+                item.put("riskDefault", serviceInterface.riskDefault());
+            }
+        }
+
         return node;
     }
 
@@ -385,7 +449,71 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
                 new LifecyclePolicy(Duration.ofSeconds(lifecycle.path("shutdownGracePeriodSeconds").asLong())),
                 dependenciesFromJson(node),
                 ownerTeamFromJson(node),
-                resiliencyFromJson(node));
+                resiliencyFromJson(node),
+                eventsFromJson(node),
+                configurationFromJson(node),
+                interfacesFromJson(node),
+                resourcesFromJson(node));
+    }
+
+    /** Champ absent (lignes ecrites avant ce champ) = aucune ressource, jamais une erreur. */
+    private List<ResourceReference> resourcesFromJson(JsonNode node) {
+        List<ResourceReference> resources = new ArrayList<>();
+        for (JsonNode item : node.path("resources")) {
+            Map<String, String> params = new java.util.LinkedHashMap<>();
+            item.path("params").fields().forEachRemaining(e -> params.put(e.getKey(), e.getValue().asText()));
+            resources.add(new ResourceReference(item.path("name").asText(), item.path("type").asText(), params));
+        }
+        return resources;
+    }
+
+    /** Champ absent (lignes ecrites avant ce champ) = aucun evenement, jamais une erreur. */
+    private EventSpec eventsFromJson(JsonNode node) {
+        JsonNode events = node.path("events");
+        List<EventSpec.Published> publishes = new ArrayList<>();
+        for (JsonNode item : events.path("publishes")) {
+            publishes.add(new EventSpec.Published(item.path("type").asText(), textOrNull(item, "schemaRef")));
+        }
+        List<EventSpec.Consumed> consumes = new ArrayList<>();
+        for (JsonNode item : events.path("consumes")) {
+            JsonNode deadLetter = item.path("deadLetter");
+            consumes.add(new EventSpec.Consumed(item.path("type").asText(), textOrNull(item, "subscriptionGroup"),
+                    deadLetter.isMissingNode() || deadLetter.isNull() ? null
+                            : new EventSpec.DeadLetter(deadLetter.path("maxRetries").asInt(),
+                                    deadLetter.path("strategy").asText())));
+        }
+        return new EventSpec(publishes, consumes);
+    }
+
+    /** Champ absent (lignes ecrites avant ce champ) = aucune configuration, jamais une erreur. */
+    private ConfigurationSpec configurationFromJson(JsonNode node) {
+        JsonNode configuration = node.path("configuration");
+        List<ConfigurationSpec.Key> required = new ArrayList<>();
+        for (JsonNode item : configuration.path("required")) {
+            required.add(new ConfigurationSpec.Key(item.path("key").asText(), textOrNull(item, "type"),
+                    textOrNull(item, "default")));
+        }
+        List<ConfigurationSpec.SecretReferenceSpec> secretsRefs = new ArrayList<>();
+        for (JsonNode item : configuration.path("secretsRefs")) {
+            secretsRefs.add(new ConfigurationSpec.SecretReferenceSpec(item.path("key").asText(),
+                    item.path("provider").asText(), item.path("path").asText()));
+        }
+        return new ConfigurationSpec(required, secretsRefs);
+    }
+
+    /** Champ absent (lignes ecrites avant ce champ) = aucune interface, jamais une erreur. */
+    private List<ServiceInterface> interfacesFromJson(JsonNode node) {
+        List<ServiceInterface> interfaces = new ArrayList<>();
+        for (JsonNode item : node.path("interfaces")) {
+            interfaces.add(new ServiceInterface(item.path("type").asText(), item.path("ref").asText(),
+                    textOrNull(item, "riskDefault")));
+        }
+        return interfaces;
+    }
+
+    private static String textOrNull(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.isMissingNode() || value.isNull() ? null : value.asText();
     }
 
     /** Champ absent (lignes ecrites avant ce champ) = valeurs par defaut, jamais une erreur. */

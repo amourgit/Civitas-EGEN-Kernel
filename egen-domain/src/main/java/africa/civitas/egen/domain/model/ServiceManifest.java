@@ -30,7 +30,9 @@ import java.util.List;
 public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
                                DeploymentSpec deployment, HealthSpec health,
                                LifecyclePolicy lifecycle, List<Dependency> dependencies,
-                               OwnerTeam ownerTeam, ResiliencyPolicy resiliency) {
+                               OwnerTeam ownerTeam, ResiliencyPolicy resiliency,
+                               EventSpec events, ConfigurationSpec configuration,
+                               List<ServiceInterface> interfaces, List<ResourceReference> resources) {
 
     public ServiceManifest {
         if (id == null) {
@@ -55,9 +57,48 @@ public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRunti
         if (resiliency == null) {
             resiliency = ResiliencyPolicy.defaults();
         }
+        if (events == null) {
+            events = EventSpec.none();
+        }
+        if (configuration == null) {
+            configuration = ConfigurationSpec.none();
+        }
+        interfaces = interfaces == null ? List.of() : List.copyOf(interfaces);
+        resources = resources == null ? List.of() : List.copyOf(resources);
+        java.util.Set<String> resourceNames = new java.util.HashSet<>();
+        for (ResourceReference resource : resources) {
+            if (!resourceNames.add(resource.name())) {
+                throw new IllegalArgumentException(
+                        "dependencies.resources : ressource declaree deux fois : \"" + resource.name() + "\"");
+            }
+        }
         if (ownerTeam == null) {
             ownerTeam = OwnerTeam.unassigned();
         }
+    }
+
+    /**
+     * Convenience historique : sans {@code dependencies.resources}, referencees mais jamais gerees en V1
+     * (docs/architecture/06 et 20).
+     */
+    public ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
+                            DeploymentSpec deployment, HealthSpec health, LifecyclePolicy lifecycle,
+                            List<Dependency> dependencies, OwnerTeam ownerTeam, ResiliencyPolicy resiliency,
+                            EventSpec events, ConfigurationSpec configuration, List<ServiceInterface> interfaces) {
+        this(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam, resiliency,
+                events, configuration, interfaces, null);
+    }
+
+    /**
+     * Convenience historique (Phase 5) : sans les blocs {@code events},
+     * {@code configuration} et {@code interfaces} (docs/architecture/06 et 21.3),
+     * tous trois optionnels et additifs.
+     */
+    public ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
+                            DeploymentSpec deployment, HealthSpec health, LifecyclePolicy lifecycle,
+                            List<Dependency> dependencies, OwnerTeam ownerTeam, ResiliencyPolicy resiliency) {
+        this(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam, resiliency,
+                null, null, null, null);
     }
 
     /**

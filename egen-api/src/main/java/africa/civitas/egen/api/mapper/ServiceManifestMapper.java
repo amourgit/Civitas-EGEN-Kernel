@@ -1,22 +1,30 @@
 package africa.civitas.egen.api.mapper;
 
 import africa.civitas.egen.api.dto.ConditionDto;
+import africa.civitas.egen.api.dto.ConfigurationDto;
+import africa.civitas.egen.api.dto.DependenciesDto;
+import africa.civitas.egen.api.dto.EventsDto;
+import africa.civitas.egen.api.dto.ResourceDto;
+import africa.civitas.egen.api.dto.ServiceInterfaceDto;
 import africa.civitas.egen.api.dto.ServiceManifestDto;
 import africa.civitas.egen.api.dto.ServiceStatusDto;
 import africa.civitas.egen.domain.lifecycle.Condition;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
-import africa.civitas.egen.domain.model.DeploymentSpec;
+import africa.civitas.egen.domain.model.ConfigurationSpec;
 import africa.civitas.egen.domain.model.Dependency;
+import africa.civitas.egen.domain.model.DeploymentSpec;
+import africa.civitas.egen.domain.model.EventSpec;
 import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ReplicaRange;
+import africa.civitas.egen.domain.model.ResourceReference;
 import africa.civitas.egen.domain.model.RuntimeType;
 import africa.civitas.egen.domain.model.ServiceId;
+import africa.civitas.egen.domain.model.ServiceInterface;
 import africa.civitas.egen.domain.model.ServiceManifest;
 import africa.civitas.egen.domain.model.ServiceRuntime;
 import africa.civitas.egen.domain.model.ServiceVersion;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,9 +54,13 @@ public final class ServiceManifestMapper {
 
         ServiceId id = ServiceId.of(dto.metadata.name);
         ServiceVersion version = ServiceVersion.parse(dto.metadata.version);
+        // runtime.artifact est optionnel (docs/architecture/06 : l'exemple annote ne le porte pas) ;
+        // absent, c'est deployment.image — ce que le Deployment Adapter deploie reellement.
+        String artifact = dto.runtime.artifact == null || dto.runtime.artifact.isBlank()
+                ? dto.deployment.image : dto.runtime.artifact;
         ServiceRuntime runtime = new ServiceRuntime(
                 RuntimeType.valueOf(dto.runtime.type.toUpperCase()),
-                dto.runtime.artifact,
+                artifact,
                 dto.runtime.language);
         DeploymentSpec deployment = new DeploymentSpec(
                 dto.deployment.adapter,
@@ -94,7 +106,83 @@ public final class ServiceManifestMapper {
                 : OwnerTeam.of(dto.metadata.team);
 
         return new ServiceManifest(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam,
-                ResiliencyMapper.toDomain(dto.resiliency));
+                ResiliencyMapper.toDomain(dto.resiliency), toEvents(dto.events), toConfiguration(dto.configuration),
+                toInterfaces(dto.interfaces), toResources(dto.dependencies));
+    }
+
+    private static List<ResourceReference> toResources(DependenciesDto dto) {
+        if (dto == null || dto.resources == null) {
+            return null;
+        }
+        List<ResourceReference> resources = new ArrayList<>();
+        for (ResourceDto item : dto.resources) {
+            requireEntry(item, "dependencies.resources");
+            resources.add(new ResourceReference(item.name, item.type, item.params));
+        }
+        return resources;
+    }
+
+    private static EventSpec toEvents(EventsDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        List<EventSpec.Published> publishes = new ArrayList<>();
+        if (dto.publishes != null) {
+            for (EventsDto.PublishedEventDto item : dto.publishes) {
+                requireEntry(item, "events.publishes");
+                publishes.add(new EventSpec.Published(item.type, item.schemaRef));
+            }
+        }
+        List<EventSpec.Consumed> consumes = new ArrayList<>();
+        if (dto.consumes != null) {
+            for (EventsDto.ConsumedEventDto item : dto.consumes) {
+                requireEntry(item, "events.consumes");
+                EventSpec.DeadLetter deadLetter = item.deadLetter == null ? null : new EventSpec.DeadLetter(
+                        item.deadLetter.maxRetries == null ? 0 : item.deadLetter.maxRetries, item.deadLetter.strategy);
+                consumes.add(new EventSpec.Consumed(item.type, item.subscriptionGroup, deadLetter));
+            }
+        }
+        return new EventSpec(publishes, consumes);
+    }
+
+    private static ConfigurationSpec toConfiguration(ConfigurationDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        List<ConfigurationSpec.Key> required = new ArrayList<>();
+        if (dto.required != null) {
+            for (ConfigurationDto.KeyDto item : dto.required) {
+                requireEntry(item, "configuration.required");
+                required.add(new ConfigurationSpec.Key(item.key, item.type, item.defaultValue));
+            }
+        }
+        List<ConfigurationSpec.SecretReferenceSpec> secretsRefs = new ArrayList<>();
+        if (dto.secretsRefs != null) {
+            for (ConfigurationDto.SecretRefDto item : dto.secretsRefs) {
+                requireEntry(item, "configuration.secretsRefs");
+                secretsRefs.add(new ConfigurationSpec.SecretReferenceSpec(item.key, item.provider, item.path));
+            }
+        }
+        return new ConfigurationSpec(required, secretsRefs);
+    }
+
+    private static List<ServiceInterface> toInterfaces(List<ServiceInterfaceDto> dtos) {
+        if (dtos == null) {
+            return null;
+        }
+        List<ServiceInterface> interfaces = new ArrayList<>();
+        for (ServiceInterfaceDto item : dtos) {
+            requireEntry(item, "interfaces");
+            interfaces.add(new ServiceInterface(item.type, item.ref, item.riskDefault));
+        }
+        return interfaces;
+    }
+
+    /** Une entree de liste YAML vide (« - ») deserialise en null : message explicite plutot qu'un NPE. */
+    private static void requireEntry(Object entry, String field) {
+        if (entry == null) {
+            throw new IllegalArgumentException(field + " : entree vide");
+        }
     }
 
     /** L'equipe declaree dans un manifeste DTO, avant meme sa validation complete par {@link #toDomain}. */
@@ -144,3 +232,5 @@ public final class ServiceManifestMapper {
         return dto;
     }
 }
+
+

@@ -76,6 +76,7 @@ public final class ReconciliationEngine implements AutoCloseable {
             new ConcurrentHashMap<>();
 
     private final PendingDeclareTraces pendingDeclareTraces;
+    private final ServiceBindings bindings;
 
     private final Thread worker;
     private final ScheduledExecutorService resyncScheduler =
@@ -103,6 +104,15 @@ public final class ReconciliationEngine implements AutoCloseable {
                                  DeploymentPort deploymentPort, DiscoveryPort discoveryPort,
                                  ObservabilityPort observabilityPort,
                                  PendingDeclareTraces pendingDeclareTraces) {
+        this(workQueue, registryStorePort, deploymentPort, discoveryPort, observabilityPort,
+                pendingDeclareTraces, ServiceBindings.unavailable());
+    }
+
+    public ReconciliationEngine(WorkQueue workQueue, RegistryStorePort registryStorePort,
+                                 DeploymentPort deploymentPort, DiscoveryPort discoveryPort,
+                                 ObservabilityPort observabilityPort,
+                                 PendingDeclareTraces pendingDeclareTraces, ServiceBindings bindings) {
+        this.bindings = bindings;
         this.workQueue = workQueue;
         this.registryStorePort = registryStorePort;
         this.deploymentPort = deploymentPort;
@@ -211,8 +221,8 @@ public final class ReconciliationEngine implements AutoCloseable {
         TraceContext parent = rootSpan.context();
         try {
             switch (current.phase()) {
-                case DECLARED -> advanceTo(id, current, Phase.REGISTERED, desired.generation());
-                case REGISTERED -> advanceTo(id, current, Phase.CONFIGURED, desired.generation());
+                case DECLARED -> handleDeclared(id, current, desired);
+                case REGISTERED -> handleRegistered(id, current, desired);
                 case CONFIGURED -> handleConfigured(id, current, desired, parent);
                 case DEPLOYING, RUNNING, DEGRADED -> observeAndConverge(id, current, desired, parent);
                 case STOPPING -> handleStopping(id, current, desired, parent);
@@ -224,6 +234,42 @@ public final class ReconciliationEngine implements AutoCloseable {
             rootSpan.recordError(adapterFailure);
             handleAdapterFailure(id, current, desired, adapterFailure);
         }
+    }
+
+    /**
+     * DECLARED -> REGISTERED : le manifeste a ete valide a l'entree (un manifeste invalide est refuse
+     * en 400 avant toute persistance, docs/architecture/06) — la Condition {@code ManifestValid} le
+     * rend lisible dans le statut, au meme titre que les autres (docs/architecture/09).
+     */
+    private void handleDeclared(ServiceId id, ServiceStatus current, DesiredState desired) {
+        Condition condition = new Condition("ManifestValid", ConditionStatus.TRUE, "Valid",
+                "Le manifeste a ete valide et persiste", Instant.now());
+        reportCondition(id, condition);
+        advanceTo(id, current, Phase.REGISTERED, desired.generation(), mergeConditions(current.conditions(), condition));
+    }
+
+    /**
+     * REGISTERED -> CONFIGURED « une fois la configuration/les secrets resolus
+     * avec succes » (docs/architecture/09-cycle-de-vie.md) : Condition
+     * {@code ConfigResolved}. Un echec de resolution n'est pas un echec du
+     * service — une cle ou un secret manquant peut etre fourni plus tard par un
+     * operateur : le service reste REGISTERED, la Condition dit pourquoi, et
+     * la resolution est retentee (jamais de retry silencieux, garde-fou n10).
+     */
+    private void handleRegistered(ServiceId id, ServiceStatus current, DesiredState desired) {
+        ServiceBindings.Outcome outcome = bindings.resolveConfiguration(id, desired.targetEnvironment(),
+                desired.manifest().configuration());
+        Condition condition = new Condition("ConfigResolved",
+                outcome.ok() ? ConditionStatus.TRUE : ConditionStatus.FALSE, outcome.reason(), outcome.message(),
+                Instant.now());
+        reportCondition(id, condition);
+        List<Condition> conditions = mergeConditions(current.conditions(), condition);
+        if (!outcome.ok()) {
+            saveStatus(id, Phase.REGISTERED, conditions, desired.generation());
+            workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
+            return;
+        }
+        advanceTo(id, current, Phase.CONFIGURED, desired.generation(), conditions);
     }
 
     /**
@@ -273,6 +319,19 @@ public final class ReconciliationEngine implements AutoCloseable {
                         Instant.now());
         reportCondition(id, dependenciesCondition);
 
+        // Compose : le plan d'execution inclut les flux d'evenements du manifeste
+        // (Condition MessagingBindingsReady). Tant qu'ils ne sont pas garantis, on ne deploie pas :
+        // un service qui publie dans un flux inexistant perdrait ses premiers evenements.
+        ServiceBindings.Outcome messaging = bindings.ensureEventStreams(desired.manifest().events());
+        Condition messagingCondition = messagingCondition(messaging);
+        reportCondition(id, messagingCondition);
+        if (!messaging.ok()) {
+            saveStatus(id, Phase.CONFIGURED, mergeConditions(current.conditions(),
+                    List.of(dependenciesCondition, messagingCondition)), desired.generation());
+            workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
+            return;
+        }
+
         withChildSpan(parent, "deployment.create",
                 () -> deploymentPort.create(id, desired.manifest().deployment()));
         // Premier appel reseau reel effectue pour cette generation : le lien
@@ -280,8 +339,13 @@ public final class ReconciliationEngine implements AutoCloseable {
         // docs/architecture/15-observabilite.md et PendingDeclareTraces).
         pendingDeclareTraces.clear(id);
         advanceTo(id, current, Phase.DEPLOYING, desired.generation(),
-                mergeConditions(current.conditions(), dependenciesCondition));
+                mergeConditions(current.conditions(), List.of(dependenciesCondition, messagingCondition)));
         workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
+    }
+
+    private static Condition messagingCondition(ServiceBindings.Outcome outcome) {
+        return new Condition("MessagingBindingsReady", outcome.ok() ? ConditionStatus.TRUE : ConditionStatus.FALSE,
+                outcome.reason(), outcome.message(), Instant.now());
     }
 
     private static String names(List<Dependency> dependencies) {
@@ -347,8 +411,12 @@ public final class ReconciliationEngine implements AutoCloseable {
                 Instant.now());
         reportCondition(id, deploymentCondition);
         reportCondition(id, discoveryCondition);
+        // Level-triggered : les flux sont re-garantis a chaque cycle (idempotent). Un broker
+        // indisponible se lit dans la Condition ; il ne degrade jamais un service qui tourne.
+        Condition messagingCondition = messagingCondition(bindings.ensureEventStreams(desired.manifest().events()));
+        reportCondition(id, messagingCondition);
         List<Condition> conditions = mergeConditions(current.conditions(),
-                List.of(deploymentCondition, discoveryCondition));
+                List.of(deploymentCondition, discoveryCondition, messagingCondition));
 
         if (current.phase() == nextPhase) {
             saveStatus(id, nextPhase, conditions, desired.generation());

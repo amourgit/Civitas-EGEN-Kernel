@@ -1,11 +1,15 @@
 package africa.civitas.egen.bootstrap.wiring;
 
+import africa.civitas.egen.application.port.ConfigurationPort;
 import africa.civitas.egen.application.port.DeploymentPort;
 import africa.civitas.egen.application.port.DiscoveryPort;
+import africa.civitas.egen.application.port.MessagingPort;
 import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
+import africa.civitas.egen.application.port.SecretsPort;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.ReconciliationEngine;
+import africa.civitas.egen.application.reconciliation.ServiceBindings;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
@@ -41,6 +45,15 @@ public class ReconciliationEngineBeans {
     @Inject
     PendingDeclareTraces pendingDeclareTraces;
 
+    @Inject
+    SecretsPort secretsPort;
+
+    @Inject
+    ConfigurationPort configurationPort;
+
+    @Inject
+    MessagingPort messagingPort;
+
     private ReconciliationEngine engine;
 
     @Produces
@@ -48,7 +61,8 @@ public class ReconciliationEngineBeans {
     public ReconciliationEngine reconciliationEngine() {
         if (engine == null) {
             engine = new ReconciliationEngine(workQueue, registryStorePort, deploymentPort, discoveryPort,
-                    observabilityPort, pendingDeclareTraces);
+                    observabilityPort, pendingDeclareTraces,
+                    ServiceBindings.of(secretsPort, configurationPort, messagingPort));
         }
         return engine;
     }
@@ -61,3 +75,4 @@ public class ReconciliationEngineBeans {
         reconciliationEngine.close();
     }
 }
+

@@ -245,6 +245,222 @@
           }
         }
       }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "versionConstraint": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean",
+                "default": true
+              }
+            }
+          }
+        },
+        "resources": {
+          "type": "array",
+          "description": "Ressources externes nommees (docs/architecture/06) : referencees, JAMAIS gerees en V1.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Evenements publies et consommes (docs/architecture/06). Le Kernel n'en lit jamais le contenu.",
+      "properties": {
+        "publishes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+                "description": "Devient un sujet de messagerie : ni espace ni caractere generique."
+              },
+              "schemaRef": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "consumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+                "description": "Devient un sujet de messagerie : ni espace ni caractere generique."
+              },
+              "subscriptionGroup": {
+                "type": "string"
+              },
+              "deadLetter": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "strategy"
+                ],
+                "properties": {
+                  "maxRetries": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "strategy": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Configuration SANS valeurs : EGEN ne stocke jamais un secret, uniquement une reference.",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"
+              },
+              "type": {
+                "enum": [
+                  "string",
+                  "boolean",
+                  "integer",
+                  "number"
+                ],
+                "default": "string"
+              },
+              "default": {
+                "type": [
+                  "string",
+                  "boolean",
+                  "number"
+                ]
+              }
+            }
+          }
+        },
+        "secretsRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "provider",
+              "path"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"
+              },
+              "provider": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "description": "Interfaces annoncees a la couche agentique (docs/architecture/21, 21.3). OPAQUE pour le Kernel : seule la forme est verifiee, jamais les valeurs.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "ref"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "mcp, openapi, ... (liste ouverte)."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "riskDefault": {
+            "type": "string",
+            "description": "read, write, sensitive, ... (liste ouverte)."
+          }
+        }
+      }
     }
   }
 }

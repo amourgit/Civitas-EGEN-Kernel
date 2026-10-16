@@ -152,3 +152,54 @@ Configuration par variables d'environnement : `EGEN_CONTROL_PLANE_URL`
 (obligatoire), `EGEN_TOKEN` (jeton de l'API de contrôle, optionnel),
 `EGEN_SIDECAR_PORT` (défaut `3500`). Déployé par Nomad dans le même
 `TaskGroup` que la tâche applicative.
+
+## Flux d'événements
+
+La Communication Fabric d'événements repose sur le Messaging Port
+([07](07-ports-et-adapters.md)). Le Kernel garantit **un flux (JetStream
+avec l'adapter NATS) par type d'événement**, qu'un service le publie ou le
+consomme, à la réconciliation (Condition `MessagingBindingsReady`,
+[09](09-cycle-de-vie.md#sémantique-des-conditions-v1)) :
+
+- **nom du flux** : `EGEN-` suivi du type dont les points deviennent `~`
+  (`africa.civitas.news.article.created.v1` →
+  `EGEN-africa~civitas~news~article~created~v1`). Le point est interdit dans
+  un nom de flux et `~` n'appartient pas au vocabulaire d'un type
+  ([06](06-service-manifest.md)) : l'encodage est **injectif**, deux types
+  distincts ne partagent jamais un flux ;
+- **sujet** : le `type` lui-même — c'est aussi le sujet utilisé par l'étape
+  `EVENT` du Moteur de Workflow ([11](11-moteur-de-workflow.md)) ;
+- **ordre indifférent** : publieur et consommateur déclarent le même flux ;
+  la création est idempotente, le premier arrivé le crée et l'autre le
+  retrouve ;
+- **ce que le Kernel ne fait pas** : il ne consomme ni ne transforme aucun
+  événement. `subscriptionGroup` et `deadLetter` décrivent la *consommation*,
+  que le service réalise ; ils sont conservés dans le manifeste mais pas
+  encore appliqués par le Kernel.
+
+### Publication d'événements par le SDK — spécification, non livrée
+
+Le SDK ([plus haut](#sdk-léger)) ne publie pas d'événement aujourd'hui. Ce
+n'est pas un oubli mais une dépendance : la publication passerait par
+`POST /api/v1/events/publish` ([13](13-api-et-contrats.md)), **qui n'est pas
+implémenté côté Kernel**, et ajouter la méthode au SDK avant son point
+d'appui n'aurait aucun sens. Contrat prévu, à implémenter dans cet ordre :
+
+1. **Kernel** : `POST /api/v1/events/publish`, corps = un `TechnicalEvent`
+   CloudEvents (`type`, `source`, `data` opaque, `egen_correlation_id`) ;
+   `202 Accepted` ; le type doit être **publié par un service déclaré**
+   (`events.publishes`) sans quoi `403` — un appelant ne publie que ce qu'un
+   manifeste annonce ; mutation donc `Idempotency-Key` obligatoire et
+   autorisation par équipe comme `Declare` ([14](14-securite.md)).
+   Le Kernel relaie vers le Messaging Port sans lire `data`.
+2. **SDK Java et Python** : `publish(type, data, …)` — mêmes règles de
+   propagation de contexte que `call`, mêmes erreurs explicites ; la
+   résilience du Messaging Port n'est pas celle de la cible HTTP et fera
+   l'objet de sa propre section normative **avant** l'implémentation.
+3. **Contrat partagé** : de nouveaux scénarios dans
+   `sdk/contract/resiliency-contract.json` si une sémantique de retry
+   propre à la publication est retenue.
+
+Tant que ce n'est pas livré, un service qui doit publier depuis un processus
+sans accès direct au broker passe par un workflow (étape `EVENT`) ou par son
+propre client du Messaging Port.

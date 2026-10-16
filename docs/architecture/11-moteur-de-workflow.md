@@ -176,7 +176,7 @@ ne peut pas la rendre valide). Délai entre tentatives : `FIXED` = base,
 
 **Résilience de la cible.** En plus du retry de l'étape, chaque appel HTTP
 passe par le circuit breaker du service cible et respecte son `timeout`
-(voir [12](12-communication-fabric.md#semantique-normative-de-la-resilience) :
+(voir [12](12-communication-fabric.md#sémantique-normative-de-la-résilience) :
 le Moteur n'applique pas le retry de la cible, celui de l'étape suffit).
 Circuit ouvert → tentative en échec **réessayable**, sans accès réseau.
 Une compensation n'est jamais rejetée par un circuit ouvert.

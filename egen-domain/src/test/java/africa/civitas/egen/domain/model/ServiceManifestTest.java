@@ -92,4 +92,42 @@ class ServiceManifestTest {
 
         assertEquals(policy, manifest.resiliency());
     }
+
+    /** Fixture partagee : un manifeste valide portant les {@code interfaces} donnees (docs/architecture/21.3). */
+    ServiceManifest manifestWith(java.util.List<ServiceInterface> interfaces) {
+        return new ServiceManifest(ServiceId.of("news-service"), ServiceVersion.parse("2.4.0"), aRuntime(),
+                aDeploymentSpec(), aHealthSpec(), null, java.util.List.of(), OwnerTeam.unassigned(), null,
+                null, null, interfaces);
+    }
+
+    @Test
+    void aManifestWithoutTheNewBlocksHasNoEventsNoConfigurationNoInterfaces() {
+        ServiceManifest manifest = manifestWith(null);
+
+        assertEquals(EventSpec.none(), manifest.events());
+        assertEquals(ConfigurationSpec.none(), manifest.configuration());
+        assertEquals(java.util.List.of(), manifest.interfaces());
+    }
+
+    @Test
+    void theHistoricalNineArgumentConstructorStillWorks() {
+        ServiceManifest manifest = new ServiceManifest(ServiceId.of("news-service"), ServiceVersion.parse("2.4.0"),
+                aRuntime(), aDeploymentSpec(), aHealthSpec(), null, java.util.List.of(), OwnerTeam.unassigned(),
+                ResiliencyPolicy.defaults());
+
+        assertEquals(EventSpec.none(), manifest.events());
+    }
+
+    @Test
+    void eventsAndConfigurationAreKept() {
+        EventSpec events = new EventSpec(java.util.List.of(new EventSpec.Published("a.b.v1", null)), null);
+        ConfigurationSpec configuration = new ConfigurationSpec(
+                java.util.List.of(new ConfigurationSpec.Key("A", "boolean", "true")), null);
+        ServiceManifest manifest = new ServiceManifest(ServiceId.of("news-service"), ServiceVersion.parse("2.4.0"),
+                aRuntime(), aDeploymentSpec(), aHealthSpec(), null, java.util.List.of(), OwnerTeam.unassigned(), null,
+                events, configuration, null);
+
+        assertEquals(events, manifest.events());
+        assertEquals(configuration, manifest.configuration());
+    }
 }

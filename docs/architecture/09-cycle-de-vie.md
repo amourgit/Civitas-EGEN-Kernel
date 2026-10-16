@@ -51,6 +51,25 @@ Types de `Condition` en V1 : `ManifestValid`, `DependenciesSatisfied`,
 diagnostiquer *en un coup d'œil* pourquoi un service reste bloqué en
 `CONFIGURED` au lieu de `DEPLOYING`, sans devoir fouiller les logs bruts.
 
+### Sémantique des Conditions V1
+
+Chaque Condition porte un `status` (`True`/`False`), un `reason` **stable**
+(lisible par une machine, jamais reformulé) et un `message` lisible. Un
+`message` ne cite que des **noms** — clés, chemins de référence, types
+d'événements — jamais une valeur de configuration ni de secret.
+
+| Condition | Évaluée | `True` | `False` — et ce que cela provoque |
+| --- | --- | --- | --- |
+| `ManifestValid` | à `DECLARED` → `REGISTERED` | `Valid` | jamais `False` en pratique : un manifeste invalide est refusé en `400` avant toute persistance |
+| `ConfigResolved` | à `REGISTERED`, avant `CONFIGURED` | `NothingToResolve` (aucune configuration ni secret déclarés), `Resolved` | le service **reste `REGISTERED`** et la résolution est retentée à chaque cycle — ce n'est pas un échec du service : un secret ou une clé manquants peuvent être fournis plus tard sans toucher au manifeste. `reason` : `SecretUnresolved`, `RequiredKeyMissing`, `InvalidConfigurationValue`, `ConfigurationUnavailable`, `PortNotConfigured` |
+| `DependenciesSatisfied` | à `CONFIGURED` | `AllSatisfied`, `OptionalDependencyUnavailable` | le service reste `CONFIGURED` (voir [10](10-gestion-des-dependances.md)) |
+| `MessagingBindingsReady` | à `CONFIGURED` avant le déploiement, puis à **chaque cycle** | `NoEventsDeclared`, `StreamsEnsured` | à `CONFIGURED` : le service **n'est pas déployé** tant que ses flux ne sont pas garantis (publier dans un flux inexistant perdrait les premiers événements). Une fois `RUNNING` : la Condition passe à `False` mais **le service n'est jamais dégradé** pour autant. `reason` : `MessagingUnavailable`, `PortNotConfigured` |
+| `DeploymentReady`, `DiscoveryReady` | de `DEPLOYING` à `RUNNING`/`DEGRADED` | convergence atteinte | voir ci-dessus |
+
+Une Condition qui passe à `False` pour une raison **externe** (secret absent,
+broker injoignable) ne fait jamais passer le service en `FAILED` : seul un
+échec répété du Deployment Adapter le fait (voir [04](04-moteur-de-reconciliation.md)).
+
 ## Ordre d'arrêt gracieux — un piège classique
 
 Lors du passage `RUNNING → STOPPING`, l'ordre des opérations déléguées

@@ -4,4 +4,5 @@ import java.util.List;
 
 public class DependenciesDto {
     public List<ServiceDependencyDto> services;
+    public List<ResourceDto> resources;
 }
