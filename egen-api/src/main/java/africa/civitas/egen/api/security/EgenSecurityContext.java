@@ -107,6 +107,16 @@ public class EgenSecurityContext {
      * note de migration) : EGEN ne bloque jamais retroactivement des
      * services declares avant l'activation du RBAC.
      */
+    /** Version non levante de {@link #assertOwnsOrAdmin} : pour FILTRER une liste plutot que refuser la requete. */
+    public boolean ownsOrAdmin(OwnerTeam ownerTeam) {
+        try {
+            assertOwnsOrAdmin(ownerTeam);
+            return true;
+        } catch (ForbiddenException e) {
+            return false;
+        }
+    }
+
     public void assertOwnsOrAdmin(OwnerTeam ownerTeam) {
         if (isAdmin() || ownerTeam == null || ownerTeam.isUnassigned()) {
             return;

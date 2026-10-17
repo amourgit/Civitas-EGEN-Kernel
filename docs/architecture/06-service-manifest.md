@@ -212,7 +212,7 @@ pas est refusé explicitement plutôt qu'accepté puis ignoré en silence
 
 | Bloc | Pris en charge | Refusé aujourd'hui |
 | --- | --- | --- |
-| `metadata` | `name`, `version`, `team` | `labels`, `annotations` |
+| `metadata` | `name`, `version`, `team`, `labels`, `annotations` (conservés et restitués, informatifs : le Kernel n'en tire aucune décision) | — |
 | `runtime` | `type`, `language`, `artifact` (optionnel : défaut `deployment.image`) | — |
 | `deployment` | `adapter`, `image`, `resources`, `replicas.min/max` | `replicas.autoscaling`, `updateStrategy`, `placement` |
 | `network` | — | le bloc entier |

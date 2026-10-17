@@ -15,6 +15,7 @@ import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.OwnerTeam;
+import africa.civitas.egen.domain.model.ManifestMetadata;
 import africa.civitas.egen.domain.model.ReplicaRange;
 import africa.civitas.egen.domain.model.ResiliencyPolicy;
 import africa.civitas.egen.domain.model.ResourceReference;
@@ -400,6 +401,9 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
             item.put("provider", ref.provider());
             item.put("path", ref.path());
         }
+        ObjectNode metadata = node.putObject("metadata");
+        manifest.metadata().labels().forEach(metadata.putObject("labels")::put);
+        manifest.metadata().annotations().forEach(metadata.putObject("annotations")::put);
         ArrayNode resources = node.putArray("resources");
         for (ResourceReference resource : manifest.resources()) {
             ObjectNode item = resources.addObject();
@@ -453,7 +457,18 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
                 eventsFromJson(node),
                 configurationFromJson(node),
                 interfacesFromJson(node),
-                resourcesFromJson(node));
+                resourcesFromJson(node),
+                metadataFromJson(node));
+    }
+
+    /** Champ absent (lignes ecrites avant ce champ) = aucune metadonnee, jamais une erreur. */
+    private ManifestMetadata metadataFromJson(JsonNode node) {
+        JsonNode metadata = node.path("metadata");
+        Map<String, String> labels = new java.util.LinkedHashMap<>();
+        metadata.path("labels").fields().forEachRemaining(e -> labels.put(e.getKey(), e.getValue().asText()));
+        Map<String, String> annotations = new java.util.LinkedHashMap<>();
+        metadata.path("annotations").fields().forEachRemaining(e -> annotations.put(e.getKey(), e.getValue().asText()));
+        return new ManifestMetadata(labels, annotations);
     }
 
     /** Champ absent (lignes ecrites avant ce champ) = aucune ressource, jamais une erreur. */

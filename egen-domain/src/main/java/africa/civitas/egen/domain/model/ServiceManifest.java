@@ -32,7 +32,8 @@ public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRunti
                                LifecyclePolicy lifecycle, List<Dependency> dependencies,
                                OwnerTeam ownerTeam, ResiliencyPolicy resiliency,
                                EventSpec events, ConfigurationSpec configuration,
-                               List<ServiceInterface> interfaces, List<ResourceReference> resources) {
+                               List<ServiceInterface> interfaces, List<ResourceReference> resources,
+                               ManifestMetadata metadata) {
 
     public ServiceManifest {
         if (id == null) {
@@ -65,6 +66,9 @@ public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRunti
         }
         interfaces = interfaces == null ? List.of() : List.copyOf(interfaces);
         resources = resources == null ? List.of() : List.copyOf(resources);
+        if (metadata == null) {
+            metadata = ManifestMetadata.none();
+        }
         java.util.Set<String> resourceNames = new java.util.HashSet<>();
         for (ResourceReference resource : resources) {
             if (!resourceNames.add(resource.name())) {
@@ -77,6 +81,16 @@ public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRunti
         }
     }
 
+    /** Convenience historique : sans {@code metadata.labels/annotations} (docs/architecture/06). */
+    public ServiceManifest(ServiceId id, ServiceVersion version, ServiceRuntime runtime,
+                            DeploymentSpec deployment, HealthSpec health, LifecyclePolicy lifecycle,
+                            List<Dependency> dependencies, OwnerTeam ownerTeam, ResiliencyPolicy resiliency,
+                            EventSpec events, ConfigurationSpec configuration, List<ServiceInterface> interfaces,
+                            List<ResourceReference> resources) {
+        this(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam, resiliency,
+                events, configuration, interfaces, resources, null);
+    }
+
     /**
      * Convenience historique : sans {@code dependencies.resources}, referencees mais jamais gerees en V1
      * (docs/architecture/06 et 20).
@@ -86,7 +100,7 @@ public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRunti
                             List<Dependency> dependencies, OwnerTeam ownerTeam, ResiliencyPolicy resiliency,
                             EventSpec events, ConfigurationSpec configuration, List<ServiceInterface> interfaces) {
         this(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam, resiliency,
-                events, configuration, interfaces, null);
+                events, configuration, interfaces, null, null);
     }
 
     /**
@@ -98,7 +112,7 @@ public record ServiceManifest(ServiceId id, ServiceVersion version, ServiceRunti
                             DeploymentSpec deployment, HealthSpec health, LifecyclePolicy lifecycle,
                             List<Dependency> dependencies, OwnerTeam ownerTeam, ResiliencyPolicy resiliency) {
         this(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam, resiliency,
-                null, null, null, null);
+                null, null, null, null, null);
     }
 
     /**

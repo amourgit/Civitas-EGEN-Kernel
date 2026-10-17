@@ -74,6 +74,20 @@ public final class ResiliencyMapper {
         }
     }
 
+    /** Valeurs EFFECTIVES (defauts inclus) en texte avec unite, relisibles par {@link #toDomain}. */
+    public static ResiliencyDto toDto(ResiliencyPolicy policy) {
+        ResiliencyDto dto = new ResiliencyDto();
+        dto.timeout = policy.timeout().toMillis() + "ms";
+        dto.retry = new ResiliencyDto.RetryDto();
+        dto.retry.maxAttempts = policy.retry().maxAttempts();
+        dto.retry.backoff = policy.retry().backoff().name().toLowerCase(Locale.ROOT);
+        dto.retry.baseDelay = policy.retry().baseDelay().toMillis() + "ms";
+        dto.circuitBreaker = new ResiliencyDto.CircuitBreakerDto();
+        dto.circuitBreaker.failureThreshold = policy.circuitBreaker().failureThreshold();
+        dto.circuitBreaker.openDuration = policy.circuitBreaker().openDuration().toMillis() + "ms";
+        return dto;
+    }
+
     public static ResiliencyViewDto toView(ResiliencyPolicy policy) {
         ResiliencyViewDto view = new ResiliencyViewDto();
         view.timeoutMillis = policy.timeout().toMillis();

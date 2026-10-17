@@ -29,6 +29,29 @@
 /api/v1/adapters                          # introspection : quels adapters sont enregistrés et opérationnels
 ```
 
+### Lecture des manifestes — `GET /api/v1/services` et `GET /api/v1/services/{id}`
+
+Le CRUD de `/api/v1/services` ([ci-dessus](#ressources-de-premier-niveau-de-lapi)) comprend la
+**lecture** du manifeste déclaré. Réponse de `GET /api/v1/services/{id}` :
+
+```json
+{ "serviceId": "news-service", "generation": 3,
+  "manifest": { "apiVersion": "egen.civitas.africa/v1", "kind": "ServiceManifest", "metadata": { … },
+                "runtime": { … }, "deployment": { … }, "interfaces": [ { "type": "openapi", "ref": "/internal/openapi.json", "riskDefault": "read" } ], … } }
+```
+
+- Le `manifest` est **relisible par `Declare`** : mêmes champs que la déclaration,
+  valeurs *effectives* (défauts inclus), un bloc absent à la déclaration reste
+  absent à la lecture. Le Kernel ne restitue que ce qu'il a persisté, et
+  n'interprète rien — c'est ainsi que le bloc `interfaces`
+  ([06](06-service-manifest.md#interfaces-annoncées-interfaces),
+  [21](21-systeme-agents-et-gateway.md), 21.3) parvient à la couche agentique.
+- `GET /api/v1/services` renvoie la liste de ces objets, par identifiant
+  croissant.
+- **Autorisation** : comme `…/status`, le manifeste d'un service est lisible par
+  son équipe propriétaire ou par un administrateur ; la liste ne contient que
+  les services que l'appelant a le droit de lire. Un service inconnu est un `404`.
+
 ### Découverte — `GET /api/v1/discover/{serviceName}`
 
 Répond `200` avec les instances saines **et**, lorsque le service est

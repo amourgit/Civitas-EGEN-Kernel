@@ -13,6 +13,8 @@ import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
+import africa.civitas.egen.application.usecase.ReadServiceManifestUseCaseImpl;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.RunWorkflowUseCase;
@@ -78,6 +80,12 @@ public class TestUseCaseProducers {
     @ApplicationScoped
     StopServiceUseCase stopServiceUseCase() {
         return new StopServiceUseCaseImpl(registryStorePort, workQueue);
+    }
+
+    @Produces
+    @ApplicationScoped
+    ReadServiceManifestUseCase readServiceManifestUseCase() {
+        return new ReadServiceManifestUseCaseImpl(registryStorePort);
     }
 
     @Produces

@@ -2,6 +2,7 @@ package africa.civitas.egen.api.rest;
 
 import africa.civitas.egen.api.dto.DeclareResponseDto;
 import africa.civitas.egen.api.dto.ServiceManifestDto;
+import africa.civitas.egen.api.dto.ServiceManifestResponseDto;
 import africa.civitas.egen.api.dto.ServiceStatusDto;
 import africa.civitas.egen.api.mapper.ServiceManifestMapper;
 import africa.civitas.egen.api.security.EgenSecurityContext;
@@ -13,8 +14,10 @@ import africa.civitas.egen.application.port.TraceSpan;
 import africa.civitas.egen.application.usecase.DeclareResult;
 import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
+import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
 import africa.civitas.egen.application.usecase.ServiceNotFoundException;
 import africa.civitas.egen.application.usecase.StopServiceUseCase;
+import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceManifest;
@@ -36,8 +39,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Adapter primaire REST — ressources de premier niveau "services" (voir
@@ -62,6 +65,7 @@ public class ServiceResource {
 
     private final DeployServiceUseCase deployServiceUseCase;
     private final GetServiceStatusUseCase getServiceStatusUseCase;
+    private final ReadServiceManifestUseCase readServiceManifestUseCase;
     private final StopServiceUseCase stopServiceUseCase;
     private final RegistryStorePort registryStorePort;
     private final ObservabilityPort observabilityPort;
@@ -71,6 +75,7 @@ public class ServiceResource {
     @Inject
     public ServiceResource(DeployServiceUseCase deployServiceUseCase,
                             GetServiceStatusUseCase getServiceStatusUseCase,
+                            ReadServiceManifestUseCase readServiceManifestUseCase,
                             StopServiceUseCase stopServiceUseCase,
                             RegistryStorePort registryStorePort,
                             ObservabilityPort observabilityPort,
@@ -79,6 +84,7 @@ public class ServiceResource {
                             String defaultEnvironment) {
         this.deployServiceUseCase = deployServiceUseCase;
         this.getServiceStatusUseCase = getServiceStatusUseCase;
+        this.readServiceManifestUseCase = readServiceManifestUseCase;
         this.stopServiceUseCase = stopServiceUseCase;
         this.registryStorePort = registryStorePort;
         this.observabilityPort = observabilityPort;
@@ -193,6 +199,54 @@ public class ServiceResource {
      * "Autorisation d'un Declare" pour le raisonnement inverse au moment
      * de la creation).
      */
+    /**
+     * Lecture du manifeste declare (docs/architecture/13, CRUD sur {@code /api/v1/services}) : celui du
+     * proprietaire ou d'un administrateur, comme {@code status}.
+     */
+    @GET
+    @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public ServiceManifestResponseDto read(@PathParam("id") String id, @HeaderParam("traceparent") String traceparent) {
+        try (TraceSpan span = startHttpSpan("http.getManifest", traceparent)) {
+            span.setAttribute("service.id", id);
+            try {
+                ServiceId serviceId = ServiceId.of(id);
+                DesiredState desired = readServiceManifestUseCase.get(serviceId);
+                securityContext.assertOwnsOrAdmin(desired.manifest().ownerTeam());
+                return toResponse(desired);
+            } catch (ServiceNotFoundException e) {
+                throw new NotFoundException(e.getMessage());
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException(e.getMessage());
+            } catch (RuntimeException e) {
+                span.recordError(e);
+                throw e;
+            }
+        }
+    }
+
+    /** Les manifestes que l'appelant a le droit de lire : tous pour un administrateur, ceux de son equipe sinon. */
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<ServiceManifestResponseDto> list(@HeaderParam("traceparent") String traceparent) {
+        try (TraceSpan span = startHttpSpan("http.listManifests", traceparent)) {
+            try {
+                return readServiceManifestUseCase.list().stream()
+                        .filter(desired -> securityContext.ownsOrAdmin(desired.manifest().ownerTeam()))
+                        .map(ServiceResource::toResponse)
+                        .toList();
+            } catch (RuntimeException e) {
+                span.recordError(e);
+                throw e;
+            }
+        }
+    }
+
+    private static ServiceManifestResponseDto toResponse(DesiredState desired) {
+        return new ServiceManifestResponseDto(desired.manifest().id().value(), desired.generation(),
+                ServiceManifestMapper.toDto(desired.manifest()));
+    }
+
     private void assertOwnsOrAdminIfKnown(ServiceId id) {
         registryStorePort.findById(id).ifPresent(desired -> {
             OwnerTeam ownerTeam = desired.manifest().ownerTeam();

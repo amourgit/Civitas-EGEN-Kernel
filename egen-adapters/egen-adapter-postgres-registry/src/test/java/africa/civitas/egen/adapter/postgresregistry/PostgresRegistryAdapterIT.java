@@ -110,7 +110,9 @@ class PostgresRegistryAdapterIT {
                 events, configuration, interfaces,
                 List.of(new africa.civitas.egen.domain.model.ResourceReference("primary-db", "postgres",
                         java.util.Map.of("sizeGb", "20")),
-                        new africa.civitas.egen.domain.model.ResourceReference("cache", "redis", null)));
+                        new africa.civitas.egen.domain.model.ResourceReference("cache", "redis", null)),
+                new africa.civitas.egen.domain.model.ManifestMetadata(java.util.Map.of("domain", "news"),
+                        java.util.Map.of("owner-contact", "news@civitas.africa")));
         PostgresRegistryAdapter adapter = adapter();
 
         adapter.save(new DesiredState(full, 0L, TargetEnvironment.of("test")));
@@ -120,13 +122,14 @@ class PostgresRegistryAdapterIT {
         assertEquals(configuration, reloaded.configuration());
         assertEquals(interfaces, reloaded.interfaces());
         assertEquals(full.resources(), reloaded.resources());
+        assertEquals(full.metadata(), reloaded.metadata());
 
         // Lignes ecrites avant ces champs : on retire les trois cles du JSON stocke.
         try (java.sql.Connection connection = java.sql.DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              java.sql.PreparedStatement statement = connection.prepareStatement(
                      "UPDATE egen_desired_state SET manifest_json = "
-                             + "(manifest_json::jsonb - 'events' - 'configuration' - 'interfaces' - 'resources')::text "
+                             + "(manifest_json::jsonb - 'events' - 'configuration' - 'interfaces' - 'resources' - 'metadata')::text "
                              + "WHERE service_id = ?")) {
             statement.setString(1, id.value());
             statement.executeUpdate();
@@ -136,6 +139,7 @@ class PostgresRegistryAdapterIT {
         assertEquals(ConfigurationSpec.none(), legacy.configuration());
         assertEquals(List.of(), legacy.interfaces());
         assertEquals(List.of(), legacy.resources());
+        assertEquals(africa.civitas.egen.domain.model.ManifestMetadata.none(), legacy.metadata());
     }
 
     @Test

@@ -3,11 +3,21 @@ package africa.civitas.egen.api.mapper;
 import africa.civitas.egen.api.dto.ConditionDto;
 import africa.civitas.egen.api.dto.ConfigurationDto;
 import africa.civitas.egen.api.dto.DependenciesDto;
+import africa.civitas.egen.api.dto.DeploymentDto;
 import africa.civitas.egen.api.dto.EventsDto;
+import africa.civitas.egen.api.dto.HealthDto;
+import africa.civitas.egen.api.dto.HttpCheckDto;
+import africa.civitas.egen.api.dto.LifecycleDto;
+import africa.civitas.egen.api.dto.MetadataDto;
+import africa.civitas.egen.api.dto.ReplicasDto;
 import africa.civitas.egen.api.dto.ResourceDto;
+import africa.civitas.egen.api.dto.ResourcesDto;
+import africa.civitas.egen.api.dto.RuntimeDto;
+import africa.civitas.egen.api.dto.ServiceDependencyDto;
 import africa.civitas.egen.api.dto.ServiceInterfaceDto;
 import africa.civitas.egen.api.dto.ServiceManifestDto;
 import africa.civitas.egen.api.dto.ServiceStatusDto;
+import africa.civitas.egen.api.dto.ShutdownDto;
 import africa.civitas.egen.domain.lifecycle.Condition;
 import africa.civitas.egen.domain.lifecycle.ServiceStatus;
 import africa.civitas.egen.domain.model.ConfigurationSpec;
@@ -16,6 +26,7 @@ import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.EventSpec;
 import africa.civitas.egen.domain.model.HealthSpec;
 import africa.civitas.egen.domain.model.LifecyclePolicy;
+import africa.civitas.egen.domain.model.ManifestMetadata;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ReplicaRange;
 import africa.civitas.egen.domain.model.ResourceReference;
@@ -107,7 +118,134 @@ public final class ServiceManifestMapper {
 
         return new ServiceManifest(id, version, runtime, deployment, health, lifecycle, dependencies, ownerTeam,
                 ResiliencyMapper.toDomain(dto.resiliency), toEvents(dto.events), toConfiguration(dto.configuration),
-                toInterfaces(dto.interfaces), toResources(dto.dependencies));
+                toInterfaces(dto.interfaces), toResources(dto.dependencies),
+                new ManifestMetadata(dto.metadata.labels, dto.metadata.annotations));
+    }
+
+    // ------------------------------------------------------------------ domaine -> DTO
+
+    /**
+     * Forme lisible du manifeste, relisible par {@link #toDomain} : memes champs que la declaration, valeurs
+     * EFFECTIVES (defauts inclus). Un bloc vide est omis, pour qu'un bloc absent a la declaration le reste a la lecture.
+     */
+    public static ServiceManifestDto toDto(ServiceManifest manifest) {
+        ServiceManifestDto dto = new ServiceManifestDto();
+        dto.apiVersion = "egen.civitas.africa/v1";
+        dto.kind = "ServiceManifest";
+
+        dto.metadata = new MetadataDto();
+        dto.metadata.name = manifest.id().value();
+        dto.metadata.version = manifest.version().toString();
+        dto.metadata.team = manifest.ownerTeam().isUnassigned() ? null : manifest.ownerTeam().value();
+        dto.metadata.labels = manifest.metadata().labels().isEmpty() ? null : manifest.metadata().labels();
+        dto.metadata.annotations = manifest.metadata().annotations().isEmpty() ? null : manifest.metadata().annotations();
+
+        dto.runtime = new RuntimeDto();
+        dto.runtime.type = manifest.runtime().type().name().toLowerCase(java.util.Locale.ROOT);
+        dto.runtime.artifact = manifest.runtime().artifact();
+        dto.runtime.language = manifest.runtime().language();
+
+        dto.deployment = new DeploymentDto();
+        dto.deployment.adapter = manifest.deployment().adapter();
+        dto.deployment.image = manifest.deployment().image();
+        dto.deployment.resources = new ResourcesDto();
+        dto.deployment.resources.cpu = manifest.deployment().cpu();
+        dto.deployment.resources.memory = manifest.deployment().memory();
+        dto.deployment.replicas = new ReplicasDto();
+        dto.deployment.replicas.min = manifest.deployment().replicas().min();
+        dto.deployment.replicas.max = manifest.deployment().replicas().max();
+
+        dto.health = new HealthDto();
+        dto.health.http = new HttpCheckDto();
+        dto.health.http.endpoint = manifest.health().httpEndpoint();
+        dto.health.http.interval = manifest.health().interval().toSeconds() + "s";
+        dto.health.http.timeout = manifest.health().timeout().toSeconds() + "s";
+        dto.health.http.failuresBeforeUnhealthy = manifest.health().failuresBeforeUnhealthy();
+
+        dto.lifecycle = new LifecycleDto();
+        dto.lifecycle.shutdown = new ShutdownDto();
+        dto.lifecycle.shutdown.gracePeriod = manifest.lifecycle().shutdownGracePeriod().toSeconds() + "s";
+
+        if (!manifest.dependencies().isEmpty() || !manifest.resources().isEmpty()) {
+            dto.dependencies = new DependenciesDto();
+            if (!manifest.dependencies().isEmpty()) {
+                dto.dependencies.services = new ArrayList<>();
+                for (Dependency dependency : manifest.dependencies()) {
+                    ServiceDependencyDto item = new ServiceDependencyDto();
+                    item.name = dependency.serviceId().value();
+                    item.versionConstraint = dependency.versionConstraint();
+                    item.required = dependency.required();
+                    dto.dependencies.services.add(item);
+                }
+            }
+            if (!manifest.resources().isEmpty()) {
+                dto.dependencies.resources = new ArrayList<>();
+                for (ResourceReference resource : manifest.resources()) {
+                    ResourceDto item = new ResourceDto();
+                    item.name = resource.name();
+                    item.type = resource.type();
+                    item.params = resource.params().isEmpty() ? null : resource.params();
+                    dto.dependencies.resources.add(item);
+                }
+            }
+        }
+
+        dto.resiliency = ResiliencyMapper.toDto(manifest.resiliency());
+
+        if (!manifest.events().allTypes().isEmpty()) {
+            dto.events = new EventsDto();
+            dto.events.publishes = new ArrayList<>();
+            for (EventSpec.Published published : manifest.events().publishes()) {
+                EventsDto.PublishedEventDto item = new EventsDto.PublishedEventDto();
+                item.type = published.type();
+                item.schemaRef = published.schemaRef();
+                dto.events.publishes.add(item);
+            }
+            dto.events.consumes = new ArrayList<>();
+            for (EventSpec.Consumed consumed : manifest.events().consumes()) {
+                EventsDto.ConsumedEventDto item = new EventsDto.ConsumedEventDto();
+                item.type = consumed.type();
+                item.subscriptionGroup = consumed.subscriptionGroup();
+                if (consumed.deadLetter() != null) {
+                    item.deadLetter = new EventsDto.DeadLetterDto();
+                    item.deadLetter.maxRetries = consumed.deadLetter().maxRetries();
+                    item.deadLetter.strategy = consumed.deadLetter().strategy();
+                }
+                dto.events.consumes.add(item);
+            }
+        }
+
+        if (!manifest.configuration().isEmpty()) {
+            dto.configuration = new ConfigurationDto();
+            dto.configuration.required = new ArrayList<>();
+            for (ConfigurationSpec.Key key : manifest.configuration().required()) {
+                ConfigurationDto.KeyDto item = new ConfigurationDto.KeyDto();
+                item.key = key.key();
+                item.type = key.type();
+                item.defaultValue = key.defaultValue();
+                dto.configuration.required.add(item);
+            }
+            dto.configuration.secretsRefs = new ArrayList<>();
+            for (ConfigurationSpec.SecretReferenceSpec ref : manifest.configuration().secretsRefs()) {
+                ConfigurationDto.SecretRefDto item = new ConfigurationDto.SecretRefDto();
+                item.key = ref.key();
+                item.provider = ref.provider();
+                item.path = ref.path();
+                dto.configuration.secretsRefs.add(item);
+            }
+        }
+
+        if (!manifest.interfaces().isEmpty()) {
+            dto.interfaces = new ArrayList<>();
+            for (ServiceInterface serviceInterface : manifest.interfaces()) {
+                ServiceInterfaceDto item = new ServiceInterfaceDto();
+                item.type = serviceInterface.type();
+                item.ref = serviceInterface.ref();
+                item.riskDefault = serviceInterface.riskDefault();
+                dto.interfaces.add(item);
+            }
+        }
+        return dto;
     }
 
     private static List<ResourceReference> toResources(DependenciesDto dto) {
@@ -232,5 +370,6 @@ public final class ServiceManifestMapper {
         return dto;
     }
 }
+
 
 

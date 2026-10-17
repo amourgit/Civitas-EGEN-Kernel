@@ -12,6 +12,8 @@ import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
+import africa.civitas.egen.application.usecase.ReadServiceManifestUseCaseImpl;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.RunWorkflowUseCase;
@@ -87,6 +89,12 @@ public class UseCaseBeans {
     @ApplicationScoped
     public ResolveServiceUseCase resolveServiceUseCase() {
         return new ResolveServiceUseCaseImpl(discoveryPort, resiliencyPolicyProvider);
+    }
+
+    @Produces
+    @ApplicationScoped
+    public ReadServiceManifestUseCase readServiceManifestUseCase() {
+        return new ReadServiceManifestUseCaseImpl(registryStorePort);
     }
 }
 
