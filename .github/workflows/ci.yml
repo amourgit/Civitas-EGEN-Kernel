@@ -95,3 +95,35 @@ jobs:
       - name: Faire echouer le job si le build a echoue
         if: steps.build.outcome == 'failure'
         run: exit 1
+
+  e2e:
+    # Test de niveau 5 (docs/architecture/17, « Niveau 5 » ; 20 — Scenario de bout en bout) : le scenario du
+    # doc 20 rejoue contre le VRAI Kernel et un environnement ephemere complet (PostgreSQL, NATS, Consul, Vault
+    # et un Nomad client qui execute de vraies allocations, via Testcontainers). Job separe : il exige Docker et
+    # plusieurs minutes, et ne doit jamais ralentir le retour du build principal.
+    name: Acceptation de bout en bout (niveau 5)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurer JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Installer les modules (sans tests : le job build-and-test les execute)
+        run: mvn -B -ntp install -DskipTests -DskipITs
+
+      - name: Rejouer le scenario du doc 20 contre l'environnement ephemere complet
+        run: mvn -B -ntp -pl egen-bootstrap -Pe2e verify
+
+      - name: Conserver les rapports en cas d'echec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-surefire-reports
+          path: egen-bootstrap/target/surefire-reports

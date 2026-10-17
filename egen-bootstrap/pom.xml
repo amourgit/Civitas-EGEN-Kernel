@@ -112,7 +112,37 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <!--
+      Test de niveau 5 (docs/architecture/17) : le VRAI Kernel demarre par Quarkus, pilote par HTTP comme avec
+      des curl. L'identite est simulee (@TestSecurity), comme dans les tests de l'API.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-security</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
+
+  <properties>
+    <!-- Le test de niveau 5 exige Docker et plusieurs minutes : exclu du build par defaut, voir le profil e2e. -->
+    <excludedGroups>e2e</excludedGroups>
+  </properties>
+
+  <profiles>
+    <profile>
+      <!-- mvn -Pe2e verify : ne lance QUE les tests etiquetes e2e (docs/architecture/17, niveau 5). -->
+      <id>e2e</id>
+      <properties>
+        <groups>e2e</groups>
+        <excludedGroups></excludedGroups>
+      </properties>
+    </profile>
+  </profiles>
 
   <build>
     <plugins>
