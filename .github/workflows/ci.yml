@@ -115,7 +115,7 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Installer les modules (sans tests : le job build-and-test les execute)
+      - name: Installer les modules sans tests (le job build-and-test les execute)
         run: mvn -B -ntp install -DskipTests -DskipITs
 
       - name: Rejouer le scenario du doc 20 contre l'environnement ephemere complet
