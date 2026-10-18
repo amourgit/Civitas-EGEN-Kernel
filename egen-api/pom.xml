@@ -83,4 +83,19 @@
     </dependency>
   </dependencies>
 
+  <build>
+    <plugins>
+      <!--
+        INDISPENSABLE : sans index Jandex dans son JAR, Quarkus ne decouvre pas les ressources REST, filtres et
+        beans de securite d'egen-api quand il le consomme comme DEPENDANCE (egen-bootstrap) — le Kernel demarre
+        mais n'expose aucun endpoint (404 partout). Revele par le test de niveau 5 ; l'execution est definie
+        dans le pluginManagement du pom racine.
+      -->
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>
