@@ -24,16 +24,14 @@ import java.util.Map;
  * allocations. Seul le Kernel n'est pas conteneurise : c'est lui, le systeme sous test, demarre dans la JVM
  * du test par Quarkus et configure pour parler a ces conteneurs.
  *
- * <p><b>Pourquoi Nomad est « privilegie » et en reseau hote.</b> L'adapter Nomad genere un job de driver
- * {@code docker} avec un port dynamique que l'application lit dans {@code NOMAD_PORT_http}. Pour qu'un service
- * converge reellement jusqu'a {@code RUNNING}, Nomad doit donc etre un CLIENT avec acces au demon Docker (socket
- * monte ; les conteneurs de service sont des freres, pas des enfants) :</p>
- * <ul>
- *   <li>{@code /tmp} est monte a l'identique : le demon Docker resout les repertoires d'allocation de Nomad
- *       sur l'HOTE, ils doivent y exister au meme chemin ;</li>
- *   <li>reseau hote : les taches sont dans le reseau de l'hote, Nomad annonce donc une adresse (celle de l'hote)
- *       a laquelle le Kernel — dans la JVM du test — et Consul peuvent reellement joindre le service.</li>
- * </ul>
+ * <p><b>Nomad est un processus de l'HOTE, pas un conteneur.</b> L'adapter Nomad genere un job de driver
+ * {@code docker} avec un port dynamique que l'application lit dans {@code NOMAD_PORT_http} : pour qu'un service
+ * converge reellement jusqu'a {@code RUNNING}, Nomad doit etre un CLIENT avec acces au demon Docker. HashiCorp ne
+ * supporte pas un client Nomad dans un conteneur (il refuse de demarrer, cgroups) ; l'agent est donc lance par
+ * l'hote — {@code sudo nomad agent -dev -bind=0.0.0.0} — et ce harness le VERIFIE (noeud pret, driver docker
+ * sain) au lieu de le deviner. Les taches s'executent dans le reseau de l'hote : Nomad annonce une adresse a
+ * laquelle le Kernel (dans la JVM du test) et Consul peuvent reellement joindre le service. La CI installe et
+ * demarre l'agent ; en local, voir docs/architecture/17-strategie-de-tests.md (« Niveau 5 »).</p>
  *
  * <p>L'IT de niveau 3 de l'adapter Nomad s'arrete volontairement avant l'etat {@code running} (Nomad serveur
  * seul) et renvoie la convergence reelle a ce test.</p>
@@ -42,7 +40,9 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
 
     public static final String VAULT_TOKEN = "egen-e2e-root-token";
     public static final String FIXTURE_IMAGE = "egen-e2e-fixture:e2e";
-    public static final String NOMAD_URL = "http://localhost:4646";
+    /** Agent Nomad de l'hote ; surchargeable pour un agent distant ({@code EGEN_E2E_NOMAD_ADDR}). */
+    public static final String NOMAD_URL = System.getenv().getOrDefault("EGEN_E2E_NOMAD_ADDR", "http://localhost:4646");
+    private static final String NOMAD_LOG = System.getenv().getOrDefault("EGEN_E2E_NOMAD_LOG", "/tmp/nomad.log");
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
@@ -51,7 +51,6 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
     private static GenericContainer<?> nats;
     private static GenericContainer<?> consul;
     private static GenericContainer<?> vault;
-    private static GenericContainer<?> nomad;
 
     public static String consulUrl() {
         return "http://localhost:" + consul.getMappedPort(8500);
@@ -96,15 +95,8 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
                 .withExposedPorts(8200)
                 .waitingFor(Wait.forHttp("/v1/sys/health").forPort(8200).forStatusCode(200)
                         .withStartupTimeout(Duration.ofSeconds(90)));
-        nomad = new GenericContainer<>("hashicorp/nomad:1.8")
-                .withCommand("agent", "-dev", "-bind=0.0.0.0", "-log-level=INFO")
-                .withPrivilegedMode(true)
-                .withNetworkMode("host")
-                .withFileSystemBind("/var/run/docker.sock", "/var/run/docker.sock")
-                .withFileSystemBind("/tmp", "/tmp");
-
         // En parallele : les images a telecharger sont l'essentiel du temps de demarrage.
-        java.util.List.of(postgres, nats, consul, vault, nomad).parallelStream().forEach(GenericContainer::start);
+        java.util.List.of(postgres, nats, consul, vault).parallelStream().forEach(GenericContainer::start);
         awaitNomadDockerDriver();
 
         return Map.of(
@@ -120,7 +112,7 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
 
     @Override
     public void stop() {
-        for (GenericContainer<?> container : new GenericContainer<?>[] {nomad, vault, consul, nats, postgres}) {
+        for (GenericContainer<?> container : new GenericContainer<?>[] {vault, consul, nats, postgres}) {
             if (container != null) {
                 try {
                     container.stop();
@@ -155,8 +147,12 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
             }
             sleep(1000);
         }
-        throw new IllegalStateException("Nomad n'est pas pret (client + driver docker) apres 150 s — dernier etat : "
-                + last + "\n--- journal de Nomad ---\n" + tail(nomad.getLogs(), 4000));
+        throw new IllegalStateException("Nomad n'est pas pret (client + driver docker) sur " + NOMAD_URL
+                + " apres 150 s — dernier etat : " + last
+                + "\nLe test de niveau 5 exige un agent Nomad CLIENT sur l'hote, avec acces a Docker :"
+                + "\n    sudo nomad agent -dev -bind=0.0.0.0"
+                + "\n(HashiCorp ne supporte pas Nomad en conteneur ; voir docs/architecture/17, « Niveau 5 »)."
+                + "\n--- journal de Nomad ---\n" + nomadLog(4000));
     }
 
     // ------------------------------------------------------------------ utilitaires partages avec le test
@@ -196,8 +192,16 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
         } catch (Exception e) {
             out.append("(Nomad injoignable : ").append(e).append(")\n");
         }
-        out.append("--- journal de Nomad (fin) ---\n").append(tail(nomad.getLogs(), 6000));
+        out.append("--- journal de Nomad (fin) ---\n").append(nomadLog(6000));
         return out.toString();
+    }
+
+    private static String nomadLog(int max) {
+        try {
+            return tail(java.nio.file.Files.readString(java.nio.file.Path.of(NOMAD_LOG)), max);
+        } catch (IOException e) {
+            return "(journal de Nomad illisible : " + NOMAD_LOG + ")";
+        }
     }
 
     private static String tail(String text, int max) {

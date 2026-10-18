@@ -115,6 +115,20 @@ jobs:
           java-version: '21'
           cache: maven
 
+      - name: Installer Nomad et demarrer un agent CLIENT sur l'hote (driver docker)
+        # HashiCorp ne supporte pas un client Nomad dans un conteneur : l'agent est un processus de l'hote.
+        run: |
+          curl -fsSL -o /tmp/nomad.zip https://releases.hashicorp.com/nomad/1.8.4/nomad_1.8.4_linux_amd64.zip
+          unzip -q /tmp/nomad.zip -d /tmp
+          sudo mv /tmp/nomad /usr/local/bin/nomad
+          nomad version
+          sudo nohup nomad agent -dev -bind=0.0.0.0 > /tmp/nomad.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:4646/v1/status/leader >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://localhost:4646/v1/status/leader
+
       - name: Installer les modules sans tests (le job build-and-test les execute)
         run: mvn -B -ntp install -DskipTests -DskipITs
 
@@ -124,6 +138,10 @@ jobs:
         run: |
           set -o pipefail
           mvn -B -ntp -pl egen-bootstrap -Pe2e verify 2>&1 | tee /tmp/e2e.log
+
+      - name: Journal de l'agent Nomad
+        if: always()
+        run: tail -n 60 /tmp/nomad.log || true
 
       - name: Publier le diagnostic du niveau 5 en commentaire de commit
         if: always()
