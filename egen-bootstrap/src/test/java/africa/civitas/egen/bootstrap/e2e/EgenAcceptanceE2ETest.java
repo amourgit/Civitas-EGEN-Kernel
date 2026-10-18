@@ -339,7 +339,7 @@ class EgenAcceptanceE2ETest {
         assertFalse(allCalls("notification-service").contains("POST /internal/release-slot"));
         // L'etape EVENT a publie dans le flux NATS reel garanti par la declaration de news-service.
         await("l'evenement publie devrait etre dans son flux NATS", Duration.ofSeconds(30),
-                () -> streamMessages("EGEN-africa~civitas~news~article~published~v1") >= 1);
+                () -> streamMessagesOrZero("EGEN-africa~civitas~news~article~published~v1") >= 1);
     }
 
     @Test
@@ -386,6 +386,15 @@ class EgenAcceptanceE2ETest {
     private static String executionStatus(String execution) {
         return given().when().get("/api/v1/workflows/publish-article-workflow/executions/" + execution)
                 .jsonPath().getString("status");
+    }
+
+    /** Pour les sondages : un monitoring NATS momentanement injoignable vaut « pas encore », pas une erreur. */
+    private static long streamMessagesOrZero(String stream) {
+        try {
+            return streamMessages(stream);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private static long streamMessages(String stream) throws Exception {
