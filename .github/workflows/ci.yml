@@ -119,11 +119,61 @@ jobs:
         run: mvn -B -ntp install -DskipTests -DskipITs
 
       - name: Rejouer le scenario du doc 20 contre l'environnement ephemere complet
-        run: mvn -B -ntp -pl egen-bootstrap -Pe2e verify
+        id: scenario
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          mvn -B -ntp -pl egen-bootstrap -Pe2e verify 2>&1 | tee /tmp/e2e.log
+
+      - name: Publier le diagnostic du niveau 5 en commentaire de commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OUTCOME: ${{ steps.scenario.outcome }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, re
+
+          outcome = os.environ["OUTCOME"]
+          run_url = os.environ["RUN_URL"]
+          try:
+              content = open('/tmp/e2e.log', 'r', errors='replace').read()
+          except OSError:
+              content = "(aucun journal : l'etape Maven n'a pas demarre)"
+
+          if outcome == "failure":
+              lines = content.splitlines()
+              keep = set()
+              for i, line in enumerate(lines):
+                  if re.search(r"AssertionError|Delai depasse|Nomad n'est pas pret|FAILURE!|ERROR\]|Caused by|Exception:", line):
+                      keep.update(range(max(0, i - 3), min(len(lines), i + 40)))
+              extract = "\n".join(lines[i] for i in sorted(keep))[:28000]
+              tail = content[-24000:]
+              body = ("### [e2e] Diagnostic automatique - echec du test de niveau 5\n\n"
+                      f"Run : {run_url}\n\n**Extraits (erreurs et contexte)**\n```\n{extract}\n```\n\n"
+                      f"**Fin du journal**\n```\n{tail}\n```")
+          else:
+              lines = [l for l in content.splitlines() if "Tests run:" in l or "BUILD SUCCESS" in l]
+              body = ("### [e2e] Resume automatique - test de niveau 5 reussi\n\n"
+                      f"Run : {run_url}\n\n```\n" + "\n".join(lines) + "\n```")
+          json.dump({"body": body[:64000]}, open('/tmp/payload-e2e.json', 'w'))
+          PYEOF
+          curl -s -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/commits/${SHA}/comments" \
+            -d @/tmp/payload-e2e.json
 
       - name: Conserver les rapports en cas d'echec
-        if: failure()
+        if: steps.scenario.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: e2e-surefire-reports
           path: egen-bootstrap/target/surefire-reports
+
+      - name: Faire echouer le job si le scenario a echoue
+        if: steps.scenario.outcome == 'failure'
+        run: exit 1
