@@ -208,6 +208,19 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
         } catch (Exception e) {
             out.append("(Nomad injoignable : ").append(e).append(")\n");
         }
+        out.append("--- Consul : services enregistres et sondes de sante ---\n");
+        try {
+            JsonNode services = getJson(consulUrl() + "/v1/agent/services");
+            services.fields().forEachRemaining(entry -> out.append(entry.getKey()).append(" -> ")
+                    .append(entry.getValue().path("Address").asText()).append(':')
+                    .append(entry.getValue().path("Port").asInt()).append('\n'));
+            getJson(consulUrl() + "/v1/agent/checks").fields().forEachRemaining(entry -> out
+                    .append(entry.getKey()).append(" : ").append(entry.getValue().path("Status").asText())
+                    .append(" | ").append(entry.getValue().path("Output").asText().replace('\n', ' '), 0,
+                            Math.min(300, entry.getValue().path("Output").asText().length())).append('\n'));
+        } catch (Exception e) {
+            out.append("(Consul injoignable : ").append(e).append(")\n");
+        }
         out.append("--- journal de Nomad (fin) ---\n").append(nomadLog(6000));
         return out.toString();
     }
