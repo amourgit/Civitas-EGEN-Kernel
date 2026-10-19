@@ -46,7 +46,38 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           OUTCOME: ${{ steps.build.outcome }}
         run: |
-          python3 .github/scripts/e2e-diagnostic.py
+          python3 - <<'PYEOF'
+          import json, os, re
+
+          outcome = os.environ["OUTCOME"]
+          run_url = os.environ["RUN_URL"]
+
+          with open('/tmp/maven-build.log', 'r', errors='replace') as f:
+              content = f.read()
+
+          if outcome == "failure":
+              tail = content[-55000:]
+              body = (
+                  "### Diagnostic automatique - echec du build Maven\n\n"
+                  f"Run : {run_url}\n\n"
+                  "```\n" + tail + "\n```"
+              )
+          else:
+              lines = [
+                  l for l in content.splitlines()
+                  if "Tests run:" in l or l.strip().startswith("[INFO] Building ")
+                  or "BUILD SUCCESS" in l
+              ]
+              summary = "\n".join(lines) if lines else "(aucune ligne de synthese trouvee)"
+              body = (
+                  "### Resume automatique - build reussi\n\n"
+                  f"Run : {run_url}\n\n"
+                  "```\n" + summary + "\n```"
+              )
+
+          with open('/tmp/payload.json', 'w') as f:
+              json.dump({"body": body}, f)
+          PYEOF
           curl -s -X POST \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
@@ -124,33 +155,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           OUTCOME: ${{ steps.scenario.outcome }}
         run: |
-          python3 - <<'PYEOF'
-          import json, os, re
-
-          outcome = os.environ["OUTCOME"]
-          run_url = os.environ["RUN_URL"]
-          try:
-              content = open('/tmp/e2e.log', 'r', errors='replace').read()
-          except OSError:
-              content = "(aucun journal : l'etape Maven n'a pas demarre)"
-
-          if outcome == "failure":
-              lines = content.splitlines()
-              keep = set()
-              for i, line in enumerate(lines):
-                  if re.search(r"AssertionError|Delai depasse|Nomad n'est pas pret|FAILURE!|ERROR\]|Caused by|Exception:", line):
-                      keep.update(range(max(0, i - 3), min(len(lines), i + 40)))
-              extract = "\n".join(lines[i] for i in sorted(keep))[:28000]
-              tail = content[-24000:]
-              body = ("### [e2e] Diagnostic automatique - echec du test de niveau 5\n\n"
-                      f"Run : {run_url}\n\n**Extraits (erreurs et contexte)**\n```\n{extract}\n```\n\n"
-                      f"**Fin du journal**\n```\n{tail}\n```")
-          else:
-              lines = [l for l in content.splitlines() if "Tests run:" in l or "BUILD SUCCESS" in l]
-              body = ("### [e2e] Resume automatique - test de niveau 5 reussi\n\n"
-                      f"Run : {run_url}\n\n```\n" + "\n".join(lines) + "\n```")
-          json.dump({"body": body[:64000]}, open('/tmp/payload-e2e.json', 'w'))
-          PYEOF
+          python3 .github/scripts/e2e-diagnostic.py
           curl -s -X POST \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
