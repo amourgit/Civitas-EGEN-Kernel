@@ -28,7 +28,7 @@ import java.util.Map;
  * {@code docker} avec un port dynamique que l'application lit dans {@code NOMAD_PORT_http} : pour qu'un service
  * converge reellement jusqu'a {@code RUNNING}, Nomad doit etre un CLIENT avec acces au demon Docker. HashiCorp ne
  * supporte pas un client Nomad dans un conteneur (il refuse de demarrer, cgroups) ; l'agent est donc lance par
- * l'hote — {@code sudo nomad agent -dev -bind=0.0.0.0} — et ce harness le VERIFIE (noeud pret, driver docker
+ * l'hote — {@code sudo nomad agent -dev -bind=0.0.0.0 -network-interface=<interface reelle>} — et ce harness le VERIFIE (noeud pret, driver docker
  * sain) au lieu de le deviner. Les taches s'executent dans le reseau de l'hote : Nomad annonce une adresse a
  * laquelle le Kernel (dans la JVM du test) et Consul peuvent reellement joindre le service. La CI installe et
  * demarre l'agent ; en local, voir docs/architecture/17-strategie-de-tests.md (« Niveau 5 »).</p>
@@ -136,6 +136,7 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
                     JsonNode node = getJson(NOMAD_URL + "/v1/node/" + nodes.get(0).path("ID").asText());
                     JsonNode docker = node.path("Drivers").path("docker");
                     if (docker.path("Detected").asBoolean() && docker.path("Healthy").asBoolean()) {
+                        requireRoutableAddress(node);
                         return;
                     }
                     last = "driver docker : " + docker;
@@ -150,9 +151,24 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
         throw new IllegalStateException("Nomad n'est pas pret (client + driver docker) sur " + NOMAD_URL
                 + " apres 150 s — dernier etat : " + last
                 + "\nLe test de niveau 5 exige un agent Nomad CLIENT sur l'hote, avec acces a Docker :"
-                + "\n    sudo nomad agent -dev -bind=0.0.0.0"
+                + "\n    sudo nomad agent -dev -bind=0.0.0.0 -network-interface=$(ip route show default | awk '/default/ {print $5; exit}')"
                 + "\n(HashiCorp ne supporte pas Nomad en conteneur ; voir docs/architecture/17, « Niveau 5 »)."
                 + "\n--- journal de Nomad ---\n" + nomadLog(4000));
+    }
+
+    /**
+     * En mode {@code -dev}, Nomad annonce par defaut l'adresse de LOOPBACK : Consul (dans un conteneur) ne pourrait
+     * jamais joindre un service pour sa sonde de sante, et aucun service n'atteindrait {@code RUNNING}
+     * ({@code DiscoveryReady} reste a {@code False}). On le verifie ici, avec la cause en clair, plutot que de le
+     * decouvrir par un delai depasse.
+     */
+    private static void requireRoutableAddress(JsonNode node) {
+        String address = node.path("Attributes").path("unique.network.ip-address").asText("");
+        if (address.isBlank() || address.startsWith("127.") || address.equals("::1")) {
+            throw new IllegalStateException("L'agent Nomad annonce l'adresse \"" + address + "\" (loopback) : les services "
+                    + "deployes seraient injoignables depuis Consul. Demarrer l'agent avec l'interface reseau reelle :"
+                    + "\n    sudo nomad agent -dev -bind=0.0.0.0 -network-interface=$(ip route show default | awk '/default/ {print $5; exit}')");
+        }
     }
 
     // ------------------------------------------------------------------ utilitaires partages avec le test

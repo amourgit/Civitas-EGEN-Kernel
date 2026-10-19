@@ -46,38 +46,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           OUTCOME: ${{ steps.build.outcome }}
         run: |
-          python3 - <<'PYEOF'
-          import json, os, re
-
-          outcome = os.environ["OUTCOME"]
-          run_url = os.environ["RUN_URL"]
-
-          with open('/tmp/maven-build.log', 'r', errors='replace') as f:
-              content = f.read()
-
-          if outcome == "failure":
-              tail = content[-55000:]
-              body = (
-                  "### Diagnostic automatique - echec du build Maven\n\n"
-                  f"Run : {run_url}\n\n"
-                  "```\n" + tail + "\n```"
-              )
-          else:
-              lines = [
-                  l for l in content.splitlines()
-                  if "Tests run:" in l or l.strip().startswith("[INFO] Building ")
-                  or "BUILD SUCCESS" in l
-              ]
-              summary = "\n".join(lines) if lines else "(aucune ligne de synthese trouvee)"
-              body = (
-                  "### Resume automatique - build reussi\n\n"
-                  f"Run : {run_url}\n\n"
-                  "```\n" + summary + "\n```"
-              )
-
-          with open('/tmp/payload.json', 'w') as f:
-              json.dump({"body": body}, f)
-          PYEOF
+          python3 .github/scripts/e2e-diagnostic.py
           curl -s -X POST \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
@@ -122,7 +91,10 @@ jobs:
           unzip -q /tmp/nomad.zip -d /tmp
           sudo mv /tmp/nomad /usr/local/bin/nomad
           nomad version
-          sudo nohup nomad agent -dev -bind=0.0.0.0 > /tmp/nomad.log 2>&1 &
+          # En mode -dev Nomad annonce le loopback : Consul (dans un conteneur) ne pourrait pas joindre les services.
+          IFACE=$(ip route show default | awk '/default/ {print $5; exit}')
+          echo "Interface reseau annoncee par Nomad : ${IFACE}"
+          sudo nohup nomad agent -dev -bind=0.0.0.0 -network-interface="${IFACE}" > /tmp/nomad.log 2>&1 &
           for i in $(seq 1 60); do
             curl -fsS http://localhost:4646/v1/status/leader >/dev/null 2>&1 && break
             sleep 1
