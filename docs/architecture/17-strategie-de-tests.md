@@ -61,8 +61,9 @@ en **faits vérifiés automatiquement**, pas en promesses.
 ## Niveau 5 — Tests de bout en bout et de non-régression architecturale
 
 Environnement éphémère complet (Nomad + Consul + NATS + Postgres + Vault,
-via docker-compose ou un cluster de test dédié) sur lequel tournent des
-scénarios représentatifs :
+via docker-compose ou un cluster de test dédié — ici Testcontainers et un
+agent Nomad de l'hôte, voir plus bas) sur lequel tournent des scénarios
+représentatifs :
 
 - **Test « Kernel vide »** (garde-fou n°4, voir [02](02-principes-fondamentaux.md)) :
   démarrer EGEN avec zéro service déclaré, vérifier que `/api/v1/health`
@@ -85,6 +86,57 @@ scénarios représentatifs :
 Le scénario complet de bout en bout, rejoué littéralement comme test de ce
 niveau, est détaillé en [20](20-scenario-bout-en-bout.md) — c'est le test
 d'acceptation le plus important du projet.
+
+### Le test de niveau 5 du dépôt
+
+`EgenAcceptanceE2ETest` (module `egen-bootstrap`, étiqueté `e2e`) démarre le
+**vrai Kernel**, avec ses vrais adapters, contre un environnement éphémère
+complet — aucun double de port — et le pilote par HTTP comme le ferait un
+`curl`. Chaque scénario ci-dessus y a son test :
+
+| Scénario | Test | Ce qui est vérifié, pour de vrai |
+| --- | --- | --- |
+| Kernel vide | `emptyKernelIsHealthy…` | `/api/v1/health`, aucun service, rien de résolu |
+| Ajout sans modifier le Kernel | `aMissingVaultSecret…` | un service déclaré par l'API seule converge jusqu'à `RUNNING` ; un secret Vault absent le retient en `REGISTERED` (`ConfigResolved`), sans job Nomad, puis il converge dès que le secret existe |
+| Dépendances | `aServiceWaitsForItsRequiredDependencies…` | `news-service`, déclaré **avant** ses deux dépendances `required`, n'est soumis à Nomad qu'**après** elles (comparaison des `SubmitTime`) |
+| Liaisons | `aRunningServiceIsFullyBound…` | les six Conditions V1 à `TRUE` ; deux instances saines dans **Consul** ; un flux **NATS** par type d'événement publié ou consommé ; le bloc `interfaces` restitué tel que déclaré |
+| Panne et reconvergence | `aRealCrashDegrades…` | un vrai processus s'arrête : `DEGRADED`, puis `RUNNING`, puis deux instances saines |
+| Workflow avec compensation | `theReferenceWorkflowRuns…`, `aFailingStepCompensates…` | le workflow du doc 11 sur de vrais services : événement dans le flux NATS ; échec voulu de `publish` → `release-slot` seul, dans l'ordre, jamais `unpublish` |
+
+**Environnement.** PostgreSQL, NATS (JetStream), Consul et Vault sont des
+conteneurs Testcontainers. **Nomad est un processus de l'hôte**, pas un
+conteneur : l'adapter Nomad génère un job de driver `docker`, donc Nomad doit
+être un *client* avec accès au démon Docker, et HashiCorp ne supporte pas un
+client Nomad dans un conteneur. Il doit en outre annoncer l'**interface
+réseau réelle** de l'hôte — en mode `-dev` il annonce le loopback, que Consul
+(dans un conteneur) ne peut pas sonder : aucun service n'atteindrait jamais
+`RUNNING`. Le test vérifie ces deux points (nœud prêt, driver `docker` sain,
+adresse routable) et échoue, avec la commande à lancer, s'ils ne sont pas
+remplis. Le service de fixture est un vrai processus Python déployé par Nomad
+(`egen-bootstrap/src/test/resources/e2e/fixture/server.py`) qui se laisse
+piloter : journal d'appels, échec forcé, crash réel.
+
+**Exécution.**
+
+```bash
+sudo nomad agent -dev -bind=0.0.0.0 \
+     -network-interface="$(ip route show default | awk '/default/ {print $5; exit}')" &
+mvn -B install -DskipTests            # une fois
+mvn -B -pl egen-bootstrap -Pe2e verify
+```
+
+Il est **exclu du build par défaut** (il exige Docker et plusieurs
+minutes) : le profil `e2e` ne lance que les tests étiquetés `e2e`. En CI, il
+a son propre job (« Acceptation de bout en bout (niveau 5) »), qui installe et
+démarre l'agent, et **publie son diagnostic en commentaire du commit** en cas
+d'échec : tests en échec, Conditions distinctes observées par le Kernel pour
+chaque service, avertissements du Kernel.
+
+**Ce qu'il a déjà révélé** — ce pour quoi il existe : l'application assemblée
+**n'exposait aucun endpoint REST** (le plugin Jandex n'était activé dans aucun
+module, donc Quarkus ne découvrait pas `egen-api` consommé comme dépendance ;
+les tests de l'API, qui s'exécutent *dans* ce module, passaient) ; et le défaut
+d'adresse annoncée par Nomad décrit plus haut.
 
 ## Niveau 6 — Chaos engineering (à introduire progressivement)
 
