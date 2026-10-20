@@ -29,7 +29,9 @@ else:
             failures.append(line)
     summary = "\n".join(failures)
     blocks = re.split(r"(?m)^\[ERROR\]   ", summary)
-    summary = "\n".join(("[ERROR]   " + b)[:1800] for b in blocks if b.strip())[:14000]
+    # Le diagnostic complet (Consul, Nomad) n'est utile qu'une fois : le premier test en echec le porte en entier.
+    kept = [b for b in blocks if b.strip()]
+    summary = "\n".join(("[ERROR]   " + b)[:(7000 if i == 0 else 600)] for i, b in enumerate(kept))[:16000]
 
     # 2. Ce que le Kernel a reellement observe : Conditions DISTINCTES par service, dans l'ordre d'apparition.
     pattern = re.compile(r'serviceId=(\S+) .*?condition=(\S+) status=(\S+) reason="([^"]*)"(?: message="([^"]*)")?')

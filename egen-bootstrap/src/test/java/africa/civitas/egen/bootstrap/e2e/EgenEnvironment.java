@@ -193,35 +193,44 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
         return HTTP.send(request.build(), HttpResponse.BodyHandlers.discarding()).statusCode();
     }
 
-    /** Ce que le test montre quand une attente expire : l'etat de Nomad et la fin de son journal. */
+    /**
+     * Ce que le test montre quand une attente expire — COMPACT et dans l'ordre utile : Consul d'abord (ce que le
+     * Kernel lit pour decider que la decouverte est prete), puis Nomad, puis la fin de son journal.
+     */
     public static String diagnostics() {
-        StringBuilder out = new StringBuilder("\n--- Nomad : jobs ---\n");
+        StringBuilder out = new StringBuilder("\n--- Consul : services enregistres ---\n");
         try {
-            out.append(getJson(NOMAD_URL + "/v1/jobs").toPrettyString());
-            out.append("\n--- Nomad : allocations ---\n");
+            getJson(consulUrl() + "/v1/agent/services").fields().forEachRemaining(entry -> out
+                    .append(entry.getKey()).append(" -> ").append(entry.getValue().path("Address").asText())
+                    .append(':').append(entry.getValue().path("Port").asInt()).append('\n'));
+            out.append("--- Consul : sondes de sante ---\n");
+            getJson(consulUrl() + "/v1/agent/checks").fields().forEachRemaining(entry -> {
+                String output = entry.getValue().path("Output").asText().replace('\n', ' ');
+                out.append(entry.getKey()).append(" : ").append(entry.getValue().path("Status").asText())
+                        .append(" | ").append(output, 0, Math.min(260, output.length())).append('\n');
+            });
+        } catch (Exception e) {
+            out.append("(Consul injoignable : ").append(e).append(")\n");
+        }
+        try {
+            JsonNode nodes = getJson(NOMAD_URL + "/v1/nodes");
+            out.append("--- Nomad : noeud ---\n");
+            for (JsonNode node : nodes) {
+                JsonNode detail = getJson(NOMAD_URL + "/v1/node/" + node.path("ID").asText());
+                out.append(detail.path("Name").asText()).append(" ip=")
+                        .append(detail.path("Attributes").path("unique.network.ip-address").asText())
+                        .append(" status=").append(detail.path("Status").asText()).append('\n');
+            }
+            out.append("--- Nomad : allocations ---\n");
             for (JsonNode alloc : getJson(NOMAD_URL + "/v1/allocations")) {
-                out.append(alloc.path("JobID").asText()).append(" ")
-                        .append(alloc.path("ID").asText(), 0, 8).append(" client=")
-                        .append(alloc.path("ClientStatus").asText()).append(" ")
-                        .append(alloc.path("TaskStates").toString()).append('\n');
+                out.append(alloc.path("JobID").asText()).append(' ').append(alloc.path("ID").asText(), 0, 8)
+                        .append(" client=").append(alloc.path("ClientStatus").asText()).append(" desired=")
+                        .append(alloc.path("DesiredStatus").asText()).append('\n');
             }
         } catch (Exception e) {
             out.append("(Nomad injoignable : ").append(e).append(")\n");
         }
-        out.append("--- Consul : services enregistres et sondes de sante ---\n");
-        try {
-            JsonNode services = getJson(consulUrl() + "/v1/agent/services");
-            services.fields().forEachRemaining(entry -> out.append(entry.getKey()).append(" -> ")
-                    .append(entry.getValue().path("Address").asText()).append(':')
-                    .append(entry.getValue().path("Port").asInt()).append('\n'));
-            getJson(consulUrl() + "/v1/agent/checks").fields().forEachRemaining(entry -> out
-                    .append(entry.getKey()).append(" : ").append(entry.getValue().path("Status").asText())
-                    .append(" | ").append(entry.getValue().path("Output").asText().replace('\n', ' '), 0,
-                            Math.min(300, entry.getValue().path("Output").asText().length())).append('\n'));
-        } catch (Exception e) {
-            out.append("(Consul injoignable : ").append(e).append(")\n");
-        }
-        out.append("--- journal de Nomad (fin) ---\n").append(nomadLog(6000));
+        out.append("--- journal de Nomad (fin) ---\n").append(nomadLog(2500));
         return out.toString();
     }
 
