@@ -40,6 +40,8 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final String DOCKER_DRIVER = "docker";
     private static final String DEFAULT_DATACENTER = "dc1";
+    /** Etiquette du port dynamique declare par {@link #buildJobJson} : celle que l'application lit dans NOMAD_PORT_http. */
+    private static final String HTTP_PORT_LABEL = "http";
 
     private final URI baseUri;
     private final String nomadToken; // nullable — voir docs/architecture/14-securite.md (ACL scoped, jamais le token root)
@@ -146,7 +148,10 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
             Instant since = allocation.hasNonNull("CreateTime")
                     ? Instant.ofEpochSecond(0, allocation.get("CreateTime").asLong())
                     : Instant.EPOCH;
-            NetworkEndpoint endpoint = extractNetworkEndpoint(allocation);
+            // Le STUB renvoye par la liste ne porte aucune ressource : l'adresse et le port se lisent dans
+            // l'allocation detaillee, et seulement pour une allocation qui tourne (les autres n'ont rien a joindre).
+            NetworkEndpoint endpoint = "running".equals(status)
+                    ? fetchNetworkEndpoint(allocationId) : new NetworkEndpoint("", 0);
             if (!allocationId.isEmpty()) {
                 result.add(new AllocationInfo(allocationId, status.isEmpty() ? "unknown" : status,
                         since, endpoint.address(), endpoint.port()));
@@ -156,16 +161,44 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
     }
 
     /**
-     * Extrait l'adresse/port reseau d'une allocation Nomad — les ports
-     * dynamiques sont attribues par le scheduler et ne sont connus qu'a
-     * l'execution (voir {@code Resources.Networks[].DynamicPorts} dans la
-     * reponse de l'API Nomad). Retourne une adresse/port vides si la
-     * structure attendue est absente (allocation pas encore planifiee) —
-     * l'appelant (la boucle de reconciliation) gere cette absence sans
-     * lever d'exception, voir {@code AllocationInfo.hasNetworkInfo()}.
+     * Adresse et port dynamique d'UNE allocation, lus dans {@code GET /v1/allocation/{id}} (voir le Nomad HTTP API,
+     * « Read Allocation »). Le job genere par cet adapter declare un {@code network} de GROUPE avec un port
+     * dynamique d'etiquette {@value #HTTP_PORT_LABEL} : Nomad l'alloue dans
+     * {@code AllocatedResources.Shared} — {@code Ports} (forme actuelle, avec {@code HostIP}) puis {@code Networks}
+     * (adresse {@code IP} et {@code DynamicPorts}). L'ancienne forme {@code Resources.Networks}, antérieure aux
+     * reseaux de groupe, reste lue en dernier recours. Une allocation introuvable (collectee entre-temps) n'a pas
+     * d'endpoint : ce n'est pas une erreur, elle sera simplement absente du Discovery.
      */
-    private static NetworkEndpoint extractNetworkEndpoint(JsonNode allocation) {
-        JsonNode networks = allocation.path("Resources").path("Networks");
+    private NetworkEndpoint fetchNetworkEndpoint(String allocationId) {
+        HttpResponse<String> response = send(getRequest("/v1/allocation/" + allocationId));
+        if (response.statusCode() == 404) {
+            return new NetworkEndpoint("", 0);
+        }
+        requireSuccess(response, "readAllocation(" + allocationId + ")");
+        return extractNetworkEndpoint(parseJson(response));
+    }
+
+    static NetworkEndpoint extractNetworkEndpoint(JsonNode allocation) {
+        JsonNode shared = allocation.path("AllocatedResources").path("Shared");
+
+        // 1. Shared.Ports : { Label, Value, To, HostIP }
+        JsonNode ports = shared.path("Ports");
+        if (ports.isArray()) {
+            JsonNode port = pickByLabel(ports);
+            if (port != null && port.path("Value").asInt(0) > 0) {
+                return new NetworkEndpoint(textOrEmpty(port, "HostIP"), port.path("Value").asInt());
+            }
+        }
+        // 2. Shared.Networks[0] : { IP, DynamicPorts: [ { Label, Value } ] }
+        NetworkEndpoint fromNetworks = fromNetworks(shared.path("Networks"));
+        if (fromNetworks.port() > 0) {
+            return fromNetworks;
+        }
+        // 3. Forme anterieure aux reseaux de groupe : Resources.Networks[0]
+        return fromNetworks(allocation.path("Resources").path("Networks"));
+    }
+
+    private static NetworkEndpoint fromNetworks(JsonNode networks) {
         if (!networks.isArray() || networks.isEmpty()) {
             return new NetworkEndpoint("", 0);
         }
@@ -174,12 +207,23 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
         JsonNode dynamicPorts = network.path("DynamicPorts");
         int port = 0;
         if (dynamicPorts.isArray() && !dynamicPorts.isEmpty()) {
-            port = dynamicPorts.get(0).path("Value").asInt(0);
+            JsonNode picked = pickByLabel(dynamicPorts);
+            port = picked == null ? 0 : picked.path("Value").asInt(0);
         }
         return new NetworkEndpoint(address, port);
     }
 
-    private record NetworkEndpoint(String address, int port) {
+    /** Le port d'etiquette {@value #HTTP_PORT_LABEL}, a defaut le premier. */
+    private static JsonNode pickByLabel(JsonNode ports) {
+        for (JsonNode port : ports) {
+            if (HTTP_PORT_LABEL.equals(textOrEmpty(port, "Label"))) {
+                return port;
+            }
+        }
+        return ports.isEmpty() ? null : ports.get(0);
+    }
+
+    record NetworkEndpoint(String address, int port) {
     }
 
     @Override
@@ -235,7 +279,7 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
         ObjectNode network = networks.addObject();
         ArrayNode dynamicPorts = network.putArray("DynamicPorts");
         ObjectNode httpPort = dynamicPorts.addObject();
-        httpPort.put("Label", "http");
+        httpPort.put("Label", HTTP_PORT_LABEL);
 
         ArrayNode tasks = group.putArray("Tasks");
         ObjectNode task = tasks.addObject();
