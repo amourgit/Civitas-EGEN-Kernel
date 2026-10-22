@@ -288,6 +288,11 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
 
         ObjectNode config = task.putObject("Config");
         config.put("image", spec.image());
+        // INDISPENSABLE : sans « ports », le conteneur reste sur le bridge Docker et le port dynamique que Nomad
+        // reserve n'est publie nulle part — l'application ecoute (NOMAD_PORT_http) mais personne ne peut la joindre.
+        // La sonde Consul echoue alors en « connection refused » et le service n'atteint jamais RUNNING.
+        // Revele par le test de niveau 5. Le port hote est publie vers le meme numero dans le conteneur.
+        config.putArray("ports").add(HTTP_PORT_LABEL);
 
         ObjectNode resources = task.putObject("Resources");
         resources.put("CPU", NomadResourceUnits.parseCpuMhz(spec.cpu()));
