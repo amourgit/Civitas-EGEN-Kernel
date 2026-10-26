@@ -152,7 +152,7 @@ construction) est entièrement dans [21](21-systeme-agents-et-gateway.md) —
 cette section ne le duplique pas, elle situe seulement ce chantier par
 rapport aux phases du Kernel ci-dessus et ci-dessous.
 
-- [ ] **Seul point qui touche réellement ce dépôt** : le bloc optionnel
+- [x] **Seul point qui touche réellement ce dépôt** : le bloc optionnel
       `interfaces` dans `ServiceManifest`, additif et rétro-compatible,
       décrit en [21.3](21-systeme-agents-et-gateway.md#213--le-service-manifest-sétend-jamais-ne-se-casse)
       (`interfaces: [{type: mcp|openapi, ref, riskDefault}]`). Sans lui,
@@ -161,6 +161,9 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
       [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommandé) —
       rien de plus, jamais de logique d'interprétation de ce bloc côté
       Kernel (il reste une chaîne opaque, comme `deployment.image`).
+      *Livré : bloc `interfaces` du manifeste, relu par
+      `GET /api/v1/services/{id}` ([06](06-service-manifest.md),
+      [13](13-api-et-contrats.md)) et vérifié par le test de niveau 5.*
 - [ ] Étapes 1 à 6 de [21.10](21-systeme-agents-et-gateway.md#2110--ordre-de-construction-recommandé)
       (service fixture → Capability Gateway → IAM/Policy Engine → Agent
       Gateway/Runtime à un seul agent → HITL/audit/quotas → supervisor et
@@ -210,17 +213,18 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
       SDK Java et le SDK Python ([12](12-communication-fabric.md),
       [17](17-strategie-de-tests.md)), appliquée par le Moteur de Workflow
       et servie par `discover`.*
-- [ ] **Livrable démontrable** : le scénario complet de
+- [x] **Livrable démontrable** : le scénario complet de
   [20 — Scénario de bout en bout](20-scenario-bout-en-bout.md) s'exécute
   de bout en bout, y compris un cas de compensation déclenché
   volontairement.
-      *État : la partie 2 (workflow, compensation, reprise après crash) est
-      automatisée avec un vrai moteur, un vrai adapter HTTP et un vrai
-      PostgreSQL (`PublishArticleWorkflowScenarioIT`). Reste à faire : le
-      rejeu complet de la partie 1 et de la partie 2 avec de vrais Nomad,
-      Consul, NATS et Vault (test de niveau 5, voir
-      [17](17-strategie-de-tests.md#niveau-5--tests-de-bout-en-bout-et-de-non-régression-architecturale)) —
-      il n'existe pas encore de test de niveau 5 dans le dépôt.*
+      *Livré : le test de niveau 5 (`EgenAcceptanceE2ETest`, module
+      `egen-bootstrap`, voir [17](17-strategie-de-tests.md#le-test-de-niveau-5-du-dépôt))
+      rejoue la partie 1 et la partie 2 contre de vrais Nomad, Consul, NATS,
+      PostgreSQL et Vault, et il est vert en CI. Il a révélé, en plus de
+      l'absence d'index Jandex et du défaut d'adresse annoncée par Nomad, que
+      le Kernel ne ré-observait un service convergé qu'au resync de 5 minutes :
+      la perte d'une allocation n'était vue qu'au bout de plusieurs minutes.
+      Corrigé par le régime permanent de ~10 s ([04](04-moteur-de-reconciliation.md)).*
 
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 
