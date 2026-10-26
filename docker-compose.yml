@@ -50,17 +50,18 @@ services:
   # NATS JetStream — implementation par defaut du Messaging Adapter (voir
   # docs/architecture/07-ports-et-adapters.md, "Kafka vs NATS JetStream").
   # "-js" active JetStream (persistance/replay), necessaire au-dela du
-  # pub/sub ephemere de coeur NATS.
+  # pub/sub ephemere de coeur NATS. "-m 8222" ouvre le monitoring HTTP, que le
+  # healthcheck interroge (sans lui, le conteneur reste "unhealthy").
   nats:
     image: nats:2.10-alpine
     container_name: egen-nats
     restart: unless-stopped
-    command: ["-js"]
+    command: ["-js", "-m", "8222"]
     ports:
       - "4222:4222"   # protocole client NATS
       - "8222:8222"   # monitoring HTTP (http://localhost:8222)
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -81,7 +82,7 @@ services:
     ports:
       - "8200:8200"   # API HTTP + UI (http://localhost:8200)
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8200/v1/sys/health?standbyok=true"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8200/v1/sys/health?standbyok=true"]
       interval: 5s
       timeout: 5s
       retries: 10
