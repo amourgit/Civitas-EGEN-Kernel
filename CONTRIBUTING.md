@@ -72,3 +72,13 @@ Un commit doit rester atomique et pousser à chaque étape discrète plutôt
 que d'accumuler du travail non commité. Les préfixes `feat:`, `fix:`,
 `docs:`, `refactor:`, `test:` sont utilisés pour qualifier l'intention du
 commit.
+
+## Environnement local
+
+```bash
+docker compose up -d     # Consul, PostgreSQL, NATS, Vault, OTel, Jaeger, Prometheus
+deploy/nomad-dev.sh      # Nomad : processus de l'hote, dans un second terminal
+```
+
+Nomad n'est pas dans `docker-compose.yml` : un client Nomad en conteneur n'est pas supporte
+(voir `docs/architecture/17-strategie-de-tests.md`).

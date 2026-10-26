@@ -2,25 +2,11 @@
 # docs/architecture/19-feuille-de-route.md).
 services:
 
-  # Nomad — le Deployment Adapter y delegue tout (scheduling, allocation,
-  # rolling update natif). Mode dev : ACL desactivees, un seul noeud
-  # serveur+client, adapte au developpement local uniquement. Voir
-  # docs/architecture/07-ports-et-adapters.md, "Deployment Port + Nomad
-  # Adapter".
-  nomad:
-    image: hashicorp/nomad:1.8
-    container_name: egen-nomad
-    restart: unless-stopped
-    command: ["agent", "-dev", "-bind=0.0.0.0", "-log-level=INFO"]
-    cap_add:
-      - IPC_LOCK
-    ports:
-      - "4646:4646"   # API HTTP + UI (http://localhost:4646)
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:4646/v1/status/leader"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+  # Nomad n'est PAS dans ce fichier, volontairement : le Deployment Adapter genere
+  # des jobs de driver "docker", donc Nomad doit etre un client avec acces au demon
+  # Docker, et HashiCorp ne supporte pas un client Nomad dans un conteneur (erreur
+  # "failed to create nomad cgroup ... read-only file system"). Il tourne comme
+  # processus de l'hote : voir deploy/nomad-dev.sh et docs/architecture/17-strategie-de-tests.md.
 
   # Consul — le Discovery Adapter y delegue l'enregistrement et la
   # resolution d'instances saines. Mode dev : ACL desactivees, adapte au
