@@ -73,6 +73,14 @@ fois* après chaque changement réel.
   doit re-enqueuer *toutes* les ressources connues, même sans changement
   détecté. Cela corrige les divergences causées par des événements manqués
   (ex. webhook Nomad perdu à cause d'une coupure réseau).
+- **Un régime permanent distinct du resync.** Un service convergé est
+  re-observé toutes les ~10 s (`STEADY_STATE_OBSERVE_DELAY`,
+  `ReconciliationEngine`) : c'est ce qui fait voir la perte d'une allocation en
+  secondes ([20](20-scenario-bout-en-bout.md), étape 7) et tient le SLO de
+  détection de dégradation ([15](15-observabilite.md)). Le resync de 5 minutes
+  reste inconditionnel et ne sert qu'à rattraper une ressource dont la boucle
+  se serait arrêtée — il ne doit **jamais** être le seul mécanisme de détection
+  d'une panne (ce défaut, découvert par le test de niveau 5, est corrigé).
 - **Retry avec backoff exponentiel et plafond**, et compteur d'échecs
   consécutifs exposé en métrique (`egen_reconcile_failures_total{service=...}`)
   pour permettre l'alerting.

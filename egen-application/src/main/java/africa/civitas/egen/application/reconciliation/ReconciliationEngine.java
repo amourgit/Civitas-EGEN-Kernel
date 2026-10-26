@@ -59,7 +59,14 @@ public final class ReconciliationEngine implements AutoCloseable {
     private static final int MAX_CONSECUTIVE_FAILURES = 5;
     private static final Duration POLL_DELAY_WHILE_CONVERGING = Duration.ofSeconds(3);
     private static final Duration STOPPING_POLL_DELAY = Duration.ofSeconds(1);
-    private static final Duration RESYNC_INTERVAL = Duration.ofMinutes(5);
+    /**
+     * Regime permanent (docs/architecture/20, etape 7) : un service converge est re-observe
+     * toutes les ~10 s, pour que la perte d'une allocation soit vue en secondes — pas au
+     * prochain resync. Distinct du resync, qui reste inconditionnel et couvre toute ressource
+     * dont la boucle se serait arretee (voir 04).
+     */
+    static final Duration STEADY_STATE_OBSERVE_DELAY = Duration.ofSeconds(10);
+    static final Duration RESYNC_INTERVAL = Duration.ofMinutes(5);
 
     private final WorkQueue workQueue;
     private final RegistryStorePort registryStorePort;
@@ -424,7 +431,7 @@ public final class ReconciliationEngine implements AutoCloseable {
             advanceTo(id, current, nextPhase, desired.generation(), conditions);
         }
 
-        Duration nextDelay = converged ? RESYNC_INTERVAL : POLL_DELAY_WHILE_CONVERGING;
+        Duration nextDelay = converged ? STEADY_STATE_OBSERVE_DELAY : POLL_DELAY_WHILE_CONVERGING;
         workQueue.requeueAfter(id, nextDelay);
     }
 

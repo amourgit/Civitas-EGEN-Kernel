@@ -76,6 +76,19 @@ class ReconciliationEngineTest {
         }
     }
 
+    /**
+     * Docs 20 (etape 7) : en regime permanent, une allocation perdue doit etre vue en secondes,
+     * pas au prochain resync. Le delai de re-observation d'un service converge doit donc rester
+     * de l'ordre de 10 s — et strictement inferieur au resync periodique (voir 04).
+     */
+    @Test
+    void aConvergedServiceIsReobservedMuchSoonerThanTheUnconditionalResync() {
+        assertTrue(ReconciliationEngine.STEADY_STATE_OBSERVE_DELAY.compareTo(Duration.ofSeconds(10)) <= 0,
+                "une panne doit etre detectee en ~10 s (docs/architecture/20, etape 7)");
+        assertTrue(ReconciliationEngine.STEADY_STATE_OBSERVE_DELAY.compareTo(ReconciliationEngine.RESYNC_INTERVAL) < 0,
+                "le regime permanent ne doit pas dependre du resync periodique");
+    }
+
     @Test
     void advancesFromDeclaredToRunningAsDeploymentAndDiscoveryBothConverge() {
         deploymentPort.setCyclesToConverge(1);
