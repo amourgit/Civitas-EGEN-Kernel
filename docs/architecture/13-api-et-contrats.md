@@ -93,6 +93,35 @@ valeurs par défaut. C'est ce que consomment les SDK et le sidecar
   requête de listing ; elle sera ajoutée avec le premier besoin réel (console
   d'exploitation), pas par anticipation.
 
+### Publication d'événement — `POST /api/v1/events/publish`
+
+Point d'entrée générique pour qu'un processus **sans accès direct au broker**
+publie un événement technique ([12](12-communication-fabric.md#flux-dévénements)).
+
+- **Corps** (`application/json`) : un événement CloudEvents —
+  `{ "specversion": "1.0", "type": "…", "source": "…", "egen_correlation_id": "…", "data": { … } }`.
+  `type`, `source` et `data` sont obligatoires ; `data` est n'importe quelle
+  valeur JSON et reste **opaque** : le Kernel la relaie sans la lire.
+  `specversion`, `egen_correlation_id` et `egen_causation_id` sont optionnels
+  (`specversion`, s'il est donné, doit valoir `1.0`) ; un identifiant de
+  corrélation est généré s'il est absent. L'`id` et l'horodatage de l'événement
+  sont attribués par le Kernel. Tout autre champ est refusé (`400`).
+- **Relais** : vers le Messaging Port, sur le sujet `type`
+  ([12](12-communication-fabric.md#flux-dévénements)). Le Kernel **ne crée pas**
+  le flux : il existe parce qu'un service qui publie ce type a été réconcilié.
+- **Réponse** : `202 Accepted`, corps
+  `{ "id": "…", "type": "…", "egen_correlation_id": "…" }`. Pas d'en-tête
+  `Location` : un événement n'a pas de ressource de suivi.
+- **`Idempotency-Key` obligatoire** (mutation, voir [Sécurité de l'API](#sécurité-de-lapi)) ;
+  sa répétition rejoue la première réponse sans republier.
+- **Autorisation** : un appelant ne publie que ce qu'un manifeste annonce. Le
+  `type` doit figurer dans `events.publishes` d'au moins un service déclaré,
+  **et** l'appelant doit être administrateur ou porter l'équipe propriétaire de
+  l'un de ces services ([14](14-securite.md)) ; sinon `403`.
+- **Codes d'erreur** : corps illisible, champ obligatoire absent, `specversion`
+  non supportée ou champ inconnu → `400` ; type non annoncé ou appelant non
+  autorisé → `403` ; messagerie indisponible → `503` (rien n'a été publié).
+
 ## Versionnage et compatibilité
 
 - **Versionnage sémantique de l'API elle-même** (`/api/v1/`, `/api/v2/`…)

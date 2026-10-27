@@ -1,6 +1,7 @@
 package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.application.port.DiscoveryPort;
+import africa.civitas.egen.application.port.MessagingPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.WorkflowStorePort;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
@@ -12,6 +13,8 @@ import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.PublishEventUseCase;
+import africa.civitas.egen.application.usecase.PublishEventUseCaseImpl;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCaseImpl;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
@@ -55,6 +58,9 @@ public class UseCaseBeans {
     @Inject
     ResiliencyPolicyProvider resiliencyPolicyProvider;
 
+    @Inject
+    MessagingPort messagingPort;
+
     @Produces
     @ApplicationScoped
     public DeployServiceUseCase deployServiceUseCase() {
@@ -96,5 +102,10 @@ public class UseCaseBeans {
     public ReadServiceManifestUseCase readServiceManifestUseCase() {
         return new ReadServiceManifestUseCaseImpl(registryStorePort);
     }
-}
 
+    @Produces
+    @ApplicationScoped
+    public PublishEventUseCase publishEventUseCase() {
+        return new PublishEventUseCaseImpl(registryStorePort, messagingPort);
+    }
+}

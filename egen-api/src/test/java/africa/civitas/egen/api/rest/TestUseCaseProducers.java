@@ -13,6 +13,8 @@ import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.PublishEventUseCase;
+import africa.civitas.egen.application.usecase.PublishEventUseCaseImpl;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCaseImpl;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
@@ -29,6 +31,7 @@ import africa.civitas.egen.testkit.InMemoryDiscoveryPort;
 import africa.civitas.egen.testkit.InMemoryWorkflowStore;
 import africa.civitas.egen.testkit.NoOpMessagingPort;
 import africa.civitas.egen.testkit.NoOpObservabilityPort;
+import africa.civitas.egen.testkit.RecordingMessagingPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import java.time.Clock;
@@ -49,6 +52,7 @@ public class TestUseCaseProducers {
     private final DiscoveryPort discoveryPort = new InMemoryDiscoveryPort();
     private final ObservabilityPort observabilityPort = new NoOpObservabilityPort();
     private final WorkflowStorePort workflowStorePort = new InMemoryWorkflowStore();
+    private final RecordingMessagingPort messagingPort = new RecordingMessagingPort();
 
     /**
      * Executor qui ne pilote jamais : {@code start()} persiste l'execution
@@ -123,5 +127,18 @@ public class TestUseCaseProducers {
     @ApplicationScoped
     ObservabilityPort observabilityPort() {
         return observabilityPort;
+    }
+
+    @Produces
+    @ApplicationScoped
+    PublishEventUseCase publishEventUseCase() {
+        return new PublishEventUseCaseImpl(registryStorePort, messagingPort);
+    }
+
+    /** Expose le double enregistreur aux tests REST (verifier CE QUI est relaye au broker). */
+    @Produces
+    @ApplicationScoped
+    RecordingMessagingPort recordingMessagingPort() {
+        return messagingPort;
     }
 }

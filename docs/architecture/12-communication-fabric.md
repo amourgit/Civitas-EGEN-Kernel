@@ -130,10 +130,10 @@ Surface commune (noms adaptés à chaque langage) :
 - Jamais : transformer, enrichir ou router selon le contenu du corps (voir
   « Ce que la Communication Fabric ne fait jamais »).
 
-*Pas encore livré* : la publication d'événements par le SDK. Elle
-passerait par `POST /api/v1/events/publish` (voir [13](13-api-et-contrats.md)),
-qui n'est **pas encore implémenté côté Kernel** ; l'ajouter aux SDK avant lui
-n'aurait aucun sens.
+*Pas encore livré* : la publication d'événements par le SDK. Son point
+d'appui côté Kernel, `POST /api/v1/events/publish` (voir
+[13](13-api-et-contrats.md)), est livré ; la méthode du SDK reste à ajouter
+([plus bas](#publication-dévénements-par-le-sdk--spécification-livrée-côté-kernel)).
 
 ## Sidecar de référence
 
@@ -177,15 +177,14 @@ consomme, à la réconciliation (Condition `MessagingBindingsReady`,
   que le service réalise ; ils sont conservés dans le manifeste mais pas
   encore appliqués par le Kernel.
 
-### Publication d'événements par le SDK — spécification, non livrée
+### Publication d'événements par le SDK — spécification, livrée côté Kernel
 
-Le SDK ([plus haut](#sdk-léger)) ne publie pas d'événement aujourd'hui. Ce
-n'est pas un oubli mais une dépendance : la publication passerait par
-`POST /api/v1/events/publish` ([13](13-api-et-contrats.md)), **qui n'est pas
-implémenté côté Kernel**, et ajouter la méthode au SDK avant son point
-d'appui n'aurait aucun sens. Contrat prévu, à implémenter dans cet ordre :
+Le SDK ([plus haut](#sdk-léger)) ne publie pas d'événement aujourd'hui. La
+publication passe par `POST /api/v1/events/publish`
+([13](13-api-et-contrats.md)), **désormais implémenté côté Kernel** (étape 1) ;
+les étapes 2 et 3 restent à faire. Contrat prévu, à implémenter dans cet ordre :
 
-1. **Kernel** : `POST /api/v1/events/publish`, corps = un `TechnicalEvent`
+1. **Kernel — livré** : `POST /api/v1/events/publish`, corps = un `TechnicalEvent`
    CloudEvents (`type`, `source`, `data` opaque, `egen_correlation_id`) ;
    `202 Accepted` ; le type doit être **publié par un service déclaré**
    (`events.publishes`) sans quoi `403` — un appelant ne publie que ce qu'un
@@ -200,6 +199,6 @@ d'appui n'aurait aucun sens. Contrat prévu, à implémenter dans cet ordre :
    `sdk/contract/resiliency-contract.json` si une sémantique de retry
    propre à la publication est retenue.
 
-Tant que ce n'est pas livré, un service qui doit publier depuis un processus
+Tant que les étapes 2 et 3 ne sont pas livrées, un service qui doit publier depuis un processus
 sans accès direct au broker passe par un workflow (étape `EVENT`) ou par son
 propre client du Messaging Port.

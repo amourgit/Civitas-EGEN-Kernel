@@ -31,6 +31,13 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   définition, démarrage, `pause`/`resume`/`terminate`) aux non-administrateurs ;
   la lecture reste ouverte à tout appelant authentifié. À revoir si les
   workflows reçoivent un jour un propriétaire explicite.
+- **Publication d'événements : un appelant ne publie que ce qu'un manifeste
+  annonce.** `POST /api/v1/events/publish` ([13](13-api-et-contrats.md))
+  exige que le `type` figure dans `events.publishes` d'au moins un service
+  déclaré, et que l'appelant soit administrateur ou porte l'équipe
+  propriétaire de l'un de ces services (même règle que pour toute action sur
+  un service déjà enregistré ; un service sans équipe assignée reste ouvert à
+  tout appelant authentifié, note de migration ci-dessus). Sinon `403`.
 
 ## Ce que le Kernel ne fait jamais en matière de sécurité
 
