@@ -205,8 +205,9 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
       [12](12-communication-fabric.md)).
       *Livré : `egen-sdk-java`, `sdk/python`, `egen-sidecar`.
       `POST /api/v1/events/publish` est livré côté Kernel
-      ([13](13-api-et-contrats.md)) ; la méthode `publish` des SDK Java et
-      Python reste à faire ([12](12-communication-fabric.md)).*
+      ([13](13-api-et-contrats.md)), ainsi que `publish` dans les SDK Java et
+      Python, après sa sémantique de résilience normative
+      ([12](12-communication-fabric.md)).*
 - [x] Résilience configurable (retry/timeout/circuit breaking) appliquée
       uniformément.
       *Livré : bloc `resiliency` du manifeste ([06](06-service-manifest.md)),

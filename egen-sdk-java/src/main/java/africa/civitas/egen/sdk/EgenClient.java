@@ -40,6 +40,9 @@ public final class EgenClient {
 
     public static final String CORRELATION_HEADER = "Egen-Correlation-Id";
     public static final String TRACEPARENT_HEADER = "traceparent";
+    public static final String IDEMPOTENCY_HEADER = "Idempotency-Key";
+    /** Nom de la "cible" de la publication dans les erreurs (le Kernel n'est pas un service resolu). */
+    static final String PUBLISH_TARGET = "events.publish";
 
     private record CachedResolution(ServiceResolution resolution, long expiresAtMillis) {
     }
@@ -52,6 +55,9 @@ public final class EgenClient {
     private final Sleeper sleeper;
     private final Duration controlPlaneTimeout;
     private final String targetScheme;
+    private final String eventSource;
+    private final ResiliencyPolicy publishPolicy;
+    private final CircuitBreaker publishBreaker;
 
     private final ConcurrentMap<String, CachedResolution> resolutions = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CircuitBreaker> breakers = new ConcurrentHashMap<>();
@@ -68,6 +74,10 @@ public final class EgenClient {
         this.controlPlaneTimeout = b.controlPlaneTimeout;
         // Avec un SSLContext (mTLS), les services cibles sont adresses en https ; sinon en http.
         this.targetScheme = b.sslContext != null ? "https" : "http";
+        this.eventSource = b.eventSource;
+        this.publishPolicy = b.publishPolicy;
+        // Circuit DEDIE a la publication, independant de ceux des services cibles (docs/architecture/12).
+        this.publishBreaker = new CircuitBreaker(b.publishPolicy.circuitBreaker(), b.clockMillis);
         HttpClient.Builder http = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(b.connectTimeout);
@@ -90,6 +100,8 @@ public final class EgenClient {
         private Duration controlPlaneTimeout = Duration.ofSeconds(5);
         private LongSupplier clockMillis = System::currentTimeMillis;
         private Sleeper sleeper = Sleeper.threadSleep();
+        private String eventSource;
+        private ResiliencyPolicy publishPolicy = ResiliencyPolicy.defaults();
 
         private Builder(String controlPlaneUrl) {
             if (controlPlaneUrl == null || controlPlaneUrl.isBlank()) {
@@ -117,6 +129,21 @@ public final class EgenClient {
 
         public Builder connectTimeout(Duration timeout) {
             this.connectTimeout = Objects.requireNonNull(timeout);
+            return this;
+        }
+
+        /** Source par defaut des evenements publies (attribut CloudEvents {@code source}) ; surchargeable par appel. */
+        public Builder eventSource(String eventSource) {
+            this.eventSource = eventSource;
+            return this;
+        }
+
+        /**
+         * Politique de la PUBLICATION (docs/architecture/12) : par defaut celle du contrat partage — un seul essai,
+         * donc retry opt-in ; la cle d'idempotence etant stable, un retry ne cree jamais de doublon.
+         */
+        public Builder publishPolicy(ResiliencyPolicy publishPolicy) {
+            this.publishPolicy = Objects.requireNonNull(publishPolicy);
             return this;
         }
 
@@ -276,6 +303,117 @@ public final class EgenClient {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new EgenException("Appel interrompu", e);
+        }
+    }
+
+    // ------------------------------------------------------------------ publication
+
+    /** Publie {@code dataJson} (JSON valide, opaque) avec les options par defaut. */
+    public PublishReceipt publish(String type, String dataJson) {
+        return publish(type, dataJson, PublishOptions.none());
+    }
+
+    /**
+     * Publie un evenement via {@code POST /api/v1/events/publish} (docs/architecture/12 et 13), avec la politique
+     * de publication du client : meme classification, meme retry et meme circuit que {@code call}, circuit dedie,
+     * UNE cle d'idempotence pour toutes les tentatives, et propagation de {@code traceparent} et
+     * {@code Egen-Correlation-Id}. {@code dataJson} n'est jamais transforme : seule sa validite JSON est verifiee.
+     *
+     * @return le recu du Kernel ({@code 202})
+     * @throws IllegalArgumentException type, source ou data absents ou invalides — rien n'est envoye
+     * @throws PublishRejectedException le Kernel a repondu sans publier (4xx definitif, ou 5xx apres les tentatives)
+     * @throws CircuitOpenException le circuit de publication est ouvert (aucun acces reseau)
+     * @throws CallFailedException aucune tentative n'a obtenu de reponse
+     */
+    public PublishReceipt publish(String type, String dataJson, PublishOptions options) {
+        if (type == null || type.isBlank()) {
+            throw new IllegalArgumentException("type obligatoire");
+        }
+        String source = options.source() != null ? options.source() : eventSource;
+        if (source == null || source.isBlank()) {
+            throw new IllegalArgumentException(
+                    "source obligatoire : eventSource(...) sur le client, ou PublishOptions.withSource(...)");
+        }
+        if (dataJson == null) {
+            throw new IllegalArgumentException("data obligatoire (JSON valide)");
+        }
+        Json.parse(dataJson); // valide seulement : data reste opaque, et ne peut pas deborder de l'enveloppe
+
+        String traceparent = options.traceparent() != null ? options.traceparent() : newTraceparent();
+        String correlationId = options.correlationId() != null ? options.correlationId() : UUID.randomUUID().toString();
+        String idempotencyKey = options.idempotencyKey() != null ? options.idempotencyKey() : UUID.randomUUID().toString();
+        String body = envelope(type, source, correlationId, options.causationId(), dataJson);
+
+        ResilienceExecutor.Result result;
+        try {
+            result = new ResilienceExecutor(publishPolicy.retry(), publishBreaker, sleeper)
+                    .run(attempt -> sendPublish(body, traceparent, correlationId, idempotencyKey));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new EgenException("Publication de " + type + " interrompue", e);
+        }
+        if (result.rejected()) {
+            throw new CircuitOpenException(PUBLISH_TARGET);
+        }
+        Outcome last = result.last();
+        EgenResponse response = last.response();
+        if (response == null) {
+            throw new CallFailedException(PUBLISH_TARGET, last.error(), result.attemptsMade());
+        }
+        if (response.status() >= 200 && response.status() < 300) {
+            return parseReceipt(response);
+        }
+        String text = new String(response.body(), StandardCharsets.UTF_8);
+        throw new PublishRejectedException(response.status(),
+                text.length() > 500 ? text.substring(0, 500) : text, result.attemptsMade());
+    }
+
+    static String envelope(String type, String source, String correlationId, String causationId, String dataJson) {
+        StringBuilder out = new StringBuilder("{\"specversion\":\"1.0\",\"type\":").append(Json.quote(type))
+                .append(",\"source\":").append(Json.quote(source))
+                .append(",\"egen_correlation_id\":").append(Json.quote(correlationId));
+        if (causationId != null && !causationId.isBlank()) {
+            out.append(",\"egen_causation_id\":").append(Json.quote(causationId));
+        }
+        return out.append(",\"data\":").append(dataJson.strip()).append('}').toString();
+    }
+
+    private Outcome sendPublish(String body, String traceparent, String correlationId, String idempotencyKey) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(controlPlaneUrl + "/api/v1/events/publish"))
+                .timeout(Duration.ofMillis(publishPolicy.timeoutMillis()))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header(TRACEPARENT_HEADER, traceparent)
+                .header(CORRELATION_HEADER, correlationId)
+                .header(IDEMPOTENCY_HEADER, idempotencyKey) // la MEME cle a chaque tentative
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+        if (tokenSupplier != null) {
+            String token = tokenSupplier.get();
+            if (token != null && !token.isBlank()) {
+                builder.header("Authorization", "Bearer " + token);
+            }
+        }
+        try {
+            HttpResponse<byte[]> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            return Outcome.ofResponse(new EgenResponse(response.statusCode(), response.body(),
+                    response.headers().map()));
+        } catch (HttpTimeoutException e) {
+            return Outcome.ofError("timeout");
+        } catch (IOException e) {
+            return Outcome.ofError("network");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new EgenException("Publication interrompue", e);
+        }
+    }
+
+    private static PublishReceipt parseReceipt(EgenResponse response) {
+        try {
+            Map<String, Object> root = Json.parseObject(new String(response.body(), StandardCharsets.UTF_8));
+            return new PublishReceipt(String.valueOf(root.get("id")), String.valueOf(root.get("type")),
+                    String.valueOf(root.get("egen_correlation_id")));
+        } catch (IllegalArgumentException e) {
+            throw new EgenException("Accuse de publication illisible : " + e.getMessage(), e);
         }
     }
 

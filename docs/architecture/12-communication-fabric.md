@@ -111,9 +111,9 @@ referme pas le circuit et ne prolonge pas sa fenêtre).
 ### Résilience de la publication d'événements — sémantique normative
 
 Cette section est le préalable exigé par
-[la spécification de publication](#publication-dévénements-par-le-sdk--spécification-livrée-côté-kernel) :
-elle fixe la résilience de `publish` **avant** son implémentation dans les SDK
-Java et Python, qui doivent s'y conformer à l'identique.
+[la publication par le SDK](#publication-dévénements-par-le-sdk) : elle fixe la
+résilience de `publish` **avant** son implémentation dans les SDK Java et
+Python, qui s'y conforment à l'identique.
 
 La publication ne vise pas un service résolu : elle appelle l'API de contrôle du
 Kernel, `POST /api/v1/events/publish` ([13](13-api-et-contrats.md)), qui relaie
@@ -187,13 +187,13 @@ Surface commune (noms adaptés à chaque langage) :
   Kernel un intermédiaire de chaque appel.
 - `call(service, method, path, body, …)` → résolution, choix d'instance,
   application de la politique ci-dessus, propagation de contexte.
+- `publish(type, data, …)` → publication d'un événement via
+  `POST /api/v1/events/publish` ([13](13-api-et-contrats.md)), avec la politique
+  et les garanties de la
+  [section normative](#résilience-de-la-publication-dévénements--sémantique-normative)
+  (détail : [Publication d'événements par le SDK](#publication-dévénements-par-le-sdk)).
 - Jamais : transformer, enrichir ou router selon le contenu du corps (voir
   « Ce que la Communication Fabric ne fait jamais »).
-
-*Pas encore livré* : la publication d'événements par le SDK. Son point
-d'appui côté Kernel, `POST /api/v1/events/publish` (voir
-[13](13-api-et-contrats.md)), est livré ; la méthode du SDK reste à ajouter
-([plus bas](#publication-dévénements-par-le-sdk--spécification-livrée-côté-kernel)).
 
 ## Sidecar de référence
 
@@ -237,12 +237,12 @@ consomme, à la réconciliation (Condition `MessagingBindingsReady`,
   que le service réalise ; ils sont conservés dans le manifeste mais pas
   encore appliqués par le Kernel.
 
-### Publication d'événements par le SDK — spécification, livrée côté Kernel
+### Publication d'événements par le SDK
 
-Le SDK ([plus haut](#sdk-léger)) ne publie pas d'événement aujourd'hui. La
-publication passe par `POST /api/v1/events/publish`
-([13](13-api-et-contrats.md)), **désormais implémenté côté Kernel** (étape 1) ;
-les étapes 2 et 3 restent à faire. Contrat prévu, à implémenter dans cet ordre :
+Un processus **sans accès direct au broker** publie un événement par
+`publish` : le SDK appelle `POST /api/v1/events/publish`
+([13](13-api-et-contrats.md)) et le Kernel relaie vers le Messaging Port. Le
+contrat a été livré dans cet ordre :
 
 1. **Kernel — livré** : `POST /api/v1/events/publish`, corps = un `TechnicalEvent`
    CloudEvents (`type`, `source`, `data` opaque, `egen_correlation_id`) ;
@@ -251,14 +251,25 @@ les étapes 2 et 3 restent à faire. Contrat prévu, à implémenter dans cet or
    manifeste annonce ; mutation donc `Idempotency-Key` obligatoire et
    autorisation par équipe comme `Declare` ([14](14-securite.md)).
    Le Kernel relaie vers le Messaging Port sans lire `data`.
-2. **SDK Java et Python** : `publish(type, data, …)` — mêmes règles de
-   propagation de contexte que `call`, mêmes erreurs explicites ; la
-   résilience du Messaging Port n'est pas celle de la cible HTTP et fera
-   l'objet de sa propre section normative **avant** l'implémentation.
-3. **Contrat partagé** : de nouveaux scénarios dans
-   `sdk/contract/resiliency-contract.json` si une sémantique de retry
-   propre à la publication est retenue.
+2. **SDK Java et Python — livré** : sémantique de résilience fixée
+   [plus haut](#résilience-de-la-publication-dévénements--sémantique-normative)
+   **avant** l'implémentation, puis réalisée à l'identique.
 
-Tant que les étapes 2 et 3 ne sont pas livrées, un service qui doit publier depuis un processus
-sans accès direct au broker passe par un workflow (étape `EVENT`) ou par son
-propre client du Messaging Port.
+   | | Java (`EgenClient`) | Python (`EgenClient`) |
+   | --- | --- | --- |
+   | Source des événements | `builder.eventSource(…)` ou `PublishOptions.withSource(…)` | `event_source=…` ou `source=…` |
+   | Politique de publication | `builder.publishPolicy(ResiliencyPolicy)` | `publish_policy=ResiliencyPolicy(…)` |
+   | Publier | `publish(type, dataJson[, PublishOptions])` — `dataJson` : JSON valide, opaque | `publish(type, data, *, …)` — `data` : toute valeur JSON-sérialisable |
+   | Reçu | `PublishReceipt(id, type, correlationId)` | `PublishReceipt(id, type, correlation_id)` |
+   | Rejet du Kernel | `PublishRejectedException(status, attempts)` | `PublishRejectedError` (`status`, `attempts`) |
+   | Aucune réponse / circuit ouvert | `CallFailedException` / `CircuitOpenException` | `CallFailedError` / `CircuitOpenError` |
+   | Argument invalide (rien n'est envoyé) | `IllegalArgumentException` | `ValueError` |
+
+   Les deux SDK portent les mêmes treize scénarios de test, sous les mêmes noms
+   (`EgenClientPublishTest`, `tests/test_publish.py`), dont la stabilité de
+   l'`Idempotency-Key` d'une tentative à l'autre.
+3. **Contrat partagé — sans objet** : aucune sémantique de retry propre à la
+   publication n'a été retenue (voir la section normative) ; aucun scénario n'est
+   ajouté à `sdk/contract/resiliency-contract.json`.
+
+Le sidecar de référence n'expose pas encore la publication.
