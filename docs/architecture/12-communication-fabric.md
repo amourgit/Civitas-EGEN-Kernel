@@ -108,6 +108,66 @@ leur résultat alimente quand même le circuit — sauf s'il est `OPEN` : un
 résultat enregistré par un appel contourné ne change alors pas l'état (il ne
 referme pas le circuit et ne prolonge pas sa fenêtre).
 
+### Résilience de la publication d'événements — sémantique normative
+
+Cette section est le préalable exigé par
+[la spécification de publication](#publication-dévénements-par-le-sdk--spécification-livrée-côté-kernel) :
+elle fixe la résilience de `publish` **avant** son implémentation dans les SDK
+Java et Python, qui doivent s'y conformer à l'identique.
+
+La publication ne vise pas un service résolu : elle appelle l'API de contrôle du
+Kernel, `POST /api/v1/events/publish` ([13](13-api-et-contrats.md)), qui relaie
+vers le Messaging Port. D'où :
+
+- **Cible unique, aucune résolution.** Pas d'appel à `discover`, pas de
+  tourniquet : chaque tentative vise la même URL.
+- **Politique du client, pas du manifeste.** La politique déclarée dans un
+  manifeste ([06](06-service-manifest.md)) décrit la cible d'un *appel* ; le
+  Kernel n'est pas un service déclaré. Le SDK applique donc une politique fournie
+  à la construction du client, dont les **valeurs par défaut sont celles du
+  contrat partagé** (bloc `defaults` de `resiliency-contract.json` : délai de
+  30 s par tentative, 1 tentative, circuit à 5 échecs / 30 s). Le retry est donc
+  **opt-in**.
+- **Même classification, même retry, même circuit** que pour `call` (voir plus
+  haut), par le même exécuteur : `202` = succès ; `4xx` autre que `408`/`429`
+  (`400` corps invalide, `401`, `403` type non annoncé ou appelant non autorisé)
+  = réponse définitive, **jamais réessayée** ; `503` (messagerie indisponible,
+  rien n'a été publié), autre `5xx`, `408`, `429`, délai dépassé, erreur réseau =
+  échec réessayable. Le circuit breaker est **dédié à la publication** (un par
+  processus appelant) et indépendant de ceux des services cibles : une
+  messagerie en panne n'ouvre pas le circuit d'un service, et inversement.
+- **Un retry sûr : une seule `Idempotency-Key` par publication.** Le SDK génère
+  la clé (UUID) **une fois par appel à `publish`** — ou utilise celle que
+  l'appelant fournit — et la renvoie **identique à chaque tentative**. Le Kernel
+  rejoue la première réponse `2xx` d'une clé répétée sans republier
+  ([13](13-api-et-contrats.md)) : réessayer après un délai dépassé dont la
+  requête initiale avait pourtant abouti ne produit pas de doublon ; un `503`
+  n'est ni publié ni mis en cache, donc le retry est sûr. **Garantie : au moins
+  une fois, sans doublon tant que la clé est rejouée dans la fenêtre de rejeu du
+  Kernel** (10 minutes dans l'implémentation, `IdempotencyKeyFilter`). Au-delà,
+  ou après une reprise du processus sans clé fournie par l'appelant, un
+  consommateur doit tolérer un doublon.
+- **Propagation de contexte** comme `call` : en-têtes `traceparent` et
+  `Egen-Correlation-Id`. L'`egen_correlation_id` du corps a **la même valeur**
+  que l'en-tête, générée une seule fois si l'appelant n'en fournit pas.
+- **Erreurs explicites, jamais silencieuses.** Succès → un reçu (`id`, `type`,
+  `egen_correlation_id`). Réponse du Kernel autre que `2xx` une fois la
+  politique appliquée → une erreur de **rejet** portant le statut et le message
+  (à la différence de `call`, `publish` ne renvoie jamais une réponse d'échec
+  comme une valeur : ignorer un `403` perdrait l'événement sans bruit). Aucune
+  réponse obtenue → la même erreur que `call` (`CallFailed`/`CallFailedError`).
+  Circuit ouvert → `CircuitOpen`, sans aucun accès réseau.
+- **Contenu.** `data` n'est jamais transformé ni enrichi : le SDK vérifie
+  seulement qu'il s'agit de JSON valide. `type` et `source` sont obligatoires ;
+  `source` vient de la configuration du client ou de l'appel.
+- **Contrat partagé : rien à ajouter.** Aucune sémantique de retry *propre* à la
+  publication n'est retenue — même exécuteur, mêmes scénarios déjà rejoués par
+  les deux SDK. La stabilité de l'`Idempotency-Key`, elle, est propre à la
+  publication mais n'est pas observable par ce contrat (qui ne voit que le
+  résultat de chaque tentative) : elle est vérifiée par des tests de même nom
+  dans chaque SDK. L'étape 3 de la spécification est donc sans objet.
+- **Sidecar** : il n'expose pas encore la publication.
+
 ## SDK léger
 
 Bibliothèques **sans aucune dépendance** hors la bibliothèque standard du
