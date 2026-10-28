@@ -168,3 +168,10 @@ les trois implémentations. Les SDK sont par ailleurs testés contre de vrais
 serveurs HTTP locaux (`com.sun.net.httpserver`, `http.server`) — jamais contre
 un mock du client HTTP, qui ne vérifierait ni les délais ni les refus de
 connexion.
+
+## Compléments pour l'écosystème (chantier phases A à H)
+
+- **Niveau 4** : règle d'architecture **A4** — aucun type, paquet ni champ de `egen-domain`, `egen-application`, `egen-api`, `egen-bootstrap` nommé `cell`/`cellule`/`tenant`/`organization`/`organisation`/`assignment`/`affectation`/`catalog`/`catalogue`/`domainContract` (adapters exclus). Le test prouve qu'une violation volontaire échoue ([29.4](29-plan-par-phase-ecosysteme.md#294--phase-a--préparation-du-kernel)).
+- **Niveau 3** : l'API de publication de configuration (A3) est testée contre un Consul réel.
+- **Niveau 5** : un scénario de bout en bout **par phase** de l'écosystème, conservé en non-régression ([29.12](29-plan-par-phase-ecosysteme.md#2912--tests-de-niveau-5-de-lécosystème)) ; en phase A, le scénario « service fixture de plateforme ».
+- Les services de l'écosystème appliquent les niveaux 1 à 3 et un niveau 5 par phase ([29.2](29-plan-par-phase-ecosysteme.md#292--exigences-communes-à-tout-service-de-lécosystème)).

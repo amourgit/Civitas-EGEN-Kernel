@@ -57,6 +57,10 @@ TechnicalEvent (VO immuable — enveloppe CloudEvents, voir 07.3)
 └── data (payload opaque pour EGEN — jamais interprété)
 ```
 
+## Ce que le domaine ne contient volontairement pas
+
+Aucune entité `Cell`, `Organization`, `Tenant`, `Catalog`, `Assignment` ni `User`. L'écosystème relie ses concepts à un service par des **labels réservés** du manifeste (`platform.civitas.africa/*`, voir [06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)), que le Kernel conserve et restitue **sans les interpréter** ([22](22-ecosysteme-multi-solutions-et-frontiere.md)).
+
 ## Règle de conception
 
 Chaque Value Object est immuable et se valide à la construction (invariants

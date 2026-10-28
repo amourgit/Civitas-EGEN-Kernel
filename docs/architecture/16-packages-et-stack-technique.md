@@ -101,3 +101,7 @@ pour qu'il soit **techniquement impossible** que :
 
 Le point non négociable : quel que soit le langage du Kernel, il ne doit
 **jamais** en imposer un aux services de l'écosystème.
+
+## Hors de ce dépôt : l'écosystème multi-solutions
+
+Les services `cell-registry-service`, `catalog-service`, `platform-operator-service`, `config-service`, les `domain-gateway-<domaine>` et le portail vivent dans le **Projet Métier** (`Civitas-EGEN-Business`), **pas** dans la structure de modules ci-dessus. Le Kernel n'a **aucune** dépendance de build vers eux ni eux vers les types internes du Kernel : ils n'utilisent que son API REST publique ([22](22-ecosysteme-multi-solutions-et-frontiere.md), [13](13-api-et-contrats.md)). Le découpage interne du Projet Métier n'est pas une décision du Kernel.

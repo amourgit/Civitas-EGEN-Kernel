@@ -45,6 +45,10 @@
 └───────────────────────────────────────────────────────────────────────────--┘
 ```
 
+## Ce qui entoure le Kernel
+
+Autour du Kernel gravitent trois ensembles **extérieurs** à ce dépôt : le système d'agents et la Edge Gateway ([21](21-systeme-agents-et-gateway.md)), l'**écosystème multi-solutions** (cellules, catalogue, affectations, identité, contrats de domaine, configuration, portail — [22](22-ecosysteme-multi-solutions-et-frontiere.md) à [29](29-plan-par-phase-ecosysteme.md)) et les applications métier elles-mêmes. Tous consomment l'API publique du Kernel ; **aucun** n'est importé par lui.
+
 ## Ce qui doit rester stable dans le temps
 
 Le **cœur hexagonal** (Application + Domain layers) est la partie du

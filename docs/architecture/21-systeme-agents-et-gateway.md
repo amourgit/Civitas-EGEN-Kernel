@@ -375,3 +375,11 @@ doit jamais être réputé fonctionnel sans lui :
 8. Ajout des services métier réels, un par un, chacun avec son propre
    bloc `interfaces` — jamais plusieurs à la fois, pour garder à chaque
    étape un système testable de bout en bout.
+
+## 21.11 — Articulation avec l'écosystème multi-solutions
+
+Le système d'agents et l'écosystème multi-solutions ([22](22-ecosysteme-multi-solutions-et-frontiere.md) à [29](29-plan-par-phase-ecosysteme.md)) **partagent** la même infrastructure d'identité (Keycloak) et de politiques (OpenFGA) — décision D21 : une seule source de vérité des droits. Conséquences normatives :
+
+- Le *Capability Gateway* et les gateways de domaine appellent le **même** contrôle d'usage (`check-use` du catalogue, [25.6](25-identite-et-autorisations.md#256--contrôle-dusage-unique-d13)) : un agent n'obtient jamais ce que le portail refuse à l'utilisateur.
+- Les capacités d'un domaine ([26](26-contrats-de-domaine-et-connecteurs.md)) sont annoncées par le bloc `interfaces` du manifeste de la gateway, avec le `risk` défini dans le contrat.
+- Les services de plateforme (`cell-registry-service`, `catalog-service`, …) suivent la pipeline de [21.8](#218--pipeline-de-déploiement-générale) (étape « services de plateforme ») et l'ordre de [21.10](#2110--ordre-de-construction-recommandé) : un domaine à la fois.

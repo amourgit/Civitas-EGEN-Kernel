@@ -139,6 +139,21 @@ lifecycle:
   manualApprovalRequired: false      # true en prod pour certains domaines sensibles
 ```
 
+## Labels réservés posés par la plateforme
+
+Le préfixe `platform.civitas.africa/` est **réservé** à l'écosystème multi-solutions ([22](22-ecosysteme-multi-solutions-et-frontiere.md)). Seul `platform-operator-service` pose ces clés ; le Kernel les stocke et les restitue comme n'importe quel label, **sans jamais s'en servir** pour décider, router ou autoriser (garde-fou n°1). Ils servent à la traçabilité et au diagnostic ; la source de vérité reste le catalogue.
+
+| Clé | Type | Sens |
+|---|---|---|
+| `platform.civitas.africa/instance-id` | label | Identifiant de l'instance dans le catalogue |
+| `platform.civitas.africa/domain` | label | Domaine fonctionnel de l'instance |
+| `platform.civitas.africa/implementation` | label | Implémentation (ex. `radicale`) |
+| `platform.civitas.africa/implementation-version` | label | Version d'implémentation |
+| `platform.civitas.africa/owner-cell` | label | Identifiant **opaque** de la cellule propriétaire |
+| `platform.civitas.africa/config-version` | annotation | Version de la configuration résolue (sert à produire une nouvelle génération pour les clés `RESTART`, [27.6](27-configuration-multi-niveaux.md#276--lien-avec-le-kernel-d19)) |
+
+**À savoir.** `runtime.type` (`container`, `binary`, `external`, `vm`) est aujourd'hui **conservé mais non différencié** : tout déploiement passe par le Deployment Adapter. Une application déjà exploitée hors du Kernel n'est donc **pas** gérée par lui en V1 ([22.9](22-ecosysteme-multi-solutions-et-frontiere.md#229--limites-actuelles-du-kernel-à-connaître)).
+
 ## Ce que le manifeste ne contient jamais
 
 - Une valeur de secret (uniquement une **référence**, résolue à

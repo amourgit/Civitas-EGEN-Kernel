@@ -18,6 +18,7 @@
 /api/v1/services                          # CRUD sur ServiceManifest (Declare)
 /api/v1/services/{id}/status              # lecture du ServiceStatus (Observe)
 /api/v1/services/{id}/history             # historique des générations
+/api/v1/services/{id}/configuration      # publication/lecture de la configuration technique d'un service (évolution A3, non livrée)
 /api/v1/services/{id}/actions/restart     # actions impératives explicites (rares — la norme reste déclarative)
 /api/v1/services/{id}/actions/rollback
 /api/v1/dependencies/graph                # lecture du DependencyGraph global
@@ -121,6 +122,20 @@ publie un événement technique ([12](12-communication-fabric.md#flux-dévéneme
 - **Codes d'erreur** : corps illisible, champ obligatoire absent, `specversion`
   non supportée ou champ inconnu → `400` ; type non annoncé ou appelant non
   autorisé → `403` ; messagerie indisponible → `503` (rien n'a été publié).
+
+### Publication de configuration — `PUT /api/v1/services/{id}/configuration`
+
+*Statut : spécifiée, **non livrée** (évolution A3, phase A de l'écosystème — [19](19-feuille-de-route.md)).*
+
+Expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#configuration-port)) pour les clients de l'API.
+
+- **Requête** : `PUT /api/v1/services/{id}/configuration?environment=<env>` ; corps `{ "values": { "<clé>": <valeur typée> } }` ; en-tête `Idempotency-Key` **obligatoire**.
+- **Sémantique** : **remplacement complet** du jeu de valeurs du couple `(service, environnement)`.
+- **Validation** (messages nommant la clé fautive) : service déclaré (sinon `404`) ; chaque clé figure dans `configuration.required` du manifeste (sinon `400`) ; aucune clé n'est une clé de `secretsRefs` (sinon `400`) ; type respecté (`string`, `boolean`, `integer`, `number`) ; toute clé **sans valeur par défaut** est présente (sinon `400` listant les clés manquantes).
+- **Réponse** : `202 Accepted`, `Location` vers `GET …/configuration?environment=`. Le service est enfilé dans la work queue ; la réconciliation relit tout (level-triggered) et met à jour la `Condition` `ConfigResolved` ([09](09-cycle-de-vie.md)).
+- **`GET`** : `200 { serviceId, environment, version, values }` ou `404`. Une configuration ne contient **jamais** de secret.
+- **Sécurité** : équipe propriétaire ou administrateur, comme les autres opérations sur un service ([14](14-securite.md)).
+- Un rejeu d'`Idempotency-Key` renvoie la première réponse.
 
 ## Versionnage et compatibilité
 
