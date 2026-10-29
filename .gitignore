@@ -22,3 +22,9 @@ Thumbs.db
 __pycache__/
 *.pyc
 *.egg-info/
+
+# Docker
+docker-compose.override.yml
+
+# Environment
+.env
