@@ -7,17 +7,20 @@ socle déjà testé, et pour dérisquer en premier les intégrations externes
 
 ## Suivi — légende et tableau de bord
 
-Légende utilisée **dans tout ce document** : `[x]` fait · `[~]` en cours · `[ ]` à faire · `[>]` reporté, avec un **déclencheur écrit** (on ne le fait que si le déclencheur se produit).
+Ce document est la **seule source de statut** des phases du Kernel, de la phase A de la Plateforme (côté Kernel), de la phase P0 proposée et des points ouverts du Kernel. Le statut des phases B à H de la Plateforme est dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/11-plan-par-phase.md`.
 
-Mise à jour : 28 octobre 2026 (ajout du chantier Écosystème multi-solutions).
+Légende : `[x]` fait · `[~]` en cours · `[ ]` à faire · `[>]` reporté, avec un **déclencheur écrit** (on ne le fait que si le déclencheur se produit) · `[?]` proposé, à valider.
+
+Mise à jour : 29 octobre 2026.
 
 | Élément | Statut | Reste à faire |
 |---|---|---|
-| Phases 0 à 5 du Kernel | **Fait** | Compléments issus de l'écosystème, listés **dans** chaque phase : Phase 1 (A-X1 reporté), Phase 2 (décision D20 actée), Phase 4 (A3 à faire, A-X2 reporté), Phase 5 (A5 à faire) |
+| Phases 0 à 5 du Kernel | **Fait** | Compléments liés à la Plateforme, listés dans chaque phase : Phase 1 (A-X1 reporté), Phase 2 (décision D20 actée), Phase 4 (A3 à faire, A-X2 reporté), Phase 5 (A5 à faire) |
 | Phase 6 (continue) | **À faire** | 4 éléments (voir la phase) |
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
-| Chantier Écosystème — phase A (Kernel) | **En cours** | Documentation rédigée sur la branche `docs/ecosysteme-multi-solutions`, à relire et fusionner ; A2 à A5 à faire |
-| Chantier Écosystème — phases B à H | **À venir** | Voir le chantier ; détail dans [29](29-plan-par-phase-ecosysteme.md) |
+| Phase A de la Plateforme (côté Kernel) | **En cours** | A2 à A5 à faire |
+| Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
+| Points ouverts du Kernel | **Ouverts** | 2 points, à décider par Samuel |
 
 ## Phase 0 — Fondations et décisions structurantes
 
@@ -64,9 +67,9 @@ Observe → Reconcile de bout en bout sur **un seul** port.
   @manifest.yaml` déploie réellement un conteneur via Nomad et son statut
   converge vers `RUNNING` dans l'API.
 
-**Compléments issus du chantier Écosystème** (voir [22.9](22-ecosysteme-multi-solutions-et-frontiere.md#229--limites-actuelles-du-kernel-à-connaître)) :
+**Compléments liés à la Plateforme** (voir [22](22-frontiere-avec-la-plateforme.md#229--limites-actuelles-du-kernel)) :
 
-- [>] **A-X1 — Différencier `runtime.type`** (`external`, `vm`, `binary`) : aujourd'hui conservé mais non différencié par le Deployment Adapter. *Déclencheur* : besoin avéré que le Kernel **gère** (découverte, santé) une application hébergée hors de lui ; sinon les instances `EXTERNAL` restent portées par le catalogue (D15).
+- [>] **A-X1 — Différencier `runtime.type`** (`external`, `vm`, `binary`) : aujourd'hui conservé mais non différencié par le Deployment Adapter. *Déclencheur* : besoin avéré que le Kernel **gère** (découverte, santé) une application hébergée hors de lui ; sinon les instances `EXTERNAL` restent portées par le catalogue (D15, [22](22-frontiere-avec-la-plateforme.md#228--décisions-qui-touchent-le-kernel)).
 
 ## Phase 2 — Discovery (Consul) + Registry EGEN + cycle de vie complet
 
@@ -85,7 +88,7 @@ Observe → Reconcile de bout en bout sur **un seul** port.
   ne produit aucune erreur côté appelant pendant la fenêtre de
   propagation.
 
-**Complément issu du chantier Écosystème** :
+**Complément lié à la Plateforme** :
 
 - [x] **Décision D20 : pas de filtre de liste par label** (`GET /api/v1/services`). Le filtrage se fait côté client sur la liste déjà restreinte à l'équipe ([08](08-registry.md)). Aucune évolution.
 
@@ -150,9 +153,9 @@ Observe → Reconcile de bout en bout sur **un seul** port.
   produire des racines de span indépendantes, conformément à
   [15](15-observabilite.md).
 
-**Compléments issus du chantier Écosystème** :
+**Compléments liés à la Plateforme** :
 
-- [ ] **A3 — API de publication de configuration** `PUT /api/v1/services/{id}/configuration` (expose `ConfigurationPort.publish`, aujourd'hui **sans API**) : contrat normatif en [13](13-api-et-contrats.md#publication-de-configuration--put-apiv1servicesidconfiguration). Bloque la configuration d'instance de la phase D de l'écosystème.
+- [ ] **A3 — API de publication de configuration** `PUT /api/v1/services/{id}/configuration` (expose `ConfigurationPort.publish`, aujourd'hui **sans API**) : contrat normatif en [13](13-api-et-contrats.md#publication-de-configuration--put-apiv1servicesidconfiguration). Nécessaire à la configuration des instances d'applications par la Plateforme.
 - [>] **A-X2 — Namespaces Nomad par tenant** : l'adapter ne gère pas les namespaces ([07](07-ports-et-adapters.md)). *Déclencheur* : une organisation exige une isolation d'**infrastructure** (et non de données) ; sinon isolation par données ou par instance dédiée.
 - [x] Limite documentée : le RBAC (équipe + administrateur) reste grossier **par choix** ; l'autorisation métier n'est pas dans le Kernel ([14](14-securite.md), D14).
 
@@ -256,37 +259,50 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
       la perte d'une allocation n'était vue qu'au bout de plusieurs minutes.
       Corrigé par le régime permanent de ~10 s ([04](04-moteur-de-reconciliation.md)).*
 
-**Complément issu du chantier Écosystème** :
+**Complément lié à la Plateforme** :
 
-- [ ] **A5 — Scénario de niveau 5 « service fixture de plateforme »** : déclaré par l'API publique avec `team: platform-operator`, labels réservés et configuration publiée via A3 ; convergence vers `RUNNING`, labels restitués ([29.4](29-plan-par-phase-ecosysteme.md#294--phase-a--préparation-du-kernel)).
+- [ ] **A5 — Scénario de niveau 5 « service fixture de plateforme »** : déclaré par l'API publique avec `team: platform-operator`, labels réservés et configuration publiée via A3 ; convergence vers `RUNNING`, labels restitués ([22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)).
 
 ---
 
-## Chantier — Écosystème multi-solutions (phases A à H)
+## Phase A de la Plateforme — côté Kernel
 
-**Ajouté le 28 octobre 2026** (voir [22](22-ecosysteme-multi-solutions-et-frontiere.md)). Ce chantier **ne fait partie d'aucune phase du Kernel 0 à 6** : seule sa phase **A** touche ce dépôt ; **B à H** se déroulent dans le Projet Métier. Détail complet (livrables, tâches, tests d'acceptation, critères de sortie, risques) : [29](29-plan-par-phase-ecosysteme.md). **Ce tableau est la seule source de statut** ; le document 29 n'en porte aucun.
+La Plateforme (voir [22](22-frontiere-avec-la-plateforme.md)) se construit au-dessus du Kernel. Seule sa **phase A** touche ce dépôt ; ses phases B à H sont suivies dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/11-plan-par-phase.md`.
 
-### Phase A — Préparation du Kernel *(en cours)*
+- [x] **A1 — Documentation de la frontière** : document [22](22-frontiere-avec-la-plateforme.md) et corrections des documents 01 à 21.
+- [ ] **A2 — Convention de labels réservés** `platform.civitas.africa/*` ([06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)) : documentée ; reste un test d'aller-retour de l'API (aucun changement de code attendu).
+- [ ] **A3 — API de publication de configuration** : voir la Phase 4 ci-dessus (même élément, suivi à cet endroit).
+- [ ] **A4 — Règle d'architecture « Kernel ignorant de la Plateforme »** en CI ([22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)).
+- [ ] **A5 — Scénario de niveau 5** : voir la Phase 5 ci-dessus (même élément, suivi à cet endroit).
+- [>] **A-X1** (Phase 1) et **A-X2** (Phase 4) : reportés, avec déclencheur.
+- **Critère de sortie** : intégration continue verte ; `egen-domain` sans aucune modification liée à la Plateforme ; A3 testé aux niveaux 1, 2, 3, 4 et 5 ([17](17-strategie-de-tests.md)).
 
-- [~] **A1 — Documentation** : documents 22 à 29, mises à jour de 01, 02, 03, 05, 06, 07, 08, 13, 14, 16, 17, 18, 21, glossaire, références, README. Rédigée sur la branche `docs/ecosysteme-multi-solutions` ; **reste à relire et fusionner**.
-- [ ] **A2 — Convention de labels réservés** `platform.civitas.africa/*` ([06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)) : documentée ; à couvrir par un test d'aller-retour de l'API (aucun changement de code attendu).
-- [ ] **A3 — API de publication de configuration** : voir Phase 4 ci-dessus (même élément, suivi ici et là).
-- [ ] **A4 — Règle d'architecture « Kernel ignorant de l'écosystème »** en CI ([29.4](29-plan-par-phase-ecosysteme.md#294--phase-a--préparation-du-kernel)).
-- [ ] **A5 — Scénario de niveau 5** : voir Phase 5 ci-dessus (même élément).
-- [>] **A-X1** (Phase 1) et **A-X2** (Phase 4) : reportés avec déclencheur.
-- **Critère de sortie** : CI verte ; `egen-domain` sans aucune modification pour ce chantier ; A3 testé aux niveaux 1, 2, 3, 4, 5.
+## Phase P0 proposée — Production du Kernel
 
-### Phases B à H *(à venir)*
+*Proposition à valider par Samuel.* Chaque constat a été vérifié dans le code du dépôt le 29 octobre 2026.
 
-- [ ] **B — `cell-registry-service`** : types, arbre, appartenances, audit, projection ([23](23-cellules.md)).
-- [ ] **C — Identité et autorisations** : Keycloak, OpenFGA, projecteur, **test de charge bloquant** ([25](25-identite-et-autorisations.md)).
-- [ ] **D — Catalogue, instances, opérateur, configuration technique** avec domaine fixture `echo` ([24](24-catalogue-instances-affectations.md), [27](27-configuration-multi-niveaux.md)).
-- [ ] **E — Premier domaine complet : `agenda`** (Radicale + Nextcloud Calendar, CalDAV) ([26](26-contrats-de-domaine-et-connecteurs.md)).
-- [ ] **F — Configuration complète** : niveaux 4 à 6, verrous, aperçu, approbation ([27](27-configuration-multi-niveaux.md)).
-- [ ] **G — Portail** : « mes applications », modes d'ouverture, SSO ([28](28-portail-et-integration-des-interfaces.md)).
-- [ ] **H — Échanges explicites, remplacement et migration** ([26.7](26-contrats-de-domaine-et-connecteurs.md#267--données--aucune-synchronisation-implicite-d18), [29.11](29-plan-par-phase-ecosysteme.md#2911--phase-h--échanges-explicites-remplacement-et-migration)).
+| Constat | Vérification |
+|---|---|
+| Aucun `Dockerfile`, donc aucune image publiable | Aucun fichier `Dockerfile*` dans le dépôt |
+| Aucun job Nomad du Kernel | Le dossier `deploy/` ne contient que `nomad-dev.sh`, `otel-collector-config.yaml` et `prometheus.yml` |
+| Vault en mode développement | `docker-compose.yml` lance Vault avec `VAULT_DEV_ROOT_TOKEN_ID` |
+| Un seul exemplaire du Kernel possible | La clé d'idempotence (`IdempotencyKeyFilter`) et les liens de traces (`PendingDeclareTraces`) sont gardés dans une `ConcurrentHashMap` du processus |
+| mTLS désactivé par défaut | Les deux lignes de configuration sont commentées dans `application.properties` |
+| Sidecar sans mTLS ni publication d'événements | Aucune occurrence de « publish », « mtls » ou « tls » dans les sources du sidecar |
 
-**Ordre et dépendances** : [29.3](29-plan-par-phase-ecosysteme.md#293--vue-densemble-de-lordre-et-des-dépendances). Aucune phase ne casse les scénarios de niveau 5 des précédentes.
+Livrables proposés : un `Dockerfile` et une image publiée ; un job Nomad du Kernel ; Vault hors mode développement ; idempotence et liens de traces partagés entre exemplaires ; mTLS activé de bout en bout ; sidecar complété. Statut : `[?]` proposée.
+
+## Points ouverts du Kernel
+
+Aucun n'est tranché dans cette documentation. Décideur : Samuel.
+
+**1. Amorçage circulaire.**
+- *Problème* : sans émetteur de jetons OIDC configuré (`EGEN_OIDC_ISSUER_URL`, `EGEN_OIDC_JWKS_URL`), le Kernel refuse toute opération qui modifie quelque chose ; or la Plateforme prévoit que le Kernel déploie Keycloak, l'émetteur de jetons.
+- *Options* : (a) lancer Keycloak par la pipeline de déploiement **avant** le Kernel ; (b) fournir au Kernel une clé publique statique temporaire pour émettre le premier jeton `egen-admin`.
+- *Impact* : détermine l'ordre de démarrage de toute installation neuve.
+- Ce point est aussi consigné dans la phase C de la Plateforme (`docs/plateforme/11-plan-par-phase.md`).
+
+**2. Validation de la phase P0.** Voir ci-dessus : faut-il la lancer, et avant ou après la phase A ?
 
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 
@@ -328,12 +344,9 @@ trimestrielle.
 
 - [ ] Au moins deux services fixtures dans des langages différents ont
       été déployés avec succès via EGEN.
-- [ ] Un service a été ajouté à l'écosystème sans qu'aucun commit ne
+- [ ] Un service a été ajouté sans qu'aucun commit ne
       touche `egen-domain`, `egen-application`, ni `egen-adapters/*`.
-- [ ] **Écosystème multi-solutions** : la Definition of Done de
-      [29.14](29-plan-par-phase-ecosysteme.md#2914--definition-of-done-de-lécosystème)
-      est satisfaite, et `egen-domain` n'a reçu aucune notion d'écosystème
-      (règle A4 verte).
+- [ ] **Plateforme** : `egen-domain` n'a reçu aucune notion de la Plateforme (règle A4 verte).
 
 **Infrastructure**
 
