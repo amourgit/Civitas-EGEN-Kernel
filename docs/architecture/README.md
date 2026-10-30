@@ -26,11 +26,7 @@ les lire pour une première prise en main :
    [références](references.md)) — feuille de route en phases livrables (et
    **suivi** de chaque chantier), scénario de bout en bout, système d'agents,
    glossaire, sources d'inspiration.
-5. **Écosystème multi-solutions** ([22](22-ecosysteme-multi-solutions-et-frontiere.md)
-   à [29](29-plan-par-phase-ecosysteme.md)) — ce qui se construit **au-dessus**
-   du Kernel (cellules, catalogue, identité, contrats de domaine,
-   configuration, portail), la frontière avec le Kernel, et le plan détaillé
-   par phase. Lire **22** d'abord.
+5. **Frontière avec la Plateforme** ([22](22-frontiere-avec-la-plateforme.md)) — ce que le Kernel offre aux services construits au-dessus de lui, et ce qu'il ne fait jamais. La documentation de la Plateforme elle-même est dans le dépôt `Civitas-EGEN-Business`, dossier `docs/plateforme/`.
 
 Chaque document technique majeur contient, quand c'est pertinent : le
 **contrat** (interface/port), le **mapping** vers le moteur spécialisé
@@ -61,14 +57,7 @@ concerné, des **exemples concrets**, et les **pièges connus**.
 | 19 | [Feuille de route](19-feuille-de-route.md) | Phases livrables + Definition of Done |
 | 20 | [Scénario de bout en bout](20-scenario-bout-en-bout.md) | Walkthrough complet, appel par appel |
 | 21 | [Système d'agents & Gateway](21-systeme-agents-et-gateway.md) | Edge Gateway (Kong), Agent Runtime, Capability Gateway, IAM/Policy — hors du Kernel, en périphérie |
-| 22 | [Écosystème multi-solutions : frontière et décisions](22-ecosysteme-multi-solutions-et-frontiere.md) | Vision traduite en opérations, frontière Kernel / Projet Métier, composants, sources de vérité, registre des décisions D01–D22, limites actuelles du Kernel |
-| 23 | [Cellules](23-cellules.md) | Structure organisationnelle générique, types, hiérarchie, stockage, règles, API |
-| 24 | [Catalogue, instances, affectations](24-catalogue-instances-affectations.md) | Domaines, implémentations, instances, activations, affectations, résolution, opérateur |
-| 25 | [Identité et autorisations](25-identite-et-autorisations.md) | `egen_uid`, Keycloak, OpenFGA, niveaux de droits, test de charge |
-| 26 | [Contrats de domaine et connecteurs](26-contrats-de-domaine-et-connecteurs.md) | Gateways, connecteurs, conformité, isolation des données, règles d'échange |
-| 27 | [Configuration multi-niveaux](27-configuration-multi-niveaux.md) | Niveaux, priorités, verrous, historique, lien avec le Kernel |
-| 28 | [Portail et interfaces](28-portail-et-integration-des-interfaces.md) | « Mes applications », modes d'ouverture, SSO |
-| 29 | [Plan détaillé par phase (A à H)](29-plan-par-phase-ecosysteme.md) | Livrables, tâches, tests d'acceptation, critères de sortie, risques |
+| 22 | [Frontière avec la Plateforme](22-frontiere-avec-la-plateforme.md) | Ce que le Kernel offre à la Plateforme, ce qu'il ne fait jamais, limites actuelles, règle A4 |
 | — | [Glossaire](glossaire.md) | Vocabulaire EGEN |
 | — | [Références](references.md) | Sources d'inspiration externes |
 

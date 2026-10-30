@@ -18,25 +18,11 @@
 | **Manifest (ServiceManifest)** | Le contrat technique déclaratif d'un service, remis à EGEN. Voir [06](06-service-manifest.md). |
 | **Work Queue** | File contenant des *clés* de ressources à réconcilier, avec déduplication et retry. Voir [04.2](04-moteur-de-reconciliation.md#composants-de-la-boucle). |
 | **Sidecar** | Processus déployé aux côtés d'un service pour lui offrir des capacités transverses sans dépendance de code (inspiré de Dapr/Envoy). Voir [12.2](12-communication-fabric.md#deux-modes-dintégration-au-choix-du-service). |
-| **Écosystème multi-solutions** | Ensemble de services construits **au-dessus** du Kernel permettant à plusieurs applications d'un même domaine de coexister et à chaque service d'une organisation de choisir ses outils. Voir [22](22-ecosysteme-multi-solutions-et-frontiere.md). |
-| **Projet Métier** | Projet (`Civitas-EGEN-Business`) qui héberge les services de l'écosystème et les applications métier ; consomme l'API du Kernel, n'est jamais importé par lui. |
-| **Cellule** | Unique concept structurel générique d'une organisation (organisation, faculté, service, projet…) ; son « type » est une donnée. Voir [23](23-cellules.md). |
-| **Cellule racine** | Cellule sans parent : une organisation, frontière de tenant. |
-| **Type de cellule** | Donnée définissant un genre de cellule (parents admis, schéma d'attributs, portée plateforme ou racine). |
-| **Domaine (fonctionnel)** | Besoin fonctionnel défini par un contrat (agenda, vente…). Voir [24](24-catalogue-instances-affectations.md). |
-| **Implémentation / Version d'implémentation** | Logiciel capable de remplir un domaine / sa version précise, avec capacités, prérequis et conformité. |
-| **Instance (applicative)** | Déploiement concret d'une version d'implémentation ; `MANAGED` (déployée par le Kernel) ou `EXTERNAL`. |
-| **Activation** | Autorisation d'utiliser une instance dans une organisation (cellule racine). |
-| **Affectation** | Outil de travail d'une cellule pour un domaine et un usage ; héritage descendant, coupure possible. |
-| **Résolution (affectation effective)** | Calcul à la demande de l'instance applicable à `(cellule, domaine, usage)`. |
-| **Audience** | Qui peut utiliser une affectation : `SCOPE_MEMBERS` ou `EXPLICIT`. |
-| **Contrat de domaine** | API canonique et liste de capacités (obligatoires/optionnelles) d'un domaine. Voir [26](26-contrats-de-domaine-et-connecteurs.md). |
-| **Domain Gateway / Connecteur** | Service qui expose le contrat d'un domaine / module qui traduit le contrat vers un logiciel réel. |
-| **Conformité (`FULL`/`PARTIAL`)** | Niveau de respect du contrat par une version d'implémentation, calculé par la suite de tests. |
-| **Règle d'échange** | Déclaration explicite d'un transfert de données entre deux instances ; aucune synchronisation n'est implicite. |
-| **`egen_uid`** | Identifiant permanent et immuable d'un utilisateur EGEN, claim des jetons. Voir [25](25-identite-et-autorisations.md). |
-| **Compte local lié** | Compte technique propre à une application, rattaché à l'`egen_uid`. |
-| **Contrôle d'usage (`check-use`)** | Unique implémentation de « cet utilisateur peut-il utiliser cet outil dans ce contexte ». |
-| **Platform Operator** | `platform-operator-service`, seul client du Kernel pour l'écosystème. |
-| **Labels réservés** | Clés `platform.civitas.africa/*` posées par la plateforme, stockées sans être interprétées par le Kernel. |
-| **Niveaux de configuration** | PLATFORM, IMPLEMENTATION_VERSION, INSTANCE, CELL, ASSIGNMENT, USER, avec verrous. Voir [27](27-configuration-multi-niveaux.md). |
+| **Plateforme** | Ensemble des services qui apportent le sens au-dessus du Kernel : organisation, catalogue d'outils, droits, passerelle de domaine, connecteurs, configuration, portail. Ce sont des services ordinaires déclarés au Kernel. Voir [22](22-frontiere-avec-la-plateforme.md). |
+| **Étage** | Un des trois niveaux : 1 le Kernel, 2 la Plateforme, 3 les applications métier. Un étage ne dépend que de l'étage inférieur, par son API publique. |
+| **Tenant** | Organisation cliente isolée des autres (par exemple l'Université X). Le Kernel ne connaît pas cette notion. |
+| **Cellule** | Élément de la structure d'une organisation, défini par la Plateforme. Le Kernel ne connaît pas cette notion. |
+| **Connecteur** | Petit service séparé de la Plateforme qui parle à une application métier. À ne pas confondre avec un **adapter**, qui est un module du Kernel et qui parle à un outil d'infrastructure ([22](22-frontiere-avec-la-plateforme.md#223--adapter-du-kernel-et-connecteur-de-la-plateforme)). |
+| **Labels réservés** | Clés `platform.civitas.africa/*` posées par la Plateforme sur un manifeste ; le Kernel les conserve sans jamais les interpréter ([06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)). |
+| **Équipe `platform` / `platform-operator`** | Les deux valeurs de `metadata.team` réservées à la Plateforme ([22](22-frontiere-avec-la-plateforme.md#226--les-deux-équipes-kernel-de-la-plateforme)). |
+| **Règle A4** | Règle d'architecture qui refuse tout concept métier dans le Kernel ([22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)). |

@@ -16,11 +16,5 @@ cœur (voir la règle d'or dans [le sommaire](README.md)).
 - **Kubernetes controller pattern (réconciliation, informers, work queues)** — documentation `controller-runtime` et le pattern Operator en général
 - **Saga pattern** — `https://microservices.io/patterns/data/saga.html`
 - **Hexagonal Architecture (Alistair Cockburn, Ports & Adapters)** — article original et littérature dérivée sur la distinction ports primaires/secondaires
-- **Keycloak (OIDC, identity brokering, protocol mappers)** — `https://www.keycloak.org/documentation`
-- **OpenFGA (autorisation relationnelle, modèles, conditions)** — `https://openfga.dev/docs`
-- **PostgreSQL `ltree` (chemins hiérarchiques)** — `https://www.postgresql.org/docs/current/ltree.html`
-- **JSON Schema 2020-12** — `https://json-schema.org/specification`
-- **OAuth 2.0 Token Exchange (RFC 8693)** — `https://www.rfc-editor.org/rfc/rfc8693`
-- **SCIM 2.0 (RFC 7644)** — `https://www.rfc-editor.org/rfc/rfc7644`
-- **CalDAV (RFC 4791)** — `https://www.rfc-editor.org/rfc/rfc4791`
-- **Radicale, Nextcloud Calendar, Odoo** — documentation officielle de chaque projet (à consulter pour établir leurs profils de connecteur, sans présumer de leurs capacités : elles sont mesurées par la suite de tests, [26.6](26-contrats-de-domaine-et-connecteurs.md#266--suite-de-tests-de-contrat-domain-contract-test-kit))
+- **SpiceDB (moteur de droits utilisé par la Plateforme)** — documentation officielle : `https://authzed.com/docs/spicedb`
+- **Apache Camel (bibliothèque d'intégration utilisée par les connecteurs de la Plateforme)** — `https://camel.apache.org/` ; extensions pour Quarkus : `https://camel.apache.org/camel-quarkus/latest/`
