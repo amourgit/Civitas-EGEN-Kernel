@@ -29,7 +29,7 @@ toucher au domaine.
 
 ## Ce que le Registry ne porte pas
 
-Le Registry ne connaît ni cellule, ni organisation, ni affectation, ni catalogue d'applications. Les `labels` réservés ([06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)) y sont stockés et restitués tels quels. Il n'existe **pas** de filtre de liste par label : un client (l'opérateur de la plateforme) filtre côté client la liste déjà restreinte à son équipe (décision D20, [22](22-ecosysteme-multi-solutions-et-frontiere.md#228--registre-des-décisions)).
+Le Registry ne connaît ni cellule, ni organisation, ni affectation, ni catalogue d'applications. Les `labels` réservés ([06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)) y sont stockés et restitués tels quels. Il n'existe **pas** de filtre de liste par label : un client (l'opérateur de la Plateforme) filtre côté client la liste déjà restreinte à son équipe (décision D20, [22](22-frontiere-avec-la-plateforme.md#228--décisions-qui-touchent-le-kernel)).
 
 ## Distinction essentielle
 

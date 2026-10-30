@@ -102,11 +102,11 @@ Ce cycle **ne s'arrête jamais**. Détail complet de son implémentation :
 10. **Toute divergence entre état désiré et état observé doit être
     visible** (API, métriques, logs structurés) — jamais silencieuse.
 
-## Application des garde-fous à l'écosystème multi-solutions
+## Application des garde-fous aux services de la Plateforme
 
-Les dix garde-fous s'appliquent **sans exception** aux services de l'écosystème construits au-dessus du Kernel ([22](22-ecosysteme-multi-solutions-et-frontiere.md)) :
+Les dix garde-fous s'appliquent **sans exception** aux services de la Plateforme (voir [22](22-frontiere-avec-la-plateforme.md)) :
 
-- **Garde-fou n°1** : aucun concept de cellule, d'organisation, de tenant, de catalogue d'applications ou d'affectation n'entre dans `egen-domain`, `egen-application` ni `egen-api`. Cette interdiction est **vérifiée en CI** (règle d'architecture A4, [29.4](29-plan-par-phase-ecosysteme.md#294--phase-a--préparation-du-kernel)).
-- **Garde-fou n°4 (Kernel vide)** : le Kernel démarre et reste sain sans aucun service de l'écosystème.
-- **Garde-fou n°5 (ajout sans modification)** : ajouter une cellule, un type de cellule, un domaine, une implémentation ou une instance ne modifie **jamais** le Kernel ; seule l'instance d'application managée devient un `ServiceManifest` ordinaire.
-- **Règle d'or** : avant d'écrire un composant de l'écosystème, on vérifie qu'un outil existant (Keycloak, OpenFGA, PostgreSQL `ltree`, CalDAV, OIDC, SCIM…) ne couvre pas déjà le besoin.
+- **Garde-fou n°1** : aucun concept d'organisation, de cellule, de tenant, de catalogue ou d'affectation n'entre dans `egen-domain`, `egen-application` ni `egen-api`. La règle d'architecture A4 le vérifie ([22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)).
+- **Garde-fou n°4 (Kernel vide)** : le Kernel démarre et reste sain sans aucun service de la Plateforme.
+- **Garde-fou n°5 (ajout sans modification)** : ajouter une organisation, un domaine, un logiciel ou un connecteur ne modifie jamais le Kernel.
+- **Règle d'or** : avant d'écrire un composant, on vérifie qu'un outil existant ne couvre pas déjà le besoin.

@@ -169,9 +169,10 @@ serveurs HTTP locaux (`com.sun.net.httpserver`, `http.server`) — jamais contre
 un mock du client HTTP, qui ne vérifierait ni les délais ni les refus de
 connexion.
 
-## Compléments pour l'écosystème (chantier phases A à H)
+## Tests liés à la frontière avec la Plateforme
 
-- **Niveau 4** : règle d'architecture **A4** — aucun type, paquet ni champ de `egen-domain`, `egen-application`, `egen-api`, `egen-bootstrap` nommé `cell`/`cellule`/`tenant`/`organization`/`organisation`/`assignment`/`affectation`/`catalog`/`catalogue`/`domainContract` (adapters exclus). Le test prouve qu'une violation volontaire échoue ([29.4](29-plan-par-phase-ecosysteme.md#294--phase-a--préparation-du-kernel)).
+- **Niveau 4** : règle d'architecture **A4** ([22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)). Le test prouve qu'une violation volontaire échoue.
 - **Niveau 3** : l'API de publication de configuration (A3) est testée contre un Consul réel.
-- **Niveau 5** : un scénario de bout en bout **par phase** de l'écosystème, conservé en non-régression ([29.12](29-plan-par-phase-ecosysteme.md#2912--tests-de-niveau-5-de-lécosystème)) ; en phase A, le scénario « service fixture de plateforme ».
-- Les services de l'écosystème appliquent les niveaux 1 à 3 et un niveau 5 par phase ([29.2](29-plan-par-phase-ecosysteme.md#292--exigences-communes-à-tout-service-de-lécosystème)).
+- **Niveau 5** : le scénario « service fixture de plateforme » (A5, [22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)).
+
+Les tests des services de la Plateforme sont décrits dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/11-plan-par-phase.md`.

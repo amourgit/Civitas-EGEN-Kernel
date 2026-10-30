@@ -18,7 +18,7 @@
 /api/v1/services                          # CRUD sur ServiceManifest (Declare)
 /api/v1/services/{id}/status              # lecture du ServiceStatus (Observe)
 /api/v1/services/{id}/history             # historique des générations
-/api/v1/services/{id}/configuration      # publication/lecture de la configuration technique d'un service (évolution A3, non livrée)
+/api/v1/services/{id}/configuration      # publication/lecture de la configuration technique d'un service (évolution A3)
 /api/v1/services/{id}/actions/restart     # actions impératives explicites (rares — la norme reste déclarative)
 /api/v1/services/{id}/actions/rollback
 /api/v1/dependencies/graph                # lecture du DependencyGraph global
@@ -125,17 +125,32 @@ publie un événement technique ([12](12-communication-fabric.md#flux-dévéneme
 
 ### Publication de configuration — `PUT /api/v1/services/{id}/configuration`
 
-*Statut : spécifiée, **non livrée** (évolution A3, phase A de l'écosystème — [19](19-feuille-de-route.md)).*
+*Contrat de l'évolution A3. L'état d'avancement est suivi dans [19](19-feuille-de-route.md).*
 
-Expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#configuration-port)) pour les clients de l'API.
+Cette API expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#configuration-port)) aux clients de l'API. Elle publie la **configuration technique** d'un service : des paires clé/valeur que le service lit au démarrage ou à chaud. Le Kernel les transporte sans leur donner de sens métier.
 
-- **Requête** : `PUT /api/v1/services/{id}/configuration?environment=<env>` ; corps `{ "values": { "<clé>": <valeur typée> } }` ; en-tête `Idempotency-Key` **obligatoire**.
-- **Sémantique** : **remplacement complet** du jeu de valeurs du couple `(service, environnement)`.
-- **Validation** (messages nommant la clé fautive) : service déclaré (sinon `404`) ; chaque clé figure dans `configuration.required` du manifeste (sinon `400`) ; aucune clé n'est une clé de `secretsRefs` (sinon `400`) ; type respecté (`string`, `boolean`, `integer`, `number`) ; toute clé **sans valeur par défaut** est présente (sinon `400` listant les clés manquantes).
-- **Réponse** : `202 Accepted`, `Location` vers `GET …/configuration?environment=`. Le service est enfilé dans la work queue ; la réconciliation relit tout (level-triggered) et met à jour la `Condition` `ConfigResolved` ([09](09-cycle-de-vie.md)).
-- **`GET`** : `200 { serviceId, environment, version, values }` ou `404`. Une configuration ne contient **jamais** de secret.
-- **Sécurité** : équipe propriétaire ou administrateur, comme les autres opérations sur un service ([14](14-securite.md)).
-- Un rejeu d'`Idempotency-Key` renvoie la première réponse.
+**Écriture — `PUT /api/v1/services/{id}/configuration?environment=<env>`**
+
+- **Corps** : `{ "values": { "<clé>": <valeur> } }`. Chaque valeur est un scalaire JSON (texte, booléen ou nombre), converti en texte. Un objet, un tableau, `null` ou un champ de premier niveau autre que `values` est refusé (`400`).
+- **En-tête** : `Idempotency-Key` obligatoire. Un rejeu de la même clé renvoie la première réponse.
+- **Sémantique** : **remplacement complet** du jeu de valeurs publié pour le couple `(service, environnement)`. Les valeurs par défaut déclarées dans le manifeste (`configuration.required[].default`) restent applicables aux clés absentes.
+- **Validation** (toutes les violations sont renvoyées ensemble, chacune nomme une clé et une règle, **jamais une valeur**) :
+  1. le service est déclaré (sinon `404`) ;
+  2. chaque clé figure dans `configuration.required` du manifeste (sinon `400`) ;
+  3. aucune clé n'est une clé de `configuration.secretsRefs` : un secret n'est jamais publié en valeur (sinon `400`) ;
+  4. chaque valeur respecte le type déclaré (`string`, `boolean`, `integer`, `number`) (sinon `400`) ;
+  5. toute clé **sans valeur par défaut** est présente (sinon `400` qui liste les clés manquantes).
+- **Réponse** : `202 Accepted`, en-tête `Location` vers la lecture, corps `{ serviceId, environment, version, configurationUrl }`.
+- **Effet** : si le service n'est ni arrêté ni en retrait, il est enfilé dans la work queue ; la réconciliation relit tout (level-triggered) et met à jour la `Condition` `ConfigResolved` ([09](09-cycle-de-vie.md)). Un service arrêté garde sa configuration, qui s'appliquera à un redéploiement.
+- **Store indisponible** : `503`, rien n'est publié.
+
+**Lecture — `GET /api/v1/services/{id}/configuration?environment=<env>`**
+
+- `200 { serviceId, environment, version, values }`. Une configuration jamais publiée est vide, version `0`. `404` seulement si le service n'est pas déclaré. Une configuration ne contient **jamais** de secret.
+
+**Sécurité** : même règle que les autres opérations sur un service : l'équipe propriétaire ou un administrateur ([14](14-securite.md)). Le droit est vérifié **avant** toute lecture du corps de la requête.
+
+**Environnement** : `environment` absent = environnement par défaut du Kernel (`egen.environment`).
 
 ## Versionnage et compatibilité
 

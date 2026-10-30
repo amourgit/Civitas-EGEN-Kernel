@@ -83,7 +83,7 @@ Utilisateur
 Edge Gateway (Kong)
    │
    ▼
-Agent Gateway ───────────────► IAM (Keycloak) + Policy Engine (OpenFGA/OPA/Cedar)
+Agent Gateway ───────────────► IAM (Keycloak) + moteur de droits (SpiceDB)
    │  session + streaming            (qui est l'utilisateur, quels droits)
    ▼
 Agent Runtime (LangGraph)
@@ -105,7 +105,7 @@ responsabilité et une seule :
 | Agent Runtime | Raisonnement LLM, graphes LangGraph (supervisor/swarm/HITL), mémoire de conversation | Ne décide jamais seul des permissions — il ne voit que le catalogue déjà filtré |
 | Capability Gateway | Registre des capacités (agrégé depuis les manifestes des services), Policy Enforcement Point, échange de jeton, audit | N'interprète jamais le sens métier d'une capacité — il vérifie une autorisation, il ne juge pas une donnée |
 | IAM (Keycloak ou équivalent) | Authentification, émission de jetons, appartenance aux équipes/rôles | Ne connaît jamais les capacités techniques d'un service |
-| Policy Engine (OpenFGA, OPA ou Cedar) | Évaluation des règles d'autorisation (qui peut faire quoi, sur quelle ressource) | Ne stocke jamais de secret ni de donnée métier |
+| Moteur de droits (SpiceDB) | Évaluation des règles d'autorisation (qui peut faire quoi, sur quelle ressource) | Ne stocke jamais de secret ni de donnée métier |
 
 ## 21.3 — Le Service Manifest s'étend, jamais ne se casse
 
@@ -219,13 +219,12 @@ autorise déjà *a priori*. Cette liste-là, et seulement elle, est transmise
 
 ## 21.5 — Autorisation : le Policy Enforcement Point
 
-Le Capability Gateway est le PEP (Policy Enforcement Point) ; le Policy
-Engine (OpenFGA, OPA, ou Cedar — choix d'infrastructure découplé, à
-l'image de chaque port du Kernel en [07](07-ports-et-adapters.md)) est le
+Le Capability Gateway est le PEP (Policy Enforcement Point) ; le moteur de droits
+(SpiceDB) est le
 PDP (Policy Decision Point). Séparation stricte : le PEP ne décide jamais
 lui-même d'une règle, il l'applique.
 
-Exemple de modèle de relations (style OpenFGA/ReBAC), volontairement
+Exemple de modèle de relations (style SpiceDB ; ReBAC = droits fondés sur les relations entre objets), volontairement
 simple pour amorcer :
 
 ```
@@ -362,8 +361,7 @@ doit jamais être réputé fonctionnel sans lui :
 2. Capability Gateway (résolution + audit), sans encore de Policy Engine
    réel (une politique « tout autorisé » temporaire, explicitement
    marquée comme non définitive).
-3. IAM (Keycloak) et Policy Engine réel (OpenFGA en premier choix pour sa
-   simplicité de modèle ReBAC) ; le test d'acceptation
+3. IAM (Keycloak) et moteur de droits réel (SpiceDB) ; le test d'acceptation
    [21.9](#219--test-dacceptation-de-bout-en-bout-du-système-dagents)
    étape 2 devient possible.
 4. Agent Gateway + Agent Runtime avec un seul agent, sans supervisor ni
@@ -376,10 +374,11 @@ doit jamais être réputé fonctionnel sans lui :
    bloc `interfaces` — jamais plusieurs à la fois, pour garder à chaque
    étape un système testable de bout en bout.
 
-## 21.11 — Articulation avec l'écosystème multi-solutions
+## 21.11 — Articulation avec la Plateforme
 
-Le système d'agents et l'écosystème multi-solutions ([22](22-ecosysteme-multi-solutions-et-frontiere.md) à [29](29-plan-par-phase-ecosysteme.md)) **partagent** la même infrastructure d'identité (Keycloak) et de politiques (OpenFGA) — décision D21 : une seule source de vérité des droits. Conséquences normatives :
+Le système d'agents et la Plateforme **partagent** la même identité (Keycloak) et le même moteur de droits (SpiceDB). Conséquences :
 
-- Le *Capability Gateway* et les gateways de domaine appellent le **même** contrôle d'usage (`check-use` du catalogue, [25.6](25-identite-et-autorisations.md#256--contrôle-dusage-unique-d13)) : un agent n'obtient jamais ce que le portail refuse à l'utilisateur.
-- Les capacités d'un domaine ([26](26-contrats-de-domaine-et-connecteurs.md)) sont annoncées par le bloc `interfaces` du manifeste de la gateway, avec le `risk` défini dans le contrat.
-- Les services de plateforme (`cell-registry-service`, `catalog-service`, …) suivent la pipeline de [21.8](#218--pipeline-de-déploiement-générale) (étape « services de plateforme ») et l'ordre de [21.10](#2110--ordre-de-construction-recommandé) : un domaine à la fois.
+- Le Capability Gateway (la passerelle qui fournit des outils aux agents IA) et la `domain-gateway` de la Plateforme sont deux pièces distinctes : voir `docs/plateforme/03-vue-d-ensemble-des-systemes.md` du dépôt `Civitas-EGEN-Business`.
+- La question « cet utilisateur peut-il utiliser cet outil dans ce contexte ? » n'a **qu'une** implémentation, celle du catalogue de la Plateforme : un agent n'obtient jamais ce que le portail refuse à l'utilisateur.
+- Comment la `domain-gateway` expose les capacités de tous les domaines au Capability Gateway est un point ouvert (priorité basse), suivi dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/11-plan-par-phase.md`.
+- Les services de la Plateforme suivent la pipeline de [21.8](#218--pipeline-de-déploiement-générale) et l'ordre de [21.10](#2110--ordre-de-construction-recommandé).

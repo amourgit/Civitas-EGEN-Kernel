@@ -45,9 +45,50 @@
 └───────────────────────────────────────────────────────────────────────────--┘
 ```
 
-## Ce qui entoure le Kernel
+## Ce qui entoure le Kernel : trois étages, deux flux
 
-Autour du Kernel gravitent trois ensembles **extérieurs** à ce dépôt : le système d'agents et la Edge Gateway ([21](21-systeme-agents-et-gateway.md)), l'**écosystème multi-solutions** (cellules, catalogue, affectations, identité, contrats de domaine, configuration, portail — [22](22-ecosysteme-multi-solutions-et-frontiere.md) à [29](29-plan-par-phase-ecosysteme.md)) et les applications métier elles-mêmes. Tous consomment l'API publique du Kernel ; **aucun** n'est importé par lui.
+Le Kernel est l'étage 1. Autour de lui, la Plateforme (étage 2) et les applications métier (étage 3) sont des services ordinaires qu'il lance et surveille ; la frontière est décrite dans [22](22-frontiere-avec-la-plateforme.md).
+
+```mermaid
+flowchart TB
+    subgraph E3["Étage 3 — Applications métier"]
+        APP["Radicale, Nextcloud Calendar, civitas-news…"]
+    end
+    subgraph E2["Étage 2 — Plateforme (services ordinaires)"]
+        PLAT["registre de cellules · catalogue · opérateur · configuration · passerelle de domaine · connecteurs · portail"]
+    end
+    subgraph E1["Étage 1 — Kernel"]
+        K["lance, surveille, relance, dit où sont les services, transporte les messages"]
+    end
+    APP --> PLAT
+    PLAT -- "API publique" --> K
+    K -. "ne connaît aucun concept de la Plateforme" .-> PLAT
+```
+
+**Deux moments séparés.** Une application est **installée une fois**, puis **appelée de nombreuses fois**.
+
+*Flux B — installer une application (mise en service).* Exemple : installer Radicale pour le Service RH de l'Université X.
+
+```mermaid
+flowchart LR
+    CAT["catalog-service (état désiré)"] --> OP["platform-operator-service"]
+    OP -- "ServiceManifest" --> K["Kernel (déploie, surveille, relance)"]
+    K --> APP["application"]
+    OP -. "relit le statut et le reporte" .-> CAT
+```
+
+*Flux A — un appel d'utilisateur (moment d'usage).* Exemple : Marie, du Service RH, ouvre son agenda.
+
+```mermaid
+flowchart LR
+    U["Marie / portail"] --> KONG["Kong (porte d'entrée)"] --> GW["domain-gateway"]
+    GW --> CAT["catalog-service : outil + droit d'usage"]
+    GW --> SDB["SpiceDB : droit sur la ressource"]
+    GW --> K["Kernel : où est l'instance ?"]
+    GW --> APP["application (direct ou via un connecteur)"]
+```
+
+Dans le flux A, le Kernel répond seulement à « où est l'instance ? » (découverte). Le détail des deux flux et des termes employés est dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/03-vue-d-ensemble-des-systemes.md`.
 
 ## Ce qui doit rester stable dans le temps
 

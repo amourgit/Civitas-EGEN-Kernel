@@ -63,9 +63,9 @@ latence de détection de changement.
   namespace concerné) — ne jamais utiliser le token root de bootstrap en
   dehors du bootstrap initial.
 
-### Limites constatées de l'adapter de déploiement (écosystème multi-solutions)
+### Limites constatées de l'adapter de déploiement
 
-- L'adapter Nomad **ne gère pas** les namespaces Nomad : `TargetEnvironment` est un nom d'environnement, pas une frontière de tenant. L'isolation par tenant n'est **pas** fournie par le Kernel ; elle est assurée par les données ou par des instances dédiées ([22.9](22-ecosysteme-multi-solutions-et-frontiere.md#229--limites-actuelles-du-kernel-à-connaître), déclencheur A-X2 dans [19](19-feuille-de-route.md)).
+- L'adapter Nomad **ne gère pas** les namespaces Nomad : `TargetEnvironment` est un nom d'environnement, pas une frontière de tenant. L'isolation par tenant n'est **pas** fournie par le Kernel ; elle est assurée par les données ou par des instances dédiées ([22](22-frontiere-avec-la-plateforme.md#229--limites-actuelles-du-kernel), déclencheur A-X2 dans [19](19-feuille-de-route.md)).
 - `runtime.type` n'est pas différencié (déclencheur A-X1).
 
 ## Discovery Port
@@ -231,7 +231,7 @@ public interface ConfigurationPort {
   configuration sans redémarrage) — fonctionnalité optionnelle en V1, mais
   l'interface l'anticipe dès le départ.
 
-**Exposition par l'API.** `ConfigurationPort.publish` n'était pas exposé par l'API de contrôle ; l'évolution A3 ajoute `PUT /api/v1/services/{id}/configuration` ([13](13-api-et-contrats.md#publication-de-configuration--put-apiv1servicesidconfiguration)). La fusion de configuration par organisation, cellule ou utilisateur n'est **jamais** faite ici : elle appartient à `config-service` ([27](27-configuration-multi-niveaux.md)).
+**Exposition par l'API.** `ConfigurationPort.publish` est exposé aux clients par `PUT /api/v1/services/{id}/configuration` (évolution A3, contrat dans [13](13-api-et-contrats.md#publication-de-configuration--put-apiv1servicesidconfiguration)). La fusion de configuration par organisation, cellule ou utilisateur n'est **jamais** faite ici : elle appartient à `config-service`, service de la Plateforme (voir [22](22-frontiere-avec-la-plateforme.md#225--lapi-de-publication-de-configuration-a3)).
 
 ## Secrets Port
 

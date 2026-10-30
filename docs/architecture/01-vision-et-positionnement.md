@@ -48,7 +48,7 @@ conception, jamais des dépendances runtime.
 - **Ce n'est pas** un ESB (Enterprise Service Bus) qui comprend la sémantique métier des messages.
 - **Ce n'est pas** un framework applicatif imposé aux services (pas de SDK obligatoire couplé à un langage — voir [12.2](12-communication-fabric.md)).
 - **Ce n'est pas** un IAM central déguisé (identité, authentification, autorisation métier, utilisateurs, organisations, tenants, membres, rôles ou permissions métier).
-- **Ce n'est pas** un gestionnaire d'organisations, de services d'organisation, de catalogue d'applications ni d'affectations d'outils : la structure organisationnelle (**cellules**), le catalogue multi-solutions et l'attribution des outils aux services sont portés par des services indépendants au-dessus du Kernel ([22](22-ecosysteme-multi-solutions-et-frontiere.md)).
+- **Ce n'est pas** un gestionnaire d'organisations, de catalogue d'applications ni d'affectations d'outils : tout cela est porté par la Plateforme, au-dessus du Kernel (voir [22](22-frontiere-avec-la-plateforme.md)).
 - **Ce n'est pas** un ERP technique ou un backend métier partagé (GED, éducation, finance, RH, santé, CRM…).
 
 Toute logique de cette nature est portée par des **services indépendants**,
@@ -60,9 +60,9 @@ dans le Kernel ? » mais toujours « quel service indépendant va porter cette
 capacité, et comment le Kernel va-t-il l'aider à l'exposer au reste de
 l'écosystème ? ».
 
-## Le Kernel au service d'un écosystème multi-solutions
+## Le Kernel et la Plateforme
 
-La vision EGEN d'un écosystème où plusieurs applications d'un même domaine coexistent, où chaque service d'une organisation choisit ses outils et où l'identité est commune à tous, **s'appuie** sur le Kernel sans le modifier : le Kernel déploie, découvre, observe et réconcilie les *instances* d'applications comme n'importe quel autre service ; tout le sens (cellules, catalogue, affectations, droits) vit dans des services séparés. Voir [22](22-ecosysteme-multi-solutions-et-frontiere.md) pour la frontière, le registre des décisions et le plan.
+Le Kernel est l'étage 1 d'un ensemble à trois étages : le Kernel, la **Plateforme** (organisation, catalogue d'outils, droits, passerelle, connecteurs, configuration, portail) et les applications métier. La Plateforme est faite de services ordinaires que le Kernel lance et surveille ; il ne connaît aucun de ses concepts. La frontière exacte est décrite dans [22](22-frontiere-avec-la-plateforme.md).
 
 ## Ce qui doit rester stable dans le temps
 

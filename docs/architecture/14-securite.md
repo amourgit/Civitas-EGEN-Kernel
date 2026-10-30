@@ -39,13 +39,12 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   un service déjà enregistré ; un service sans équipe assignée reste ouvert à
   tout appelant authentifié, note de migration ci-dessus). Sinon `403`.
 
-## Utilisation par l'écosystème multi-solutions
+## Utilisation par la Plateforme
 
-- Deux équipes `metadata.team` sont réservées à la plateforme : `platform` (services de l'écosystème, déclarés par la pipeline) et `platform-operator` (**toutes** les instances d'applications, déclarées par `platform-operator-service`).
-- **Seul** `platform-operator-service` détient un jeton du Kernel (client *client credentials*, claim `team = platform-operator`) : moindre privilège, aucun rôle administrateur ([22.8](22-ecosysteme-multi-solutions-et-frontiere.md#228--registre-des-décisions), D14, [25.7](25-identite-et-autorisations.md#257--échange-de-jeton-et-moindre-privilège)).
-- Les équipes humaines **ne voient pas** les instances d'applications dans le Kernel ; elles passent par le catalogue et le portail.
-- Le RBAC du Kernel (équipe + administrateur) reste volontairement **grossier** : il n'exprime ni hiérarchie de cellules ni droits métier, qui relèvent d'OpenFGA et du contrôle d'usage du catalogue ([25](25-identite-et-autorisations.md)).
-
+- Deux équipes `metadata.team` sont réservées à la Plateforme : `platform` (ses services, déclarés par la pipeline) et `platform-operator` (**toutes** les instances d'applications, déclarées par `platform-operator-service`). Voir [22](22-frontiere-avec-la-plateforme.md#226--les-deux-équipes-kernel-de-la-plateforme).
+- **Seul** `platform-operator-service` détient un jeton de gestion du Kernel (client *client credentials* d'un fournisseur d'identité OIDC, claim `team = platform-operator`) : moindre privilège, aucun rôle administrateur (décision D14, [22](22-frontiere-avec-la-plateforme.md#228--décisions-qui-touchent-le-kernel)). Le catalogue, le portail, la passerelle de domaine et les connecteurs n'en ont aucun.
+- Les équipes humaines **ne voient pas** les instances d'applications dans le Kernel : elles passent par la Plateforme.
+- Le RBAC du Kernel (équipe + administrateur) reste volontairement **grossier** : il n'exprime ni hiérarchie de cellules ni droits métier. Ceux-ci relèvent de **SpiceDB** (moteur de droits de la Plateforme) et du contrôle d'usage du catalogue, documentés dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/06-identite-et-droits.md`.
 ## Ce que le Kernel ne fait jamais en matière de sécurité
 
 - Il ne stocke jamais un secret en clair (ni en base, ni en log, ni en

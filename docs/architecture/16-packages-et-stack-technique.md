@@ -102,6 +102,18 @@ pour qu'il soit **techniquement impossible** que :
 Le point non négociable : quel que soit le langage du Kernel, il ne doit
 **jamais** en imposer un aux services de l'écosystème.
 
-## Hors de ce dépôt : l'écosystème multi-solutions
+## Hors de ce dépôt : la Plateforme
 
-Les services `cell-registry-service`, `catalog-service`, `platform-operator-service`, `config-service`, les `domain-gateway-<domaine>` et le portail vivent dans le **Projet Métier** (`Civitas-EGEN-Business`), **pas** dans la structure de modules ci-dessus. Le Kernel n'a **aucune** dépendance de build vers eux ni eux vers les types internes du Kernel : ils n'utilisent que son API REST publique ([22](22-ecosysteme-multi-solutions-et-frontiere.md), [13](13-api-et-contrats.md)). Le découpage interne du Projet Métier n'est pas une décision du Kernel.
+Les services suivants vivent dans le dépôt `Civitas-EGEN-Business`, **pas** dans la structure de modules ci-dessus :
+
+| Service | Rôle (une phrase) |
+|---|---|
+| `cell-registry-service` | Tient l'arbre des cellules d'une organisation |
+| `catalog-service` | Tient le catalogue d'outils et décide qui peut utiliser quel outil |
+| `platform-operator-service` | Traduit le catalogue en `ServiceManifest` et parle au Kernel |
+| `config-service` | Calcule la configuration par niveaux |
+| `domain-gateway` | **Un seul** service, générique, pour tous les domaines : contrôle puis appelle l'application |
+| Portail | Montre à chaque utilisateur ses applications |
+| Connecteurs | Des **services séparés**, un par protocole ou logiciel, déclarés au Kernel comme les autres |
+
+Le Kernel n'a **aucune** dépendance de build vers eux ; ils n'utilisent que son API REST publique ([13](13-api-et-contrats.md)). La liste complète est dans [22](22-frontiere-avec-la-plateforme.md#221--les-trois-étages-et-la-règle-de-dépendance) et dans `docs/plateforme/03-vue-d-ensemble-des-systemes.md` du dépôt `Civitas-EGEN-Business`.
