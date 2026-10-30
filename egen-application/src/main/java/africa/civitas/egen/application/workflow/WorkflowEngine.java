@@ -278,7 +278,7 @@ public final class WorkflowEngine implements WorkflowEnginePort {
                 mutate(execution.executionId(), cur -> cur.status() == WorkflowExecutionStatus.RUNNING
                         ? cur.withStatus(WorkflowExecutionStatus.COMPLETED) : cur);
             } else {
-                LOG.log(Level.ERROR, "Execution {0} : aucune etape executable alors que le workflow n'est pas "
+                LOG.log(Level.ERROR, "Execution {0} : aucune etape executable alors que le workflow n''est pas "
                         + "termine — etat incoherent, execution mise en echec", execution.executionId());
                 mutate(execution.executionId(), cur -> cur.status() == WorkflowExecutionStatus.RUNNING
                         ? cur.withStatus(failureStatus(definition, cur)) : cur);

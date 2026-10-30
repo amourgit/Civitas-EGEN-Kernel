@@ -531,7 +531,7 @@ public final class ReconciliationEngine implements AutoCloseable {
         int failures = consecutiveFailures
                 .computeIfAbsent(id, ignored -> new AtomicInteger(0))
                 .incrementAndGet();
-        LOG.log(Level.WARNING, "Echec d'adapter pour {0} ({1}/{2}) : {3}",
+        LOG.log(Level.WARNING, "Echec d''adapter pour {0} ({1}/{2}) : {3}",
                 id, failures, MAX_CONSECUTIVE_FAILURES, failure.getMessage());
         observabilityPort.incrementCounter("egen_reconcile_failures_total",
                 Map.of("service", id.value(), "reason", failure.getClass().getSimpleName()));
