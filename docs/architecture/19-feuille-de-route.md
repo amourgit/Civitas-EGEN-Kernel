@@ -11,7 +11,7 @@ Ce document est la **seule source de statut** des phases du Kernel, de la phase 
 
 Légende : `[x]` fait · `[~]` en cours · `[ ]` à faire · `[>]` reporté, avec un **déclencheur écrit** (on ne le fait que si le déclencheur se produit) · `[?]` proposé, à valider.
 
-Mise à jour : 29 octobre 2026.
+Mise à jour : 30 octobre 2026.
 
 | Élément | Statut | Reste à faire |
 |---|---|---|
@@ -21,6 +21,7 @@ Mise à jour : 29 octobre 2026.
 | Phase A de la Plateforme (côté Kernel) | **En cours** | A2 à A5 à faire |
 | Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
 | Points ouverts du Kernel | **Ouverts** | 2 points, à décider par Samuel |
+| Nettoyage du code non conforme (N1) | **À faire** | Voir « Référence unique et nettoyage du code » ci-dessous |
 
 ## Phase 0 — Fondations et décisions structurantes
 
@@ -264,6 +265,22 @@ rapport aux phases du Kernel ci-dessus et ci-dessous.
 - [ ] **A5 — Scénario de niveau 5 « service fixture de plateforme »** : déclaré par l'API publique avec `team: platform-operator`, labels réservés et configuration publiée via A3 ; convergence vers `RUNNING`, labels restitués ([22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)).
 
 ---
+
+## Référence unique et nettoyage du code
+
+**Règle.** La documentation d'architecture publiée sur `main` est la **seule référence** de tout le projet, sans exception : pour le Kernel, `docs/architecture/` de ce dépôt ; pour la Plateforme, `docs/plateforme/` du dépôt `Civitas-EGEN-Business`. Tout élément de code, de configuration, de test ou de document qui ne concorde pas avec elle est **abandonné** : il est supprimé ou aligné, jamais conservé « au cas où ». En cas de conflit, la documentation l'emporte.
+
+- [ ] **N1 — Nettoyage du code non conforme à la documentation.** Marche à suivre : (1) audit complet du code contre la documentation ; (2) suppression ou alignement par petits commits nommés ; (3) construction et tests verts ; (4) cocher cet élément. Ne touche jamais une évolution déjà décrite comme « à faire » (A2 à A5, phase 6, P0) : ce sont des ajouts, pas du nettoyage.
+
+**Audit préliminaire du 30 octobre 2026** (partiel : vocabulaire et structure des modules seulement) :
+
+| Constat | Vérification | Suite |
+|---|---|---|
+| Aucun vocabulaire de l'ancienne architecture dans le code (PF4J, `kernel-sdk`, `ManifesteExtension`, `kernel-service-runtime`, EventBus) | Recherche dans les sources Java, XML, YAML, propriétés et Python hors `docs/` : aucune occurrence | Rien à nettoyer |
+| Les dossiers racine correspondent au document 16 ; `egen-adapter-kafka` est documenté comme optionnel et futur, donc son absence est conforme | Comparaison des dossiers du dépôt avec le document 16 | Rien à nettoyer |
+| Le document 16 cite `egen-contracts/openapi/egen-control-api.yaml`, absent du code (seul le schéma `service-manifest.schema.json` existe) | `find egen-contracts` | À aligner dans N1 : fournir le fichier OpenAPI ou retirer la mention |
+
+L'audit complet (comportements, tests, configuration, scripts) reste à faire dans N1. Le nettoyage du code du dépôt `Civitas-EGEN-Business` suit la même règle ; il attend la décision du point ouvert 4 pour le module `organization` déjà présent (voir `docs/plateforme/11-plan-par-phase.md`).
 
 ## Phase A de la Plateforme — côté Kernel
 
