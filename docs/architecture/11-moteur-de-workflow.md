@@ -215,8 +215,10 @@ exécution `RUNNING`/`COMPENSATING` renvoyée par
 silence) : définition non versionnée (une exécution en cours utilise la
 définition stockée la plus récente) ; un seul Kernel pilote une exécution à la
 fois (aucun verrou distribué — cohérent avec l'`Idempotency-Key` en mémoire de
-[13](13-api-et-contrats.md)) ; pas encore de métriques propres au moteur
-(les appels de ports sont déjà instrumentés par les décorateurs `Observed*Port`).
+[13](13-api-et-contrats.md)) ; une seule métrique propre au moteur,
+`egen_workflow_executions_total{workflow, status}` ([15](15-observabilite.md)),
+comptée une fois quand une exécution entre dans un statut terminal (les appels
+de ports sont par ailleurs instrumentés par les décorateurs `Observed*Port`).
 
 ## Compensation — le cœur de la robustesse Saga
 
