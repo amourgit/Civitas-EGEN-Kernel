@@ -6,12 +6,18 @@ import africa.civitas.egen.application.port.EventHandler;
 import africa.civitas.egen.application.port.InvocationResult;
 import africa.civitas.egen.application.port.MessagingException;
 import africa.civitas.egen.application.port.MessagingPort;
+import africa.civitas.egen.application.port.MetricSample;
+import africa.civitas.egen.application.port.ObservabilityPort;
+import africa.civitas.egen.application.port.ReconciliationEvent;
 import africa.civitas.egen.application.port.ResolvedInstance;
 import africa.civitas.egen.application.port.ResolvedInstances;
 import africa.civitas.egen.application.port.ServiceInstanceRegistration;
 import africa.civitas.egen.application.port.ServiceInvocationPort;
 import africa.civitas.egen.application.port.Subscription;
 import africa.civitas.egen.application.port.TopicSpec;
+import africa.civitas.egen.application.port.TraceContext;
+import africa.civitas.egen.application.port.TraceSpan;
+import africa.civitas.egen.domain.lifecycle.Condition;
 import africa.civitas.egen.domain.event.TechnicalEvent;
 import africa.civitas.egen.domain.model.ServiceId;
 
@@ -35,6 +41,50 @@ import java.util.function.Consumer;
 final class EngineFakes {
 
     private EngineFakes() {
+    }
+
+    /** Enregistre les compteurs emis : le seul signal que les tests du moteur veulent relire. */
+    static final class CountingObservability implements ObservabilityPort {
+        record Counter(String name, Map<String, String> attributes) { }
+
+        final List<Counter> counters = new ArrayList<>();
+
+        List<Map<String, String>> counted(String name) {
+            return counters.stream().filter(c -> c.name().equals(name)).map(Counter::attributes).toList();
+        }
+
+        @Override
+        public TraceSpan startSpan(String operationName, TraceContext parent) {
+            return new TraceSpan() {
+                @Override
+                public TraceContext context() {
+                    return parent;
+                }
+
+                @Override
+                public void setAttribute(String key, String value) { }
+
+                @Override
+                public void recordError(Throwable error) { }
+
+                @Override
+                public void close() { }
+            };
+        }
+
+        @Override
+        public void recordDuration(MetricSample sample) { }
+
+        @Override
+        public void incrementCounter(String name, Map<String, String> attributes) {
+            counters.add(new Counter(name, Map.copyOf(attributes)));
+        }
+
+        @Override
+        public void recordEvent(ReconciliationEvent event) { }
+
+        @Override
+        public void reportCondition(ServiceId id, Condition condition) { }
     }
 
     record Call(String service, String method, String path, Map<String, String> payload, Duration timeout) {

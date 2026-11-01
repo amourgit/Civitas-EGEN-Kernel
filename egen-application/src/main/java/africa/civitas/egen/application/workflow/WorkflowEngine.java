@@ -3,6 +3,7 @@ package africa.civitas.egen.application.workflow;
 import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.InvocationResult;
 import africa.civitas.egen.application.port.MessagingPort;
+import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.ResolvedInstance;
 import africa.civitas.egen.application.port.ResolvedInstances;
 import africa.civitas.egen.application.port.ServiceInvocationPort;
@@ -78,6 +79,7 @@ public final class WorkflowEngine implements WorkflowEnginePort {
     private final WorkflowEngineSettings settings;
     private final ResiliencyPolicyProvider policies;
     private final ServiceCircuitBreakers breakers;
+    private final ObservabilityPort observability; // null = pas de metriques propres au moteur
 
     private final Object[] locks = new Object[LOCK_STRIPES];
     private final Set<String> driving = ConcurrentHashMap.newKeySet();
@@ -93,6 +95,19 @@ public final class WorkflowEngine implements WorkflowEnginePort {
     public WorkflowEngine(WorkflowStorePort store, DiscoveryPort discovery, ServiceInvocationPort invocation,
                           MessagingPort messaging, Clock clock, Sleeper sleeper, Executor executor,
                           WorkflowEngineSettings settings, ResiliencyPolicyProvider policies) {
+        this(store, discovery, invocation, messaging, clock, sleeper, executor, settings, policies, null);
+    }
+
+    /**
+     * @param observability emet {@code egen_workflow_executions_total{workflow, status}} (docs 15) a
+     *                      chaque entree d'une execution dans un statut terminal ; {@code null} pour ne
+     *                      pas mesurer (tests de niveau 2 qui n'en ont pas besoin)
+     */
+    public WorkflowEngine(WorkflowStorePort store, DiscoveryPort discovery, ServiceInvocationPort invocation,
+                          MessagingPort messaging, Clock clock, Sleeper sleeper, Executor executor,
+                          WorkflowEngineSettings settings, ResiliencyPolicyProvider policies,
+                          ObservabilityPort observability) {
+        this.observability = observability;
         this.store = Objects.requireNonNull(store, "store");
         this.discovery = Objects.requireNonNull(discovery, "discovery");
         this.invocation = Objects.requireNonNull(invocation, "invocation");
@@ -166,6 +181,7 @@ public final class WorkflowEngine implements WorkflowEnginePort {
                 next = next.withStatus(compensate
                         ? WorkflowExecutionStatus.COMPENSATING : WorkflowExecutionStatus.FAILED);
                 store.save(next);
+                recordTerminalTransition(current, next);
             }
             needsDriving = next.status() == WorkflowExecutionStatus.COMPENSATING;
         }
@@ -563,8 +579,23 @@ public final class WorkflowEngine implements WorkflowEnginePort {
      */
     private WorkflowExecution mutate(ExecutionId id, UnaryOperator<WorkflowExecution> change) {
         synchronized (lockFor(id)) {
-            return store.save(change.apply(load(id)));
+            WorkflowExecution before = load(id);
+            WorkflowExecution saved = store.save(change.apply(before));
+            recordTerminalTransition(before, saved);
+            return saved;
         }
+    }
+
+    /**
+     * Compte une execution une seule fois, quand elle entre dans un statut terminal depuis un statut
+     * qui ne l'etait pas (docs 15 : {@code egen_workflow_executions_total{workflow, status}}).
+     */
+    private void recordTerminalTransition(WorkflowExecution before, WorkflowExecution after) {
+        if (observability == null || isTerminal(before.status()) || !isTerminal(after.status())) {
+            return;
+        }
+        observability.incrementCounter("egen_workflow_executions_total",
+                Map.of("workflow", after.workflowId().value(), "status", after.status().name()));
     }
 
     private Object lockFor(ExecutionId id) {

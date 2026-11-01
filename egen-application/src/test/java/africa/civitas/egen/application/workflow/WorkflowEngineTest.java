@@ -1,6 +1,7 @@
 package africa.civitas.egen.application.workflow;
 
 import africa.civitas.egen.application.port.InvocationResult;
+import africa.civitas.egen.application.workflow.EngineFakes.CountingObservability;
 import africa.civitas.egen.application.workflow.EngineFakes.FakeDiscovery;
 import africa.civitas.egen.application.workflow.EngineFakes.FakeMessaging;
 import africa.civitas.egen.application.workflow.EngineFakes.MutableClock;
@@ -121,6 +122,60 @@ class WorkflowEngineTest {
     private List<StepStatus> statusesOf(ExecutionId id, String stepId) {
         return execution(id).stepResults().stream()
                 .filter(r -> r.stepId().equals(StepId.of(stepId))).map(StepResult::status).toList();
+    }
+
+    // ------------------------------------------------------------------ metrique (docs 15)
+
+    private WorkflowEngine newObservedEngine(CountingObservability observability) {
+        return new WorkflowEngine(store, discovery, invoker, messaging, clock, sleeps::add, Runnable::run,
+                new WorkflowEngineSettings(BASE_BACKOFF, Duration.ofSeconds(30)),
+                africa.civitas.egen.application.resilience.ResiliencyPolicyProvider.defaultsOnly(), observability);
+    }
+
+    @Test
+    void aCompletedExecutionIsCountedOnceWithItsWorkflowAndStatus() {
+        CountingObservability observability = new CountingObservability();
+        engine = newObservedEngine(observability);
+
+        run(publishArticle());
+
+        assertEquals(List.of(Map.of("workflow", "publish-article-workflow", "status", "COMPLETED")),
+                observability.counted("egen_workflow_executions_total"));
+    }
+
+    @Test
+    void aCompensatedExecutionIsCountedOnlyOnceItIsTerminalNeverWhileCompensating() {
+        CountingObservability observability = new CountingObservability();
+        engine = newObservedEngine(observability);
+        invoker.respond("POST /internal/publish", status(500));
+
+        run(publishArticle());
+
+        assertEquals(List.of(Map.of("workflow", "publish-article-workflow", "status", "COMPENSATED")),
+                observability.counted("egen_workflow_executions_total"));
+    }
+
+    @Test
+    void aTerminatedExecutionWithNothingToUndoIsCountedAsFailedAndNotCountedTwice() {
+        CountingObservability observability = new CountingObservability();
+        engine = newObservedEngine(observability);
+        ExecutionId id = run(publishArticle(new ExecutionPolicy(Duration.ofMinutes(5),
+                List.of(StepId.of("validate-content")), 1)));
+        assertEquals(WorkflowExecutionStatus.PAUSED, engine.status(id));
+        assertTrue(observability.counted("egen_workflow_executions_total").isEmpty(), "une pause n'est pas terminale");
+
+        engine.terminate(id, "inutile");
+        engine.terminate(id, "encore"); // deja terminale : aucun effet, aucun doublon
+
+        assertEquals(List.of(Map.of("workflow", "publish-article-workflow", "status", "FAILED")),
+                observability.counted("egen_workflow_executions_total"));
+    }
+
+    @Test
+    void anEngineBuiltWithoutObservabilityStillRuns() {
+        ExecutionId id = run(publishArticle()); // moteur de setUp(), sans ObservabilityPort
+
+        assertEquals(WorkflowExecutionStatus.COMPLETED, engine.status(id));
     }
 
     @org.junit.jupiter.api.AfterEach

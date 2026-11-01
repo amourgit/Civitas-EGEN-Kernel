@@ -2,6 +2,7 @@ package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.MessagingPort;
+import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.ServiceInvocationPort;
 import africa.civitas.egen.application.port.WorkflowStorePort;
 import africa.civitas.egen.application.resilience.ResiliencyPolicyProvider;
@@ -51,6 +52,9 @@ public class WorkflowEngineBeans {
     @Inject
     ResiliencyPolicyProvider resiliencyPolicyProvider;
 
+    @Inject
+    ObservabilityPort observabilityPort;
+
     @ConfigProperty(name = "egen.workflow.retry.base-backoff-millis", defaultValue = "500")
     long baseBackoffMillis;
 
@@ -73,7 +77,7 @@ public class WorkflowEngineBeans {
                     Clock.systemUTC(), Sleeper.threadSleep(), executor,
                     new WorkflowEngineSettings(Duration.ofMillis(baseBackoffMillis),
                             Duration.ofMillis(maxBackoffMillis)),
-                    resiliencyPolicyProvider);
+                    resiliencyPolicyProvider, observabilityPort);
         }
         return engine;
     }
