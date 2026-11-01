@@ -20,6 +20,7 @@ import africa.civitas.egen.domain.model.DeploymentObservation;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.DiscoveryObservation;
 import africa.civitas.egen.domain.model.ServiceId;
+import africa.civitas.egen.domain.model.ServiceVersion;
 
 import java.lang.System.Logger.Level;
 import java.time.Duration;
@@ -290,14 +291,12 @@ public final class ReconciliationEngine implements AutoCloseable {
      * (degradation gracieuse), seule la Condition le signale.
      */
     private void handleConfigured(ServiceId id, ServiceStatus current, DesiredState desired, TraceContext parent) {
-        List<Dependency> unsatisfiedRequired = new ArrayList<>();
-        List<Dependency> unsatisfiedOptional = new ArrayList<>();
+        List<UnmetDependency> unsatisfiedRequired = new ArrayList<>();
+        List<UnmetDependency> unsatisfiedOptional = new ArrayList<>();
         for (Dependency dependency : desired.manifest().dependencies()) {
-            boolean running = registryStorePort.findStatus(dependency.serviceId())
-                    .map(status -> status.phase() == Phase.RUNNING)
-                    .orElse(false);
-            if (!running) {
-                (dependency.required() ? unsatisfiedRequired : unsatisfiedOptional).add(dependency);
+            Optional<UnmetDependency> unmet = evaluateDependency(dependency);
+            if (unmet.isPresent()) {
+                (dependency.required() ? unsatisfiedRequired : unsatisfiedOptional).add(unmet.get());
                 // Metrique minimale V1 (voir docs/architecture/15-observabilite.md,
                 // "egen_dependency_unresolved_total{service, dependency}").
                 observabilityPort.incrementCounter("egen_dependency_unresolved_total",
@@ -307,9 +306,12 @@ public final class ReconciliationEngine implements AutoCloseable {
         }
 
         if (!unsatisfiedRequired.isEmpty()) {
+            // Une contrainte de version non satisfaite demande une action humaine (re-declarer l'une
+            // des deux versions) : sa raison prime sur la simple attente d'une dependance qui demarre.
+            boolean versionMismatch = unsatisfiedRequired.stream().anyMatch(UnmetDependency::versionMismatch);
             Condition condition = new Condition("DependenciesSatisfied", ConditionStatus.FALSE,
-                    "RequiredDependencyNotRunning", "en attente de : " + names(unsatisfiedRequired),
-                    Instant.now());
+                    versionMismatch ? "VersionConstraintUnmet" : "RequiredDependencyNotRunning",
+                    describe(unsatisfiedRequired), Instant.now());
             reportCondition(id, condition);
             saveStatus(id, Phase.CONFIGURED, mergeConditions(current.conditions(), condition),
                     desired.generation());
@@ -319,10 +321,10 @@ public final class ReconciliationEngine implements AutoCloseable {
 
         Condition dependenciesCondition = unsatisfiedOptional.isEmpty()
                 ? new Condition("DependenciesSatisfied", ConditionStatus.TRUE, "AllSatisfied",
-                        "Toutes les dependances declarees sont RUNNING", Instant.now())
+                        "Toutes les dependances declarees sont RUNNING, dans les versions demandees", Instant.now())
                 : new Condition("DependenciesSatisfied", ConditionStatus.FALSE,
                         "OptionalDependencyUnavailable",
-                        "en attente (facultatif, ne bloque pas) de : " + names(unsatisfiedOptional),
+                        "facultatif, ne bloque pas — " + describe(unsatisfiedOptional),
                         Instant.now());
         reportCondition(id, dependenciesCondition);
 
@@ -355,8 +357,46 @@ public final class ReconciliationEngine implements AutoCloseable {
                 outcome.reason(), outcome.message(), Instant.now());
     }
 
-    private static String names(List<Dependency> dependencies) {
-        return dependencies.stream().map(d -> d.serviceId().value()).collect(Collectors.joining(", "));
+    /** Une dependance dont la contrainte n'est pas satisfaite : version declaree incompatible, ou pas encore RUNNING. */
+    private record UnmetDependency(Dependency dependency, boolean versionMismatch, ServiceVersion declaredVersion) {
+    }
+
+    /**
+     * Une dependance est satisfaite quand la version qu'elle declare respecte la contrainte (06,
+     * « Validation du manifeste », point 4 ; 20, etape 2) ET qu'elle est RUNNING. Une contrainte
+     * non satisfaite est verifiee en premier : tant qu'elle ne l'est pas, attendre que la
+     * dependance demarre n'y changerait rien. Une dependance sans DesiredState connu ici n'offre
+     * aucune version a comparer ; seul son statut compte alors.
+     */
+    private Optional<UnmetDependency> evaluateDependency(Dependency dependency) {
+        Optional<ServiceVersion> declared = registryStorePort.findById(dependency.serviceId())
+                .map(state -> state.manifest().version());
+        if (declared.isPresent() && !dependency.constraint().isSatisfiedBy(declared.get())) {
+            return Optional.of(new UnmetDependency(dependency, true, declared.get()));
+        }
+        boolean running = registryStorePort.findStatus(dependency.serviceId())
+                .map(status -> status.phase() == Phase.RUNNING)
+                .orElse(false);
+        return running ? Optional.empty() : Optional.of(new UnmetDependency(dependency, false, null));
+    }
+
+    /** Message de Condition : ne cite que des noms et des versions, jamais une valeur (09, « Semantique des Conditions V1 »). */
+    private static String describe(List<UnmetDependency> unmet) {
+        List<String> parts = new ArrayList<>();
+        for (UnmetDependency item : unmet) {
+            if (item.versionMismatch()) {
+                parts.add("%s est en version %s mais %s est requis".formatted(
+                        item.dependency().serviceId().value(), item.declaredVersion(),
+                        item.dependency().constraint()));
+            }
+        }
+        String waiting = unmet.stream().filter(item -> !item.versionMismatch())
+                .map(item -> item.dependency().serviceId().value())
+                .collect(Collectors.joining(", "));
+        if (!waiting.isEmpty()) {
+            parts.add("en attente de : " + waiting);
+        }
+        return String.join(" ; ", parts);
     }
 
     private void observeAndConverge(ServiceId id, ServiceStatus current, DesiredState desired, TraceContext parent) {
