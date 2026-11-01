@@ -43,10 +43,10 @@ import java.util.stream.Collectors;
  * docs/architecture/04-moteur-de-reconciliation.md). Depuis la Phase 4,
  * chaque cycle genere un span racine "reconcile(serviceId)" avec des spans
  * enfants par appel de port, et alimente les metriques et logs structures
- * documentes en docs/architecture/15-observabilite.md — Configuration et
- * Secrets ne sont pas encore consommes par la boucle elle-meme (ils
- * rejoindront la reconciliation quand un besoin reel de resolution
- * dynamique se presentera, jamais par anticipation).
+ * documentes en docs/architecture/15-observabilite.md. Avant toute delegation,
+ * le cycle leve les conditions du plan (04, « Ce que Diff & Plan prepare ») :
+ * configuration et secrets (ConfigResolved), dependances (DependenciesSatisfied,
+ * contraintes de version comprises), flux d'evenements (MessagingBindingsReady).
  *
  * <p>Un seul thread worker consommant la {@link WorkQueue}, resync periodique
  * inconditionnel, retry avec compteur d'echecs consecutifs plafonne. La
@@ -443,9 +443,12 @@ public final class ReconciliationEngine implements AutoCloseable {
             nextPhase = Phase.DEPLOYING; // premiere convergence pas encore atteinte
         }
 
+        // Docs 20 (etape 7) : une convergence perdue depuis un etat nominal se dit AllocationLost ;
+        // avant la toute premiere convergence, le service attend simplement (AwaitingConvergence).
+        boolean wasConverged = current.phase() == Phase.RUNNING || current.phase() == Phase.DEGRADED;
         Condition deploymentCondition = new Condition("DeploymentReady",
                 deploymentConverged ? ConditionStatus.TRUE : ConditionStatus.FALSE,
-                deploymentConverged ? "Converged" : "AwaitingConvergence",
+                deploymentConverged ? "Converged" : (wasConverged ? "AllocationLost" : "AwaitingConvergence"),
                 "desired=%d healthy=%d running=%d failed=%d".formatted(
                         deploymentObservation.desiredCount(), deploymentObservation.healthyCount(),
                         deploymentObservation.runningCount(), deploymentObservation.failedCount()),

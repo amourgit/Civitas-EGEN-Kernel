@@ -31,6 +31,7 @@ final class FakeDeploymentPort implements DeploymentPort {
     private int cyclesToConverge = 1;
     private int desiredCount = 2;
     private boolean alwaysThrowOnCreate = false;
+    private Integer healthyOverride = null;
 
     void setCyclesToConverge(int cycles) {
         this.cyclesToConverge = cycles;
@@ -38,6 +39,18 @@ final class FakeDeploymentPort implements DeploymentPort {
 
     void setDesiredCount(int desiredCount) {
         this.desiredCount = desiredCount;
+    }
+
+    /** Simule la perte d'allocations : une fois converge, seules {@code healthy} restent saines ({@code null} = toutes). */
+    void setHealthyOverride(Integer healthy) {
+        this.healthyOverride = healthy;
+    }
+
+    private int healthyNow(boolean converged) {
+        if (!converged) {
+            return 0;
+        }
+        return healthyOverride != null ? Math.min(healthyOverride, desiredCount) : desiredCount;
     }
 
     void setAlwaysThrowOnCreate(boolean value) {
@@ -85,7 +98,7 @@ final class FakeDeploymentPort implements DeploymentPort {
     public DeploymentObservation getStatus(ServiceId id) {
         int calls = observeCallCount.merge(id, 1, Integer::sum);
         boolean converged = calls >= cyclesToConverge;
-        int healthy = converged ? desiredCount : 0;
+        int healthy = healthyNow(converged);
         return new DeploymentObservation(desiredCount, healthy, healthy, 0, Instant.now());
     }
 
@@ -95,7 +108,7 @@ final class FakeDeploymentPort implements DeploymentPort {
             return List.of();
         }
         List<AllocationInfo> allocations = new ArrayList<>();
-        for (int i = 0; i < desiredCount; i++) {
+        for (int i = 0; i < healthyNow(true); i++) {
             allocations.add(new AllocationInfo(id.value() + "-alloc-" + i, "running", Instant.now(),
                     "10.0.0." + (i + 1), 8080));
         }

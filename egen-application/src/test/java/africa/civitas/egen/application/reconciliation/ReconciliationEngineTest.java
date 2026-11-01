@@ -148,6 +148,42 @@ class ReconciliationEngineTest {
         assertEquals(Phase.FAILED, currentStatus().phase());
     }
 
+    /** Docs 09 (RUNNING -> DEGRADED -> RUNNING) et 20 (etape 7) : jamais un echec, une degradation visible. */
+    @Test
+    void aLostAllocationDegradesTheServiceWithAnExplicitReasonThenItRecoversWithoutIntervention() {
+        deploymentPort.setCyclesToConverge(1);
+        reconcileNTimes(4);
+        assertEquals(Phase.RUNNING, currentStatus().phase());
+
+        deploymentPort.setHealthyOverride(1); // une allocation sur deux meurt
+
+        engine.reconcile(SERVICE_ID);
+
+        assertEquals(Phase.DEGRADED, currentStatus().phase());
+        africa.civitas.egen.domain.lifecycle.Condition lost = currentStatus().conditions().stream()
+                .filter(c -> c.type().equals("DeploymentReady")).findFirst().orElseThrow();
+        assertEquals(africa.civitas.egen.domain.lifecycle.ConditionStatus.FALSE, lost.status());
+        assertEquals("AllocationLost", lost.reason());
+
+        deploymentPort.setHealthyOverride(null); // Nomad a replanifie l'allocation
+
+        engine.reconcile(SERVICE_ID);
+
+        assertEquals(Phase.RUNNING, currentStatus().phase());
+        assertEquals("Converged", currentStatus().conditions().stream()
+                .filter(c -> c.type().equals("DeploymentReady")).findFirst().orElseThrow().reason());
+    }
+
+    @Test
+    void beforeTheFirstConvergenceTheServiceSimplyAwaitsItAndNothingIsLost() {
+        deploymentPort.setCyclesToConverge(10);
+        reconcileNTimes(4); // DECLARED -> REGISTERED -> CONFIGURED -> DEPLOYING -> observe
+
+        assertEquals(Phase.DEPLOYING, currentStatus().phase());
+        assertEquals("AwaitingConvergence", currentStatus().conditions().stream()
+                .filter(c -> c.type().equals("DeploymentReady")).findFirst().orElseThrow().reason());
+    }
+
     @Test
     void gracefulShutdownDeregistersBeforeStoppingAndOnlyAfterTheGracePeriod()
             throws InterruptedException {
