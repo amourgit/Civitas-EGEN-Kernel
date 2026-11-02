@@ -71,8 +71,8 @@ class VersionConstraintTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "   ", "latest", ">=", ">=1.2", "^1.2.0", "~1.2.0", "1.x", ">=1.2.0,", ",>=1.2.0",
-            ">=1.2.0 <2.0.0", "=>1.2.0", "!=1.2.0", ">=v1.2.0"})
+    @ValueSource(strings = {"", "   ", "latest", ">=", "^", "~", "1.x", "^1.x", "^^1.2.0", "~1.2.x", ">=1.2.0,", ",>=1.2.0",
+            ">=1.2.0 <2.0.0", "=>1.2.0", "!=1.2.0", ">=v1.2.0", ">1.2", "<2", "=1.2", "1.2", "<=1.2"})
     void anUnreadableConstraintRefusesToBeBuilt(String raw) {
         assertThrows(InvalidVersionConstraintException.class, () -> VersionConstraint.parse(raw));
     }
@@ -85,9 +85,9 @@ class VersionConstraintTest {
     @Test
     void theErrorNamesTheOffendingConstraintAndTheExpectedFormat() {
         InvalidVersionConstraintException error =
-                assertThrows(InvalidVersionConstraintException.class, () -> VersionConstraint.parse("^1.2.0"));
+                assertThrows(InvalidVersionConstraintException.class, () -> VersionConstraint.parse("latest"));
 
-        assertTrue(error.getMessage().contains("^1.2.0"));
+        assertTrue(error.getMessage().contains("latest"));
         assertTrue(error.getMessage().contains(">=1.2.0"));
     }
 
@@ -95,10 +95,59 @@ class VersionConstraintTest {
     void aDependencyRefusesAnUnreadableConstraintAndExposesTheParsedOne() {
         ServiceId target = ServiceId.of("notification-service");
 
-        assertThrows(InvalidVersionConstraintException.class, () -> new Dependency(target, "^1.2.0", true));
+        assertThrows(InvalidVersionConstraintException.class, () -> new Dependency(target, "latest", true));
 
         Dependency dependency = new Dependency(target, ">=1.2.0", true);
         assertEquals(">=1.2.0", dependency.versionConstraint()); // restituee telle que declaree
         assertTrue(dependency.constraint().isSatisfiedBy(v("1.2.0")));
+    }
+
+    @Test
+    void caretMeansCompatibleUpToTheNextIncompatibleVersion() {
+        VersionConstraint caret = VersionConstraint.parse("^1.2.3");
+        assertTrue(caret.isSatisfiedBy(v("1.2.3")));
+        assertTrue(caret.isSatisfiedBy(v("1.9.0")));
+        assertFalse(caret.isSatisfiedBy(v("1.2.2")));
+        assertFalse(caret.isSatisfiedBy(v("2.0.0")));
+
+        VersionConstraint zeroMinor = VersionConstraint.parse("^0.2.3"); // en 0.x, la mineure est la frontiere
+        assertTrue(zeroMinor.isSatisfiedBy(v("0.2.9")));
+        assertFalse(zeroMinor.isSatisfiedBy(v("0.3.0")));
+
+        VersionConstraint zeroPatch = VersionConstraint.parse("^0.0.3"); // en 0.0.x, le patch est la frontiere
+        assertTrue(zeroPatch.isSatisfiedBy(v("0.0.3")));
+        assertFalse(zeroPatch.isSatisfiedBy(v("0.0.4")));
+    }
+
+    @Test
+    void tildeMeansTheSameMinor() {
+        VersionConstraint tilde = VersionConstraint.parse("~1.2.3");
+
+        assertTrue(tilde.isSatisfiedBy(v("1.2.9")));
+        assertFalse(tilde.isSatisfiedBy(v("1.3.0")));
+        assertFalse(tilde.isSatisfiedBy(v("1.2.2")));
+    }
+
+    @Test
+    void missingComponentsMeanZeroWithGreaterOrEqualCaretAndTilde() {
+        assertEquals(VersionConstraint.parse("^2.0.0"), VersionConstraint.parse("^2.0")); // la forme de l'IT Postgres
+        assertEquals(VersionConstraint.parse("^2.0.0"), VersionConstraint.parse("^2"));
+        assertEquals(VersionConstraint.parse("~2.1.0"), VersionConstraint.parse("~2.1"));
+        assertEquals(VersionConstraint.parse(">=1.2.0"), VersionConstraint.parse(">=1.2"));
+        assertEquals(VersionConstraint.parse(">=1.0.0"), VersionConstraint.parse(">=1"));
+    }
+
+    @Test
+    void aRangeOperatorExpandsToItsCanonicalBounds() {
+        assertEquals(">=2.0.0,<3.0.0", VersionConstraint.parse("^2.0").expression());
+        assertEquals(">=1.2.3,<1.3.0", VersionConstraint.parse("~1.2.3").expression());
+    }
+
+    @Test
+    void rangeOperatorsCombineWithOtherClauses() {
+        VersionConstraint constraint = VersionConstraint.parse("^1.2.0,<1.5.0");
+
+        assertTrue(constraint.isSatisfiedBy(v("1.4.9")));
+        assertFalse(constraint.isSatisfiedBy(v("1.5.0")));
     }
 }
