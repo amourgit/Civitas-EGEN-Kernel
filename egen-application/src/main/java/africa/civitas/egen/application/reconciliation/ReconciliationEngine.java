@@ -48,15 +48,18 @@ import java.util.stream.Collectors;
  * configuration et secrets (ConfigResolved), dependances (DependenciesSatisfied,
  * contraintes de version comprises), flux d'evenements (MessagingBindingsReady).
  *
- * <p>Un seul thread worker consommant la {@link WorkQueue}, resync periodique
- * inconditionnel, retry avec compteur d'echecs consecutifs plafonne. La
- * concurrence bornee multi-worker par type de ressource reste un
- * raffinement de phase ulterieure.</p>
+ * <p>{@code maxConcurrentReconciles} workers consomment la {@link WorkQueue}
+ * (concurrence bornee : un resync massif ne sature ni Nomad ni Consul) ; la file
+ * garantit qu'un meme service n'est jamais reconcilie par deux workers a la fois.
+ * Resync periodique inconditionnel, retry avec backoff exponentiel plafonne et
+ * compteur d'echecs consecutifs plafonne.</p>
  */
 public final class ReconciliationEngine implements AutoCloseable {
 
     private static final System.Logger LOG = System.getLogger(ReconciliationEngine.class.getName());
 
+    /** Borne par defaut de reconciliations simultanees (04, « maxConcurrentReconciles »). */
+    public static final int DEFAULT_MAX_CONCURRENT_RECONCILES = 4;
     private static final int MAX_CONSECUTIVE_FAILURES = 5;
     private static final Duration POLL_DELAY_WHILE_CONVERGING = Duration.ofSeconds(3);
     private static final Duration STOPPING_POLL_DELAY = Duration.ofSeconds(1);
@@ -86,7 +89,7 @@ public final class ReconciliationEngine implements AutoCloseable {
     private final PendingDeclareTraces pendingDeclareTraces;
     private final ServiceBindings bindings;
 
-    private final Thread worker;
+    private final List<Thread> workers;
     private final ScheduledExecutorService resyncScheduler =
             Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = new Thread(r, "egen-reconcile-resync");
@@ -120,6 +123,23 @@ public final class ReconciliationEngine implements AutoCloseable {
                                  DeploymentPort deploymentPort, DiscoveryPort discoveryPort,
                                  ObservabilityPort observabilityPort,
                                  PendingDeclareTraces pendingDeclareTraces, ServiceBindings bindings) {
+        this(workQueue, registryStorePort, deploymentPort, discoveryPort, observabilityPort,
+                pendingDeclareTraces, bindings, DEFAULT_MAX_CONCURRENT_RECONCILES);
+    }
+
+    /**
+     * @param maxConcurrentReconciles nombre de workers, donc de services reconcilies en meme temps
+     *                                (au moins 1) — voir 04, « Composants de la boucle »
+     */
+    public ReconciliationEngine(WorkQueue workQueue, RegistryStorePort registryStorePort,
+                                 DeploymentPort deploymentPort, DiscoveryPort discoveryPort,
+                                 ObservabilityPort observabilityPort,
+                                 PendingDeclareTraces pendingDeclareTraces, ServiceBindings bindings,
+                                 int maxConcurrentReconciles) {
+        if (maxConcurrentReconciles < 1) {
+            throw new IllegalArgumentException(
+                    "maxConcurrentReconciles doit valoir au moins 1 (recu : " + maxConcurrentReconciles + ")");
+        }
         this.bindings = bindings;
         this.workQueue = workQueue;
         this.registryStorePort = registryStorePort;
@@ -127,8 +147,13 @@ public final class ReconciliationEngine implements AutoCloseable {
         this.discoveryPort = discoveryPort;
         this.observabilityPort = observabilityPort;
         this.pendingDeclareTraces = pendingDeclareTraces;
-        this.worker = new Thread(this::runLoop, "egen-reconcile-worker");
-        this.worker.setDaemon(true);
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 1; i <= maxConcurrentReconciles; i++) {
+            Thread worker = new Thread(this::runLoop, "egen-reconcile-worker-" + i);
+            worker.setDaemon(true);
+            threads.add(worker);
+        }
+        this.workers = List.copyOf(threads);
     }
 
     public void start() {
@@ -136,10 +161,11 @@ public final class ReconciliationEngine implements AutoCloseable {
             return;
         }
         running = true;
-        worker.start();
+        workers.forEach(Thread::start);
         resyncScheduler.scheduleAtFixedRate(this::triggerResyncOfAllKnownServices,
                 RESYNC_INTERVAL.toSeconds(), RESYNC_INTERVAL.toSeconds(), TimeUnit.SECONDS);
-        LOG.log(Level.INFO, "ReconciliationEngine demarre (resync toutes les {0})", RESYNC_INTERVAL);
+        LOG.log(Level.INFO, "ReconciliationEngine demarre ({0} worker(s), resync toutes les {1})",
+                workers.size(), RESYNC_INTERVAL);
     }
 
     @Override
@@ -147,7 +173,7 @@ public final class ReconciliationEngine implements AutoCloseable {
         running = false;
         workQueue.shutdown();
         resyncScheduler.shutdownNow();
-        worker.interrupt();
+        workers.forEach(Thread::interrupt);
     }
 
     private void triggerResyncOfAllKnownServices() {
@@ -158,14 +184,19 @@ public final class ReconciliationEngine implements AutoCloseable {
 
     private void runLoop() {
         while (running) {
+            ServiceId id;
             try {
-                ServiceId id = workQueue.take();
-                reconcile(id);
+                id = workQueue.take();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
+            }
+            try {
+                reconcile(id);
             } catch (RuntimeException unexpected) {
                 LOG.log(Level.ERROR, "Reconciliation inattendue en echec", unexpected);
+            } finally {
+                workQueue.done(id); // libere la cle : un changement arrive entre-temps est rejoue
             }
         }
     }

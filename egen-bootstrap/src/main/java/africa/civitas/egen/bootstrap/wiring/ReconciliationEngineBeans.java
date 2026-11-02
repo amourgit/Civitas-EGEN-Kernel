@@ -17,6 +17,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Cablage et cycle de vie du moteur de reconciliation (voir
@@ -54,6 +55,9 @@ public class ReconciliationEngineBeans {
     @Inject
     MessagingPort messagingPort;
 
+    @ConfigProperty(name = "egen.reconciliation.max-concurrent-reconciles", defaultValue = "4")
+    int maxConcurrentReconciles;
+
     private ReconciliationEngine engine;
 
     @Produces
@@ -62,7 +66,8 @@ public class ReconciliationEngineBeans {
         if (engine == null) {
             engine = new ReconciliationEngine(workQueue, registryStorePort, deploymentPort, discoveryPort,
                     observabilityPort, pendingDeclareTraces,
-                    ServiceBindings.of(secretsPort, configurationPort, messagingPort));
+                    ServiceBindings.of(secretsPort, configurationPort, messagingPort),
+                    maxConcurrentReconciles);
         }
         return engine;
     }
