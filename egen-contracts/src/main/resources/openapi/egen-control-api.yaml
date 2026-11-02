@@ -1,0 +1,568 @@
+openapi: 3.1.0
+info:
+  title: EGEN Kernel — API de controle
+  version: 1.0.0
+  description: |
+    Contrat de l'API de controle publique du Kernel EGEN, surface REST
+    (docs/architecture/13-api-et-contrats.md). Ce fichier decrit ce qui est LIVRE ; un test de niveau 1
+    (`OpenApiContractTest`, egen-api) echoue si une route REST et ce fichier divergent.
+
+    Regles communes :
+    * toute mutation retourne `202 Accepted` — la reconciliation est asynchrone (04.5) — et exige l'en-tete
+      `Idempotency-Key` ; sa repetition (fenetre de 10 minutes) rejoue la premiere reponse ;
+    * authentification obligatoire (jeton OIDC/JWT) sauf `/api/v1/health` ; les droits sont verifies par equipe
+      proprietaire ou role administrateur (14) ;
+    * les erreurs portent le statut HTTP et un message ; jamais une valeur secrete.
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+
+tags:
+  - name: services
+  - name: workflows
+  - name: discovery
+  - name: events
+  - name: kernel
+
+paths:
+  /api/v1/services:
+    post:
+      tags: [services]
+      operationId: declareService
+      summary: Declare (ou redeclare) un ServiceManifest
+      description: "Valide le manifeste, le persiste (nouvelle generation) et enfile le service. Un manifeste invalide est refuse (400) avant toute persistance."
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+        - name: environment
+          in: query
+          required: false
+          description: "Environnement cible ; absent = environnement par defaut du Kernel (`egen.environment`)."
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/yaml:
+            schema:
+              $ref: '../schema/service-manifest.schema.json'
+      responses:
+        '202':
+          description: "Manifeste accepte ; la reconciliation commence."
+          headers:
+            Location:
+              description: "Ressource de statut du service."
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeclareResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    get:
+      tags: [services]
+      operationId: listServices
+      summary: Liste les manifestes declares que l'appelant a le droit de lire
+      description: "Par identifiant croissant."
+      parameters:
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '200':
+          description: "Les manifestes lisibles."
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ServiceManifestResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/services/{id}:
+    get:
+      tags: [services]
+      operationId: readService
+      summary: Relit le manifeste declare
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '200':
+          description: "Le manifeste, valeurs effectives incluses ; relisible par Declare."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceManifestResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/services/{id}/status:
+    get:
+      tags: [services]
+      operationId: readServiceStatus
+      summary: Phase, Conditions et observedGeneration d'un service
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '200':
+          description: "Le statut observe (09)."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/services/{id}/actions/stop:
+    post:
+      tags: [services]
+      operationId: stopService
+      summary: Demande l'arret gracieux d'un service
+      description: "Passe le service en STOPPING ; la reconciliation deregistre, attend la fenetre de grace puis arrete le deploiement (09.3)."
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '202': { description: "Arret demande." }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/dependencies/graph:
+    get:
+      tags: [services]
+      operationId: readDependencyGraph
+      summary: Graphe global des dependances declarees
+      responses:
+        '200':
+          description: "Les services, leurs dependances et un ordre topologique."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DependencyGraph' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/discover/{serviceName}:
+    get:
+      tags: [discovery]
+      operationId: discoverService
+      summary: Instances saines d'un service et politique de resilience de sa cible
+      parameters:
+        - name: serviceName
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: "Les instances saines (peut etre vide) ; politique par defaut pour un service inconnu du Registry."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiscoverResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/events/publish:
+    post:
+      tags: [events]
+      operationId: publishEvent
+      summary: Publie un evenement technique (CloudEvents) via le Messaging Port
+      description: |
+        Le `type` doit figurer dans `events.publishes` d'au moins un service declare, et l'appelant doit etre
+        administrateur ou porter l'equipe proprietaire de l'un d'eux (14). `data` est opaque : relaye sans etre lu.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishEventRequest' }
+      responses:
+        '202':
+          description: "Evenement relaye au broker. Pas de `Location` : un evenement n'a pas de ressource de suivi."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishEventResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { description: "Messagerie indisponible ; rien n'a ete publie." }
+
+  /api/v1/health:
+    get:
+      tags: [kernel]
+      operationId: kernelHealth
+      summary: Sante du Kernel lui-meme
+      description: "Seule route accessible sans authentification (un Kernel vide demarre et repond, garde-fou n4)."
+      security: []
+      responses:
+        '200':
+          description: "Le Kernel repond."
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: string }
+
+  /api/v1/workflows:
+    post:
+      tags: [workflows]
+      operationId: defineWorkflow
+      summary: Declare ou remplace une WorkflowDefinition
+      description: "Reserve au role administrateur (14)."
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: true
+        content:
+          application/yaml:
+            schema: { $ref: '#/components/schemas/WorkflowDefinition' }
+      responses:
+        '202':
+          description: "Definition acceptee."
+          headers:
+            Location: { description: "La definition., schema: { type: string }" }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/workflows/{id}:
+    get:
+      tags: [workflows]
+      operationId: readWorkflow
+      summary: Relit une definition (etapes en ordre topologique)
+      parameters:
+        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '200':
+          description: "La definition."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowDefinition' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/workflows/{id}/executions:
+    post:
+      tags: [workflows]
+      operationId: runWorkflow
+      summary: Demarre une execution
+      description: "Reserve au role administrateur (14)."
+      parameters:
+        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunWorkflowRequest' }
+      responses:
+        '202':
+          description: "Execution demarree."
+          headers:
+            Location: { description: "L'execution., schema: { type: string }" }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExecutionAccepted' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/workflows/{id}/executions/{executionId}:
+    get:
+      tags: [workflows]
+      operationId: readWorkflowExecution
+      summary: Statut, entree et StepResult journalises d'une execution
+      parameters:
+        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/parameters/ExecutionId'
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '200':
+          description: "L'execution."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowExecution' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/workflows/{id}/executions/{executionId}/actions/pause:
+    post:
+      tags: [workflows]
+      operationId: pauseWorkflowExecution
+      summary: Met une execution en pause (effet entre deux etapes)
+      parameters:
+        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/parameters/ExecutionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '202': { description: "Pause demandee." }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/workflows/{id}/executions/{executionId}/actions/resume:
+    post:
+      tags: [workflows]
+      operationId: resumeWorkflowExecution
+      summary: Reprend une execution en pause (vaut approbation d'une etape manuelle)
+      parameters:
+        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/parameters/ExecutionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+      responses:
+        '202': { description: "Reprise demandee." }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/workflows/{id}/executions/{executionId}/actions/terminate:
+    post:
+      tags: [workflows]
+      operationId: terminateWorkflowExecution
+      summary: Arrete une execution (compense les etapes reussies, ou FAILED si rien a annuler)
+      parameters:
+        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/parameters/ExecutionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TerminateRequest' }
+      responses:
+        '202': { description: "Arret demande." }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Jeton OIDC ; le claim d'equipe (`egen.security.team-claim`) et le role administrateur fondent l'autorisation (14)."
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: "Obligatoire sur toute mutation ; sa repetition rejoue la premiere reponse."
+      schema: { type: string, minLength: 1 }
+    Traceparent:
+      name: traceparent
+      in: header
+      required: false
+      description: "Contexte de trace W3C, propage jusqu'au premier appel reseau vers un moteur (15)."
+      schema: { type: string }
+    ServiceId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    WorkflowId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    ExecutionId:
+      name: executionId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    BadRequest: { description: "Corps illisible, contenu invalide ou identifiant mal forme." }
+    Unauthorized: { description: "Authentification absente ou invalide." }
+    Forbidden: { description: "Appelant non autorise (ni equipe proprietaire, ni administrateur)." }
+    NotFound: { description: "Ressource inconnue." }
+    Conflict: { description: "Transition d'etat impossible." }
+
+  schemas:
+    DeclareResponse:
+      type: object
+      required: [serviceId, generation, statusUrl]
+      properties:
+        serviceId: { type: string }
+        generation: { type: integer, format: int64 }
+        statusUrl: { type: string }
+
+    ServiceManifestResponse:
+      type: object
+      required: [serviceId, generation, manifest]
+      properties:
+        serviceId: { type: string }
+        generation: { type: integer, format: int64 }
+        manifest:
+          $ref: '../schema/service-manifest.schema.json'
+
+    ServiceStatus:
+      type: object
+      required: [phase, conditions, observedGeneration]
+      properties:
+        phase:
+          type: string
+          enum: [DECLARED, REGISTERED, CONFIGURED, DEPLOYING, RUNNING, DEGRADED, UPDATING, ROLLED_BACK, STOPPING, STOPPED, REMOVING, REMOVED, FAILED]
+        observedGeneration: { type: integer, format: int64 }
+        conditions:
+          type: array
+          items: { $ref: '#/components/schemas/Condition' }
+
+    Condition:
+      type: object
+      required: [type, status, reason]
+      properties:
+        type:
+          type: string
+          description: "ManifestValid, ConfigResolved, DependenciesSatisfied, MessagingBindingsReady, DeploymentReady ou DiscoveryReady (09)."
+        status: { type: string, enum: [TRUE, FALSE, UNKNOWN] }
+        reason: { type: string }
+        message: { type: string }
+        lastTransitionTime: { type: string, format: date-time }
+
+    DependencyGraph:
+      type: object
+      required: [services, dependsOn, topologicalOrder]
+      properties:
+        services: { type: array, items: { type: string } }
+        dependsOn:
+          type: object
+          additionalProperties: { type: array, items: { type: string } }
+        topologicalOrder: { type: array, items: { type: string } }
+
+    DiscoverResponse:
+      type: object
+      required: [serviceId, instances]
+      properties:
+        serviceId: { type: string }
+        instances:
+          type: array
+          items:
+            type: object
+            required: [instanceId, address, port]
+            properties:
+              instanceId: { type: string }
+              address: { type: string }
+              port: { type: integer }
+        resiliency:
+          type: object
+          properties:
+            timeoutMillis: { type: integer, format: int64 }
+            retry:
+              type: object
+              properties:
+                maxAttempts: { type: integer }
+                backoff: { type: string, enum: [fixed, exponential] }
+                baseDelayMillis: { type: integer, format: int64 }
+            circuitBreaker:
+              type: object
+              properties:
+                failureThreshold: { type: integer }
+                openDurationMillis: { type: integer, format: int64 }
+
+    PublishEventRequest:
+      type: object
+      additionalProperties: false
+      required: [type, source, data]
+      properties:
+        specversion: { type: string, const: '1.0' }
+        type: { type: string }
+        source: { type: string }
+        egen_correlation_id: { type: string }
+        egen_causation_id: { type: string }
+        data:
+          description: "N'importe quelle valeur JSON ; opaque pour le Kernel."
+
+    PublishEventResponse:
+      type: object
+      required: [id, type, egen_correlation_id]
+      properties:
+        id: { type: string }
+        type: { type: string }
+        egen_correlation_id: { type: string }
+
+    WorkflowDefinition:
+      type: object
+      description: "Voir 11, « Definition declarative d'un workflow » (apiVersion, kind, metadata, spec)."
+      required: [metadata, spec]
+      properties:
+        apiVersion: { type: string }
+        kind: { type: string, const: WorkflowDefinition }
+        metadata:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string }
+        spec:
+          type: object
+          required: [steps, executionPolicy]
+          properties:
+            steps: { type: array, items: { type: object } }
+            compensationStrategy: { type: string, enum: [backward] }
+            executionPolicy: { type: object }
+
+    RunWorkflowRequest:
+      type: object
+      properties:
+        input:
+          type: object
+          additionalProperties: { type: string }
+
+    ExecutionAccepted:
+      type: object
+      required: [executionId, statusUrl]
+      properties:
+        executionId: { type: string }
+        statusUrl: { type: string }
+
+    WorkflowExecution:
+      type: object
+      required: [executionId, workflowId, status]
+      properties:
+        executionId: { type: string }
+        workflowId: { type: string }
+        status:
+          type: string
+          enum: [RUNNING, PAUSED, COMPLETED, COMPENSATING, FAILED, COMPENSATED, COMPENSATION_FAILED]
+        startedAt: { type: string, format: date-time }
+        input:
+          type: object
+          additionalProperties: { type: string }
+        stepResults:
+          type: array
+          items: { $ref: '#/components/schemas/StepResult' }
+
+    StepResult:
+      type: object
+      required: [stepId, status, attempt]
+      properties:
+        stepId: { type: string }
+        status: { type: string }
+        attempt: { type: integer }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        output:
+          type: object
+          additionalProperties: { type: string }
+        error: { type: string }
+
+    TerminateRequest:
+      type: object
+      properties:
+        reason: { type: string }
