@@ -1,7 +1,10 @@
 package africa.civitas.egen.domain.model;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -72,6 +75,65 @@ public record ConfigurationSpec(List<Key> required, List<SecretReferenceSpec> se
                         "configuration : cle declaree deux fois (configuration et secret) : \"" + ref.key() + "\"");
             }
         }
+    }
+
+    /** Regles de refus d'une publication de configuration (docs 13, « Publication de configuration »). */
+    public enum Rule {
+        /** La cle n'est pas dans {@code configuration.required} : le service ne l'attend pas. */
+        UNKNOWN_KEY,
+        /** La cle est une reference de secret : un secret n'est jamais publie en valeur. */
+        SECRET_NOT_PUBLISHABLE,
+        /** La valeur n'a pas le type declare par le manifeste. */
+        TYPE_MISMATCH,
+        /** La cle n'a pas de valeur par defaut et n'est pas fournie. */
+        MISSING_REQUIRED_KEY
+    }
+
+    /**
+     * Une violation : la cle fautive et la regle enfreinte. Ne porte jamais la valeur refusee — une
+     * erreur d'API ou un journal ne doivent pas pouvoir divulguer une valeur de configuration (14).
+     */
+    public record Violation(String key, Rule rule, String message) {
+    }
+
+    /**
+     * Valide un jeu complet de valeurs publie pour ce service. Remplacement complet : les valeurs par
+     * defaut declarees restent applicables aux cles absentes, toute cle SANS defaut doit donc etre
+     * fournie. Retourne TOUTES les violations (jamais la premiere seule), triees par cle puis par regle ;
+     * liste vide si la publication est acceptable.
+     */
+    public List<Violation> validatePublication(Map<String, String> published) {
+        List<Violation> violations = new ArrayList<>();
+        Set<String> secretKeys = new HashSet<>();
+        for (SecretReferenceSpec ref : secretsRefs) {
+            secretKeys.add(ref.key());
+        }
+        Map<String, Key> declared = new java.util.HashMap<>();
+        for (Key key : required) {
+            declared.put(key.key(), key);
+        }
+
+        for (Map.Entry<String, String> entry : published.entrySet()) {
+            String name = entry.getKey();
+            Key key = declared.get(name);
+            if (secretKeys.contains(name)) {
+                violations.add(new Violation(name, Rule.SECRET_NOT_PUBLISHABLE,
+                        "est une reference de secret : un secret n'est jamais publie en valeur"));
+            } else if (key == null) {
+                violations.add(new Violation(name, Rule.UNKNOWN_KEY,
+                        "n'est pas declaree dans configuration.required du manifeste"));
+            } else if (!key.accepts(entry.getValue())) {
+                violations.add(new Violation(name, Rule.TYPE_MISMATCH, "doit etre de type " + key.type()));
+            }
+        }
+        for (Key key : required) {
+            if (key.defaultValue() == null && !published.containsKey(key.key())) {
+                violations.add(new Violation(key.key(), Rule.MISSING_REQUIRED_KEY,
+                        "n'a pas de valeur par defaut et doit etre fournie"));
+            }
+        }
+        violations.sort(Comparator.comparing(Violation::key).thenComparing(Violation::rule));
+        return List.copyOf(violations);
     }
 
     public static ConfigurationSpec none() {
