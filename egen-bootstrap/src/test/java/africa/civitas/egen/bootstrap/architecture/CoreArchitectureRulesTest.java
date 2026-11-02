@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 /**
  * Transforme les garde-fous de dependance de
@@ -107,34 +108,11 @@ class CoreArchitectureRulesTest {
 
     @Test
     void noAdapterModuleDependsOnAnotherAdapterModule() {
-        // Verifie chaque paire d'adapters presents sur le classpath (nomad,
-        // consul, postgres-registry) — vraie par construction pour les
-        // technologies pas encore ajoutees au reacteur (nats, kafka, vault,
-        // otel) ; ce test devient actif pour elles des qu'elles rejoignent
-        // egen-adapters/* (voir docs/architecture/19-feuille-de-route.md).
-        String[] existingAdapterPackages = {
-                "africa.civitas.egen.adapter.nomad..",
-                "africa.civitas.egen.adapter.consul..",
-                "africa.civitas.egen.adapter.postgresregistry..",
-                "africa.civitas.egen.adapter.nats..",
-                "africa.civitas.egen.adapter.vault..",
-                "africa.civitas.egen.adapter.otel..",
-        };
-        String[] futureAdapterPackages = {
-                "africa.civitas.egen.adapter.kafka..",
-        };
-        for (String ownPackage : existingAdapterPackages) {
-            for (String otherPackage : existingAdapterPackages) {
-                if (ownPackage.equals(otherPackage)) {
-                    continue;
-                }
-                noClasses().that().resideInAPackage(ownPackage)
-                        .should().dependOnClassesThat().resideInAPackage(otherPackage)
-                        .check(classes);
-            }
-            noClasses().that().resideInAPackage(ownPackage)
-                    .should().dependOnClassesThat().resideInAnyPackage(futureAdapterPackages)
-                    .check(classes);
-        }
+        // Une tranche par module egen-adapters/* (le segment qui suit « adapter. ») : la regle couvre donc
+        // d'office chaque adapter present sur le classpath — consul, http-invocation, nats, nomad, otel,
+        // postgres-registry, vault — et ceux qui s'y ajouteront, sans liste a maintenir.
+        slices().matching("africa.civitas.egen.adapter.(*)..")
+                .should().notDependOnEachOther()
+                .check(classes);
     }
 }
