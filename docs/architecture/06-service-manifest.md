@@ -272,9 +272,21 @@ normative dans [12](12-communication-fabric.md#sémantique-normative-de-la-rési
    enregistré dans le Kernel (voir [07.1](07-ports-et-adapters.md#deployment-port)).
 4. Compatibilité de version : si `notification-service` existe déjà en
    version `1.1.0` et que ce manifeste exige `>=1.2.0`, le manifeste est
-   accepté (déclaré) mais la réconciliation place le service en phase
-   `DEGRADED`/`BLOCKED` avec une `Condition` explicite (voir
-   [09](09-cycle-de-vie.md#conditions)) — jamais un rejet silencieux ni un
-   crash.
+   accepté (déclaré) mais la réconciliation retient le service en phase
+   `CONFIGURED` avec la `Condition` `DependenciesSatisfied=False`, raison
+   `VersionConstraintUnmet` (voir [09](09-cycle-de-vie.md#conditions)) — jamais
+   un rejet silencieux ni un crash. Pour une dépendance facultative, la
+   Condition le signale (`OptionalDependencyUnavailable`) sans rien retenir.
+   La version comparée est celle que la dépendance **déclare** dans le
+   Registry ; redéclarer l'un des deux manifestes suffit, le cycle suivant
+   relit tout.
+   Grammaire de `versionConstraint` : une ou plusieurs clauses séparées par
+   une virgule, toutes requises — `>=`, `>`, `<=`, `<`, `=` (ou une version
+   seule) suivis d'une version SemVer complète, ou `^X.Y.Z` (compatible :
+   `^1.2.3` = `>=1.2.3,<2.0.0`, et en `0.x` la mineure est la frontière) et
+   `~X.Y.Z` (même mineure : `~1.2.3` = `>=1.2.3,<1.3.0`). Avec `>=`, `^` et
+   `~`, les composantes manquantes valent 0 (`^2.0`, `>=1.2`). Une contrainte
+   illisible rend le manifeste invalide : refusé à `Declare` avec un message
+   qui nomme la contrainte, jamais accepté puis ignoré.
 5. Bornes du bloc `resiliency` (voir ci-dessus), refusées avec un message
    nommant le champ fautif.
