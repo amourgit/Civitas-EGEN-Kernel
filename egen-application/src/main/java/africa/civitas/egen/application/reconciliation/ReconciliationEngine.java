@@ -602,6 +602,11 @@ public final class ReconciliationEngine implements AutoCloseable {
 
     private void handleAdapterFailure(ServiceId id, ServiceStatus current, DesiredState desired,
                                        RuntimeException failure) {
+        if (Thread.currentThread().isInterrupted()) {
+            // Arret du Kernel : l'appel a ete interrompu, ce n'est pas un echec de l'adapter. Ni compteur, ni
+            // log d'erreur, ni re-planification ; le resync du prochain demarrage reprendra ce service.
+            return;
+        }
         int failures = consecutiveFailures
                 .computeIfAbsent(id, ignored -> new AtomicInteger(0))
                 .incrementAndGet();
