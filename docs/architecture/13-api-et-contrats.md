@@ -19,7 +19,8 @@
 /api/v1/services/{id}/status              # lecture du ServiceStatus (Observe)
 /api/v1/services/{id}/history             # historique des générations
 /api/v1/services/{id}/configuration      # publication/lecture de la configuration technique d'un service (évolution A3)
-/api/v1/services/{id}/actions/restart     # actions impératives explicites (rares — la norme reste déclarative)
+/api/v1/services/{id}/actions/stop        # actions impératives explicites (rares — la norme reste déclarative) : arrêt gracieux (09.3), livré
+/api/v1/services/{id}/actions/restart
 /api/v1/services/{id}/actions/rollback
 /api/v1/dependencies/graph                # lecture du DependencyGraph global
 /api/v1/workflows                         # CRUD sur WorkflowDefinition
