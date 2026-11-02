@@ -64,6 +64,14 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <!-- Le schema du manifeste et le contrat OpenAPI sont rapproches du code par des tests de niveau 1
+           (ManifestSchemaConsistencyTest, OpenApiContractTest) : aucune dependance de production. -->
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-contracts</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
       <scope>test</scope>

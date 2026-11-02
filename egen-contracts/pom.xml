@@ -15,14 +15,14 @@
 
   <name>EGEN :: Contracts</name>
   <description>
-    Schemas partages entre EGEN et les services de l'ecosysteme (voir
+    Contrats partages entre EGEN et les services de l'ecosysteme (voir
     docs/architecture/06-service-manifest.md et
-    docs/architecture/16-packages-et-stack-technique.md). Contient
-    actuellement le JSON Schema du ServiceManifest ; rejoint par les .proto
-    (communication machine-a-machine) et la description OpenAPI de l'API de
-    controle quand ces surfaces sont construites (voir
-    docs/architecture/19-feuille-de-route.md, Phase 4-5) — jamais par
-    anticipation. Aucune dependance : ce module ne porte que des ressources.
+    docs/architecture/16-packages-et-stack-technique.md) : le JSON Schema du
+    ServiceManifest et le contrat OpenAPI 3.1 de la surface REST de l'API de
+    controle (openapi/egen-control-api.yaml), tous deux rapproches du code par
+    des tests de niveau 1 dans egen-api. Les .proto (gRPC) les rejoindront
+    quand cette surface sera construite — jamais par anticipation. Aucune
+    dependance : ce module ne porte que des ressources.
   </description>
 
 </project>
