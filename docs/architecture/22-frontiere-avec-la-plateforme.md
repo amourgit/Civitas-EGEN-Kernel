@@ -69,7 +69,7 @@ Un **label** est une paire clé/valeur de texte attachée à un service dans son
 
 ## 22.5 — L'API de publication de configuration (A3)
 
-Le Kernel dispose d'un port de configuration (`ConfigurationPort`) mais d'aucune API qui le rende utilisable par ses clients. L'évolution **A3** ajoute `PUT /api/v1/services/{id}/configuration`. Le contrat complet (requête, validation, réponse, sécurité) est la **source unique** de [13](13-api-et-contrats.md#publication-de-configuration--put-apiv1servicesidconfiguration). Son état d'avancement est suivi dans [19](19-feuille-de-route.md).
+Le port de configuration (`ConfigurationPort`) est exposé à ses clients par `PUT` et `GET /api/v1/services/{id}/configuration` (évolution **A3**, livrée). Le contrat complet (requête, validation, réponse, sécurité) est la **source unique** de [13](13-api-et-contrats.md#publication-de-configuration--put-apiv1servicesidconfiguration). Son état d'avancement est suivi dans [19](19-feuille-de-route.md).
 
 Le Kernel transporte des paires clé/valeur typées par le manifeste ; il ne fusionne **aucune** configuration par organisation, cellule ou utilisateur : cette fusion appartient à `config-service` (Plateforme).
 
@@ -108,7 +108,6 @@ Chaque constat a été vérifié dans le code du dépôt (branche `main`, 29 oct
 | Constat | Conséquence pour la Plateforme | Traitement |
 |---|---|---|
 | Les `labels` et `annotations` sont stockés et restitués, sans filtre de liste | Aucune : l'opérateur connaît ses `ServiceId` et filtre côté client la liste déjà restreinte à son équipe | Aucune évolution (D20) |
-| Le port `ConfigurationPort` n'est exposé par **aucune** API | La configuration d'une instance ne peut pas être publiée | Évolution **A3** (22.5) |
 | `runtime.type` (`container`, `binary`, `external`, `vm`) est conservé mais **non différencié** : tout déploiement passe par le Deployment Adapter | Une application déjà exploitée hors du Kernel n'est pas gérée par lui | D15 ; déclencheur **A-X1** ([19](19-feuille-de-route.md)) |
 | L'adapter Nomad **ne gère pas** les namespaces Nomad ; `TargetEnvironment` est un nom d'environnement, pas une frontière de tenant | Aucune isolation d'infrastructure par tenant via le Kernel | Isolation par les données ou par instance dédiée ; déclencheur **A-X2** |
 | Le RBAC de l'API est `metadata.team` (une chaîne) plus le rôle administrateur | Il ne peut pas représenter une hiérarchie de cellules | Volontaire : l'autorisation métier n'est pas dans le Kernel |
