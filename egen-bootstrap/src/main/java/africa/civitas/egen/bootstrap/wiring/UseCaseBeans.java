@@ -1,5 +1,6 @@
 package africa.civitas.egen.bootstrap.wiring;
 
+import africa.civitas.egen.application.port.ConfigurationPort;
 import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.MessagingPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
@@ -13,8 +14,12 @@ import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.PublishConfigurationUseCase;
+import africa.civitas.egen.application.usecase.PublishConfigurationUseCaseImpl;
 import africa.civitas.egen.application.usecase.PublishEventUseCase;
 import africa.civitas.egen.application.usecase.PublishEventUseCaseImpl;
+import africa.civitas.egen.application.usecase.ReadConfigurationUseCase;
+import africa.civitas.egen.application.usecase.ReadConfigurationUseCaseImpl;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCaseImpl;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
@@ -60,6 +65,9 @@ public class UseCaseBeans {
 
     @Inject
     MessagingPort messagingPort;
+
+    @Inject
+    ConfigurationPort configurationPort;
 
     @Produces
     @ApplicationScoped
@@ -107,5 +115,17 @@ public class UseCaseBeans {
     @ApplicationScoped
     public PublishEventUseCase publishEventUseCase() {
         return new PublishEventUseCaseImpl(registryStorePort, messagingPort);
+    }
+
+    @Produces
+    @ApplicationScoped
+    public PublishConfigurationUseCase publishConfigurationUseCase() {
+        return new PublishConfigurationUseCaseImpl(registryStorePort, configurationPort, workQueue);
+    }
+
+    @Produces
+    @ApplicationScoped
+    public ReadConfigurationUseCase readConfigurationUseCase() {
+        return new ReadConfigurationUseCaseImpl(registryStorePort, configurationPort);
     }
 }

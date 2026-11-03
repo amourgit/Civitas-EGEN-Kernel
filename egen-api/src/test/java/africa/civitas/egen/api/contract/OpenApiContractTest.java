@@ -161,10 +161,10 @@ class OpenApiContractTest {
     }
 
     @Test
-    void everyPostAnswersWith202BecauseReconciliationIsAsynchronous() {
+    void everyMutationAnswersWith202BecauseReconciliationIsAsynchronous() {
         List<String> violations = new ArrayList<>();
         for (Map.Entry<String, JsonNode> operation : operationsOfTheContract().entrySet()) {
-            if (operation.getKey().startsWith("POST ") && !operation.getValue().path("responses").has("202")) {
+            if (!operation.getKey().startsWith("GET ") && !operation.getValue().path("responses").has("202")) {
                 violations.add(operation.getKey());
             }
         }

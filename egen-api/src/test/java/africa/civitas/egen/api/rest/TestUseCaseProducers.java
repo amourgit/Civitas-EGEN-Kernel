@@ -13,8 +13,12 @@ import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.DeployServiceUseCaseImpl;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCaseImpl;
+import africa.civitas.egen.application.usecase.PublishConfigurationUseCase;
+import africa.civitas.egen.application.usecase.PublishConfigurationUseCaseImpl;
 import africa.civitas.egen.application.usecase.PublishEventUseCase;
 import africa.civitas.egen.application.usecase.PublishEventUseCaseImpl;
+import africa.civitas.egen.application.usecase.ReadConfigurationUseCase;
+import africa.civitas.egen.application.usecase.ReadConfigurationUseCaseImpl;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCaseImpl;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
@@ -27,6 +31,7 @@ import africa.civitas.egen.application.workflow.Sleeper;
 import africa.civitas.egen.application.workflow.WorkflowEngine;
 import africa.civitas.egen.application.workflow.WorkflowEnginePort;
 import africa.civitas.egen.application.workflow.WorkflowEngineSettings;
+import africa.civitas.egen.testkit.InMemoryConfigurationPort;
 import africa.civitas.egen.testkit.InMemoryDiscoveryPort;
 import africa.civitas.egen.testkit.InMemoryWorkflowStore;
 import africa.civitas.egen.testkit.NoOpMessagingPort;
@@ -53,6 +58,7 @@ public class TestUseCaseProducers {
     private final ObservabilityPort observabilityPort = new NoOpObservabilityPort();
     private final WorkflowStorePort workflowStorePort = new InMemoryWorkflowStore();
     private final RecordingMessagingPort messagingPort = new RecordingMessagingPort();
+    private final InMemoryConfigurationPort configurationPort = new InMemoryConfigurationPort();
 
     /**
      * Executor qui ne pilote jamais : {@code start()} persiste l'execution
@@ -140,5 +146,24 @@ public class TestUseCaseProducers {
     @ApplicationScoped
     RecordingMessagingPort recordingMessagingPort() {
         return messagingPort;
+    }
+
+    @Produces
+    @ApplicationScoped
+    PublishConfigurationUseCase publishConfigurationUseCase() {
+        return new PublishConfigurationUseCaseImpl(registryStorePort, configurationPort, workQueue);
+    }
+
+    @Produces
+    @ApplicationScoped
+    ReadConfigurationUseCase readConfigurationUseCase() {
+        return new ReadConfigurationUseCaseImpl(registryStorePort, configurationPort);
+    }
+
+    /** Expose le double aux tests REST (simuler un store injoignable, relire ce qui a ete ecrit). */
+    @Produces
+    @ApplicationScoped
+    InMemoryConfigurationPort inMemoryConfigurationPort() {
+        return configurationPort;
     }
 }
