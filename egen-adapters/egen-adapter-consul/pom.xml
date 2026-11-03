@@ -69,6 +69,7 @@
                 <bannedDependencies>
                   <excludes>
                     <exclude>africa.civitas.egen:egen-adapter-nomad</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-kubernetes</exclude>
                     <exclude>africa.civitas.egen:egen-adapter-postgres-registry</exclude>
                     <exclude>africa.civitas.egen:egen-adapter-nats</exclude>
                     <exclude>africa.civitas.egen:egen-adapter-vault</exclude>

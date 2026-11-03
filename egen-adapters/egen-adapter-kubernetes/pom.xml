@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>africa.civitas.egen</groupId>
+    <artifactId>egen-adapters</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>egen-adapter-kubernetes</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EGEN :: Adapters :: Kubernetes</name>
+  <description>
+    Second adapter de deploiement : implementation du DeploymentPort (egen-application) contre
+    l'API HTTP Kubernetes (voir docs/architecture/07-ports-et-adapters.md, "Kubernetes Adapter").
+    Seul module de ce reacteur a dependre de l'API Kubernetes ; il ne depend d'aucun autre adapter
+    (regle imposee ci-dessous par maven-enforcer-plugin). Phase 6 de
+    docs/architecture/19-feuille-de-route.md.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>africa.civitas.egen</groupId>
+      <artifactId>egen-application</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!--
+        Garde-fou n6 (docs/architecture/02-principes-fondamentaux.md) rendu mecanique : un adapter
+        ne depend jamais d'un autre adapter, ni des couches primaires (egen-api, egen-bootstrap).
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>ban-cross-adapter-and-upward-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>africa.civitas.egen:egen-adapter-nomad</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-consul</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-postgres-registry</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-nats</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-vault</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-otel</exclude>
+                    <exclude>africa.civitas.egen:egen-adapter-http-invocation</exclude>
+                    <exclude>africa.civitas.egen:egen-api</exclude>
+                    <exclude>africa.civitas.egen:egen-bootstrap</exclude>
+                  </excludes>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

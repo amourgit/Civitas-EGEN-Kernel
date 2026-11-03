@@ -17,17 +17,18 @@
   <description>
     Agregateur des adapters secondaires — un module par integration technique
     concrete (voir docs/architecture/07-ports-et-adapters.md et
-    docs/architecture/16-packages-et-stack-technique.md). Quatre modules a ce
-    stade (nomad, consul, postgres-registry, nats) ; egen-adapter-vault et
-    egen-adapter-kafka/egen-adapter-otel rejoindront ce reacteur aux phases
-    qui les introduisent (docs/architecture/19-feuille-de-route.md), jamais
-    par anticipation. Regle stricte : aucun module ci-dessous ne depend d'un
+    docs/architecture/16-packages-et-stack-technique.md). Deux adapters de
+    deploiement (nomad, kubernetes) et les adapters consul, postgres-registry,
+    nats, vault, otel et http-invocation ; egen-adapter-kafka rejoindra ce
+    reacteur a la phase qui l'introduit (docs/architecture/19-feuille-de-route.md),
+    jamais par anticipation. Regle stricte : aucun module ci-dessous ne depend d'un
     autre module egen-adapters/* (verifie par maven-enforcer-plugin dans
     chaque module).
   </description>
 
   <modules>
     <module>egen-adapter-nomad</module>
+    <module>egen-adapter-kubernetes</module>
     <module>egen-adapter-consul</module>
     <module>egen-adapter-postgres-registry</module>
     <module>egen-adapter-nats</module>
