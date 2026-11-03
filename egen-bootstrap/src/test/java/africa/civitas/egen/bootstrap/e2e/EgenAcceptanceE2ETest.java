@@ -373,6 +373,112 @@ class EgenAcceptanceE2ETest {
                 "stepResults.findAll { it.stepId == 'reserve-notification-slot' }.status.last()"));
     }
 
+    // ------------------------------------------------------------------ A5 : service fixture de plateforme
+
+    /**
+     * Un service de la Plateforme tel que son operateur le declarerait : equipe {@code platform-operator}, labels
+     * reserves (docs 06, 22.4) et un bloc {@code configuration} dont deux cles n'ont pas de defaut.
+     */
+    private static String platformFixtureManifest(String name) {
+        return """
+                apiVersion: egen.civitas.africa/v1
+                kind: ServiceManifest
+                metadata:
+                  name: %s
+                  version: 1.0.0
+                  team: platform-operator
+                  labels:
+                    "platform.civitas.africa/instance-id": "inst-e2e-1"
+                    "platform.civitas.africa/domain": "calendar"
+                    "platform.civitas.africa/implementation": "radicale"
+                    "platform.civitas.africa/implementation-version": "3.2.1"
+                    "platform.civitas.africa/owner-cell": "cellule-opaque-e2e"
+                  annotations:
+                    "platform.civitas.africa/config-version": "1"
+                runtime:
+                  type: container
+                  language: python
+                deployment:
+                  adapter: nomad
+                  image: %s
+                  resources: { cpu: 100m, memory: 64Mi }
+                  replicas: { min: 1, max: 1 }
+                health:
+                  http: { endpoint: /health, interval: 5s, timeout: 2s, failuresBeforeUnhealthy: 3 }
+                lifecycle:
+                  shutdown: { gracePeriod: 5s }
+                configuration:
+                  required:
+                    - { key: BASE_URL, type: string }
+                    - { key: MAX_USERS, type: integer }
+                    - { key: DEBUG, type: boolean, default: "false" }
+                """.formatted(name, EgenEnvironment.FIXTURE_IMAGE);
+    }
+
+    /**
+     * Scenario A5 (docs 22, 22.7 ; 19) : un service « fixture de plateforme » est declare UNIQUEMENT par l'API
+     * publique ; sa configuration est publiee par A3 puis relue ; il converge vers RUNNING ; ses labels sont
+     * restitues intacts. Le Kernel ne connait rien de la Plateforme : il a fait son travail de Kernel (garde-fou n°5).
+     */
+    @Test
+    @Order(8)
+    void aPlatformFixtureServiceIsDeclaredThroughThePublicApiConfiguredByA3AndKeepsItsLabels() throws Exception {
+        String name = "platform-fixture-service";
+        String configuration = "/api/v1/services/" + name + "/configuration";
+
+        declare(platformFixtureManifest(name));
+
+        // Sans configuration publiee, les cles sans defaut retiennent le service avant tout deploiement.
+        await("ConfigResolved devrait etre FALSE/RequiredKeyMissing", Duration.ofSeconds(60),
+                () -> "RequiredKeyMissing".equals(condition(name, "ConfigResolved", "reason")));
+        assertEquals("REGISTERED", phase(name));
+        assertEquals(404, EgenEnvironment.statusOf("GET", EgenEnvironment.NOMAD_URL + "/v1/job/" + name, null),
+                "aucun job Nomad tant que la configuration n'est pas publiee");
+
+        // Une publication hors manifeste est refusee : toutes les violations ensemble, jamais une valeur.
+        Response rejected = given().header("Idempotency-Key", UUID.randomUUID().toString())
+                .contentType(ContentType.JSON)
+                .body("{\"values\": {\"MAX_USERS\": \"beaucoup-trop\", \"INCONNUE\": \"x\"}}")
+                .when().put(configuration);
+        assertEquals(400, rejected.statusCode(), rejected.asString());
+        assertEquals(3, rejected.jsonPath().getList("violations").size(),
+                "BASE_URL manquante, MAX_USERS de mauvais type, INCONNUE non declaree : " + rejected.asString());
+        assertFalse(rejected.asString().contains("beaucoup-trop"), "jamais la valeur refusee : " + rejected.asString());
+        assertEquals(0, given().when().get(configuration).then().statusCode(200)
+                .extract().jsonPath().getLong("version"), "un refus ne publie rien");
+
+        // Publication valide (A3) : 202, puis relecture.
+        Response published = given().header("Idempotency-Key", UUID.randomUUID().toString())
+                .contentType(ContentType.JSON)
+                .body("{\"values\": {\"BASE_URL\": \"https://calendar.exemple.test\", \"MAX_USERS\": 50}}")
+                .when().put(configuration);
+        assertEquals(202, published.statusCode(), published.asString());
+        assertTrue(published.jsonPath().getLong("version") >= 1, published.asString());
+
+        Response read = given().when().get(configuration);
+        assertEquals(200, read.statusCode());
+        assertEquals("https://calendar.exemple.test", read.jsonPath().getString("values.BASE_URL"));
+        assertEquals("50", read.jsonPath().getString("values.MAX_USERS"));
+        assertFalse(read.jsonPath().getMap("values").containsKey("DEBUG"), "la valeur par defaut reste dans le manifeste");
+
+        // La reconciliation releve ConfigResolved et le service converge, sans que personne ne touche au manifeste.
+        awaitPhase(name, "RUNNING", DEPLOY_TIMEOUT);
+        assertEquals("TRUE", condition(name, "ConfigResolved", "status"));
+
+        // Les labels reserves sont restitues intacts : stockes, jamais interpretes.
+        Response manifest = given().when().get("/api/v1/services/" + name);
+        assertEquals(200, manifest.statusCode());
+        assertEquals("platform-operator", manifest.jsonPath().getString("manifest.metadata.team"));
+        java.util.Map<String, String> labels = manifest.jsonPath().getMap("manifest.metadata.labels");
+        assertEquals("inst-e2e-1", labels.get("platform.civitas.africa/instance-id"));
+        assertEquals("calendar", labels.get("platform.civitas.africa/domain"));
+        assertEquals("radicale", labels.get("platform.civitas.africa/implementation"));
+        assertEquals("3.2.1", labels.get("platform.civitas.africa/implementation-version"));
+        assertEquals("cellule-opaque-e2e", labels.get("platform.civitas.africa/owner-cell"));
+        assertEquals("1", manifest.jsonPath().getMap("manifest.metadata.annotations")
+                .get("platform.civitas.africa/config-version"));
+    }
+
     // ------------------------------------------------------------------ utilitaires du scenario
 
     private static String runWorkflow(String articleId) {
