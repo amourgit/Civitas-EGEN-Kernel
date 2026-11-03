@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
@@ -190,7 +191,19 @@ public class EgenEnvironment implements QuarkusTestResourceLifecycleManager {
         for (int i = 0; i < headers.length; i += 2) {
             request.header(headers[i], headers[i + 1]);
         }
-        return HTTP.send(request.build(), HttpResponse.BodyHandlers.discarding()).statusCode();
+        HttpRequest built = request.build();
+        try {
+            return HTTP.send(built, HttpResponse.BodyHandlers.discarding()).statusCode();
+        } catch (HttpTimeoutException timeout) {
+            throw timeout; // une vraie lenteur n'est jamais rejouee : elle doublerait l'attente
+        } catch (IOException connectionError) {
+            // Le client HTTP est partage (keep-alive) et ne rejoue pas les POST : apres la perte d'une
+            // allocation (etape « crash » du scenario), une connexion gardee vers l'ancienne instance — dont le
+            // port peut etre reattribue a la nouvelle — est perimee et echoue avant toute reponse
+            // (« HTTP/1.1 header parser received no bytes »). Les routes de commande des fixtures sont
+            // idempotentes : un seul rejeu, sur une connexion neuve, suffit.
+            return HTTP.send(built, HttpResponse.BodyHandlers.discarding()).statusCode();
+        }
     }
 
     /**
