@@ -2,6 +2,7 @@ package africa.civitas.egen.adapter.consul;
 
 import africa.civitas.egen.application.port.ConfigSet;
 import africa.civitas.egen.application.port.ConfigWatch;
+import africa.civitas.egen.application.port.ConfigurationException;
 import africa.civitas.egen.application.port.ResolvedConfig;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.TargetEnvironment;
@@ -19,7 +20,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -61,6 +64,53 @@ class ConsulConfigurationAdapterIT {
 
         assertEquals("true", resolved.values().get("FEATURE_FLAG_COMMENTS"));
         assertTrue(resolved.version().index() > 0);
+    }
+
+    // ------------------------------------------------------------------ A3 (docs 13, « Publication de configuration »)
+    // L'API de publication repose sur ces trois garanties du port : version 0 avant toute publication,
+    // remplacement COMPLET du jeu de valeurs, version qui ne fait qu'augmenter.
+
+    @Test
+    void theVersionOfAnUnpublishedConfigurationIsZero() {
+        assertEquals(0L, adapter().currentVersion(ServiceId.of("a3-never-published"), ENV).index());
+    }
+
+    @Test
+    void publishReplacesTheWholeSetAndTheVersionOnlyIncreases() {
+        ConsulConfigurationAdapter adapter = adapter();
+        ServiceId id = ServiceId.of("a3-replace-service");
+        adapter.publish(id, ENV, new ConfigSet(Map.of("db.host", "a", "db.port", "1", "cache.enabled", "false")));
+        long first = adapter.currentVersion(id, ENV).index();
+        assertTrue(first > 0);
+
+        adapter.publish(id, ENV, new ConfigSet(Map.of("db.host", "b", "db.port", "2")));
+
+        ResolvedConfig resolved = adapter.resolve(id, ENV);
+        assertEquals(Map.of("db.host", "b", "db.port", "2"), resolved.values(),
+                "remplacement complet : cache.enabled n'est plus publie");
+        assertFalse(resolved.values().containsKey("cache.enabled"));
+        assertTrue(adapter.currentVersion(id, ENV).index() > first, "la version ne fait qu'augmenter");
+    }
+
+    @Test
+    void environmentsOfTheSameServiceAreIndependent() {
+        ConsulConfigurationAdapter adapter = adapter();
+        ServiceId id = ServiceId.of("a3-two-envs");
+        adapter.publish(id, TargetEnvironment.of("production"), new ConfigSet(Map.of("k", "prod")));
+        adapter.publish(id, TargetEnvironment.of("staging"), new ConfigSet(Map.of("k", "stg")));
+
+        assertEquals("prod", adapter.resolve(id, TargetEnvironment.of("production")).values().get("k"));
+        assertEquals("stg", adapter.resolve(id, TargetEnvironment.of("staging")).values().get("k"));
+    }
+
+    @Test
+    void anUnreachableConsulFailsWithAConfigurationExceptionAndPublishesNothing() {
+        ConsulConfigurationAdapter unreachable = new ConsulConfigurationAdapter(URI.create("http://127.0.0.1:1"), null);
+
+        assertThrows(ConfigurationException.class,
+                () -> unreachable.publish(ID, ENV, new ConfigSet(Map.of("k", "v"))));
+        assertThrows(ConfigurationException.class, () -> unreachable.currentVersion(ID, ENV));
+        assertThrows(ConfigurationException.class, () -> unreachable.resolve(ID, ENV));
     }
 
     @Test
