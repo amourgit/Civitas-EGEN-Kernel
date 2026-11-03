@@ -68,6 +68,108 @@ latence de détection de changement.
 - L'adapter Nomad **ne gère pas** les namespaces Nomad : `TargetEnvironment` est un nom d'environnement, pas une frontière de tenant. L'isolation par tenant n'est **pas** fournie par le Kernel ; elle est assurée par les données ou par des instances dédiées ([22](22-frontiere-avec-la-plateforme.md#229--limites-actuelles-du-kernel), déclencheur A-X2 dans [19](19-feuille-de-route.md)).
 - `runtime.type` n'est pas différencié (déclencheur A-X1).
 
+### Kubernetes Adapter — second adapter de déploiement
+
+**À quoi sert cette section.** Elle fixe le contrat de `KubernetesDeploymentAdapter`, le second adapter du `DeploymentPort` (Phase 6, [19](19-feuille-de-route.md)). Elle est normative : le code s'y conforme, pas l'inverse.
+
+**Ce qu'elle ne couvre pas.** Le choix d'un moteur par service (un Kernel utilise **un seul** Deployment Adapter à la fois, voir « Sélection »), les namespaces Kubernetes par tenant, la découverte par `Service` Kubernetes.
+
+**Pourquoi Kubernetes.** Nomad et Kubernetes sont deux moteurs qui placent, redémarrent et mettent à jour des conteneurs. Kubernetes sait nativement ajuster le nombre de réplicas, faire un rolling update (remplacer les instances une à une), garder l'historique des versions et lister les instances. L'adapter n'a donc **aucune logique de planification à écrire** : il traduit (garde-fou n°3, [02](02-principes-fondamentaux.md)). Une organisation qui exploite déjà un cluster Kubernetes peut ainsi utiliser EGEN sans installer Nomad.
+
+**Vocabulaire** (définis à leur première apparition) :
+
+| Terme | Définition en une phrase |
+|---|---|
+| Deployment | Objet Kubernetes (`apps/v1`) qui décrit « N copies de ce conteneur, mises à jour progressivement ». |
+| Pod | Une instance en cours d'exécution d'un conteneur ; c'est l'équivalent d'une *allocation* Nomad. |
+| ReplicaSet | Objet créé par un Deployment pour chaque version du modèle de pod ; l'ensemble forme l'historique. |
+| Namespace | Espace de noms Kubernetes dans lequel vivent les objets (voir `egen.kubernetes.namespace`). |
+| Server-side apply | Mode d'écriture où l'on envoie l'état voulu complet et où Kubernetes crée l'objet s'il manque ou le met à jour sinon : c'est un *upsert* natif. |
+
+**Exemple de bout en bout.** Le service `news-service` (image `registry.civitas.africa/news-service:2.4.0`, 500m de CPU, 512Mi de mémoire, 2 réplicas minimum) est déclaré via `POST /api/v1/services`. (1) Le moteur de réconciliation appelle `create(news-service, spec)`. (2) L'adapter envoie à Kubernetes **un** Deployment nommé `news-service`. (3) Kubernetes crée un ReplicaSet puis deux pods. (4) Au cycle suivant, `getStatus` compte les pods : 2 voulus, 2 en cours, 2 prêts → le service passe `RUNNING`. (5) `listAllocations` renvoie l'adresse et le port de chaque pod ; le moteur les enregistre dans Discovery (Consul). (6) Pour passer à `2.5.0`, `update` renvoie le même Deployment avec la nouvelle image : Kubernetes remplace les pods un par un. (7) `rollback(news-service, 2.4.0)` retrouve le ReplicaSet de `2.4.0` et remet son modèle de pod dans le Deployment.
+
+#### Sélection de l'adapter
+
+- Propriété `egen.deployment.adapter` : `nomad` (défaut) ou `kubernetes`. Toute autre valeur fait **échouer le démarrage** avec un message qui liste les valeurs permises.
+- Le seul code qui connaît cette propriété est `DeploymentAdapterBeans` (`egen-bootstrap`), comme le prévoit [19](19-feuille-de-route.md) (Phase 6). `egen-domain` et `egen-application` ne changent pas.
+- **Limite assumée.** Le champ `deployment.adapter` du manifeste ([06](06-service-manifest.md)) n'est **pas** encore comparé à l'adapter actif : un manifeste qui déclare `nomad` sur un Kernel configuré `kubernetes` est déployé par Kubernetes sans erreur. Corriger cela demande de toucher le domaine ou l'application : décision à prendre, voir [19](19-feuille-de-route.md), point ouvert 6.
+
+#### Configuration
+
+| Propriété | Défaut | Rôle |
+|---|---|---|
+| `egen.kubernetes.address` | `https://kubernetes.default.svc` | URL de l'API Kubernetes |
+| `egen.kubernetes.namespace` | `egen` | Namespace des Deployments gérés (jamais `default` codé en dur) |
+| `egen.kubernetes.token` | aucun | Jeton porteur (*bearer token*) d'un compte de service dont les droits sont limités à ce namespace |
+| `egen.kubernetes.ca-cert-path` | aucun | Fichier PEM de l'autorité de certification de l'API ; sans lui, le magasin de confiance du JDK est utilisé. La vérification TLS n'est **jamais** désactivable. |
+| `egen.kubernetes.container-port` | `8080` | Port que le conteneur écoute (voir « Réseau ») |
+
+Droits minimaux du compte de service, dans le namespace : `deployments` (get, create, patch, delete), `deployments/scale` (get, patch), `replicasets` (list), `pods` (list).
+
+#### Mapping des opérations
+
+Chemins relatifs à `{address}`, `{ns}` = namespace configuré, `{id}` = identifiant du service.
+
+| Opération du port | Appel Kubernetes | Détails |
+|---|---|---|
+| `create(id, spec)` | `PATCH /apis/apps/v1/namespaces/{ns}/deployments/{id}?fieldManager=egen-kernel&force=true`, `Content-Type: application/apply-patch+yaml` | Server-side apply : idempotent par construction (crée ou met à jour). Un `ServiceManifest` → **un** Deployment, **un** conteneur, nommés `{id}`. |
+| `update(id, spec)` | identique à `create` | Le rolling update est fait par Kubernetes ; l'adapter ne le réimplémente pas. |
+| `scale(id, n)` | `PATCH …/deployments/{id}/scale`, `application/merge-patch+json`, corps `{"spec":{"replicas":n}}` | Sous-ressource dédiée au changement de réplicas. |
+| `restart(id)` | `PATCH …/deployments/{id}`, `application/merge-patch+json`, annotation `kubectl.kubernetes.io/restartedAt` = l'heure courante dans `spec.template.metadata.annotations` | Changer le modèle de pod provoque un rolling update sans changer l'image. *À vérifier* dans la documentation officielle de la version cible (c'est la convention de `kubectl rollout restart`). |
+| `stop(id)` | `scale(id, 0)` | Kubernetes n'a pas d'« arrêt qui garde l'historique » : le Deployment reste, à 0 réplica (l'historique est conservé, comme `purge=false` chez Nomad). Un Deployment absent (404) n'est pas une erreur. |
+| `remove(id)` | `DELETE …/deployments/{id}` avec `propagationPolicy=Background` | Les ReplicaSets et pods sont supprimés ensuite par Kubernetes. 404 = déjà supprimé, pas une erreur. |
+| `getStatus(id)` | `GET …/deployments/{id}` + `GET /api/v1/namespaces/{ns}/pods?labelSelector=…` | Voir « Comptage ». Deployment absent (404) → `DeploymentObservation.empty()`. |
+| `listAllocations(id)` | `GET /api/v1/namespaces/{ns}/pods?labelSelector=…` | Un `AllocationInfo` par pod. |
+| `rollback(id, v)` | `GET …/replicasets?labelSelector=…` puis `PATCH …/deployments/{id}`, `application/json-patch+json`, remplacement de `/spec/template` | Voir « Retour arrière ». |
+
+#### Objets créés
+
+- Étiquettes (*labels*) de chaque pod et du sélecteur : `app.kubernetes.io/managed-by: egen-kernel` et `egen.civitas.africa/service-id: {id}`. Elles ne sont **pas** dans l'espace réservé `platform.civitas.africa/*` ([06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)) : cet espace appartient à la Plateforme.
+- Réplicas : `spec.replicas.min` (même règle que l'adapter Nomad).
+- Ressources : `cpu` et `memory` du `DeploymentSpec` sont déjà des quantités Kubernetes (`500m`, `512Mi`) et sont transmises **telles quelles**, en `requests` **et** en `limits`. Le CPU accepte un entier, avec ou sans le suffixe `m` (`2`, `500m`) ; la mémoire accepte un entier, avec ou sans le suffixe `Ki`, `Mi`, `Gi` ou `Ti` (`512Mi`). Toute autre forme (par exemple `0.5` ou `512MB`) est refusée par `DeploymentException` avant tout appel réseau.
+- Aucun objet `Service` Kubernetes n'est créé : la découverte appartient à Discovery ([07](#discovery-port)), pas à Kubernetes.
+
+#### Réseau
+
+Le conteneur déclare un port nommé `http` égal à `egen.kubernetes.container-port`, et reçoit la variable d'environnement `EGEN_PORT_http` portant cette valeur : c'est l'équivalent de `NOMAD_PORT_http` chez Nomad. Comme chez Nomad, c'est une réserve provisoire en attendant `network.endpoints` dans le manifeste ([19](19-feuille-de-route.md)). L'adresse d'une allocation est l'IP du pod. **Limite** : cette IP n'est joignable que depuis le réseau du cluster ; un Discovery (Consul) situé hors du cluster ne peut pas la joindre sans routage adapté.
+
+#### Comptage et statuts
+
+| Champ de `DeploymentObservation` | Valeur |
+|---|---|
+| `desiredCount` | `spec.replicas` du Deployment |
+| `runningCount` | pods en phase `Running` et sans `deletionTimestamp` |
+| `healthyCount` | pods ci-dessus dont la condition `Ready` vaut `True` |
+| `failedCount` | pods en phase `Failed` ou `Unknown` |
+
+Contrairement à l'adapter Nomad (qui assimile « sain » à « en cours »), Kubernetes fournit l'état « prêt ». Sans sonde de disponibilité (*readiness probe*) déclarée, « prêt » signifie « tous les conteneurs ont démarré ».
+
+Statut d'une allocation : `Running` → `running`, `Pending` → `pending`, `Succeeded` → `complete`, `Failed` → `failed`, `Unknown` → `lost`, autre → `unknown`. Seul `running` avec une IP est enregistré dans Discovery (voir le moteur de réconciliation).
+
+#### Retour arrière (`rollback`)
+
+Kubernetes n'expose **pas** de point d'accès de retour arrière : `kubectl rollout undo` est exécuté côté client (il retrouve le ReplicaSet de la révision voulue, retire l'étiquette `pod-template-hash` de son modèle, et remplace le modèle du Deployment — source : `pkg/kubectl/rollback.go`, version 1.15 ; *à recouper* avec la version courante). L'adapter fait la même chose :
+
+1. lister les ReplicaSets du sélecteur, ne garder que ceux dont le propriétaire est le Deployment `{id}` ;
+2. garder ceux dont l'image du conteneur finit par `:{version}` (même règle que l'adapter Nomad) ; en cas de plusieurs, prendre la plus haute révision (annotation `deployment.kubernetes.io/revision`) ;
+3. aucun trouvé → `DeploymentException` (« aucune version … ne correspond ») ;
+4. remplacer `/spec/template` du Deployment par ce modèle, **sans** l'étiquette `pod-template-hash`.
+
+Le nombre de versions retenues est celui de `revisionHistoryLimit` du Deployment (10 par défaut dans `apps/v1`, *à vérifier*) : un retour vers une version plus ancienne échoue.
+
+#### Faits externes et leur état de vérification
+
+| Fait | État |
+|---|---|
+| Server-side apply : `PATCH`, `application/apply-patch+yaml`, `fieldManager` obligatoire, `force` pour reprendre les champs en conflit, stable depuis la v1.22 | Vérifié (kubernetes.io, « Server-Side Apply ») |
+| Sous-ressource `deployments/{name}/scale` (GET, PATCH, PUT) | Vérifié (référence de l'API `autoscaling/v1`) |
+| Retour arrière réalisé côté client | Vérifié sur `rollback.go` v1.15 ; à recouper sur la version cible |
+| Annotation `restartedAt`, valeur par défaut de `revisionHistoryLimit` | **À vérifier** |
+
+#### Tests
+
+Niveau 1 : conversion des quantités, construction du Deployment (aucun réseau). Niveau 2 : comptage et statuts avec un faux serveur HTTP. Niveau 3 : contre un vrai cluster Kubernetes (Testcontainers, module k3s) — **à faire**, voir [17](17-strategie-de-tests.md).
+
 ## Discovery Port
 
 ### Le port

@@ -16,11 +16,11 @@ Mise à jour : 3 novembre 2026.
 | Élément | Statut | Reste à faire |
 |---|---|---|
 | Phases 0 à 5 du Kernel | **Fait** | Compléments liés à la Plateforme, listés dans chaque phase : Phase 1 (A-X1 reporté), Phase 2 (décision D20 actée), Phase 4 (A3 fait, A-X2 reporté), Phase 5 (A5 fait) |
-| Phase 6 (continue) | **À faire** | 4 éléments (voir la phase) |
+| Phase 6 (continue) | **En cours** | Élément 1 : adapter écrit, tests de niveaux 1 et 2 verts, reste le build CI et le niveau 3 ; éléments 2 à 4 à faire (voir la phase) |
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
 | Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
-| Points ouverts du Kernel | **Ouverts** | 5 points, à décider par Samuel |
+| Points ouverts du Kernel | **Ouverts** | 6 points, à décider par Samuel |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts non tranchés → points ouverts 3 à 5 |
 
 ## Phase 0 — Fondations et décisions structurantes
@@ -344,13 +344,28 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
 - *Options* : (a) aligner le document 07 sur les ports livrés ; (b) ajouter ces méthodes quand un appelant en a besoin.
 - *Impact* : le document 07 reste, en attendant, plus riche que le code.
 
+**6. Le champ `deployment.adapter` du manifeste n'est pas vérifié ([06](06-service-manifest.md), [07](07-ports-et-adapters.md#kubernetes-adapter--second-adapter-de-déploiement)).**
+- *Problème* : le document 06 prévoit de vérifier, à la validation, que l'adapter déclaré par le manifeste est celui du Kernel. Le code ne lit pas ce champ : un manifeste qui déclare `nomad` sur un Kernel configuré `kubernetes` est déployé par Kubernetes sans erreur. Le Kernel n'a de toute façon qu'un seul Deployment Adapter actif à la fois.
+- *Options* : (a) refuser le manifeste dont `deployment.adapter` diffère de l'adapter actif (touche `egen-application`, donc hors du critère de la Phase 6) ; (b) retirer la vérification du document 06 et traiter le champ comme informatif ; (c) un Kernel capable d'utiliser plusieurs adapters à la fois, choisis par service (changement plus large du moteur).
+- *Impact* : le comportement observable d'un manifeste dont l'adapter ne correspond pas.
+
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 
-- [ ] Ajouter un **second** adapter de déploiement (ex.
-      `DockerDeploymentAdapter` pour les environnements de développement
-      local, ou `KubernetesDeploymentAdapter`) **sans modifier
+- [~] Ajouter un **second** adapter de déploiement **sans modifier
       `egen-domain` ni `egen-application`** — c'est le test ultime de la
       promesse architecturale.
+      *Choix : `KubernetesDeploymentAdapter`* (Kubernetes a nativement
+      réplicas, rolling update, historique et liste des pods : l'adapter
+      traduit sans écrire de logique de planification ; un adapter Docker
+      aurait dû réimplémenter ces mécanismes, contre le garde-fou n°3).
+      Contrat normatif : [07](07-ports-et-adapters.md#kubernetes-adapter--second-adapter-de-déploiement).
+      *Écrit :* module `egen-adapter-kubernetes`, sélection par
+      `egen.deployment.adapter` (`DeploymentAdapterBeans`), tests de niveaux 1
+      et 2 (faux serveur).
+      *Reste à faire :* (a) build Maven complet en CI (`mvn verify`, dont la
+      règle ArchUnit « un adapter ne dépend d'aucun autre ») ; (b) test de
+      niveau 3 contre un vrai cluster (Testcontainers, module k3s) ;
+      (c) cocher cet élément seulement quand (a) et (b) sont verts.
 - [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
 - [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).

@@ -36,6 +36,7 @@ egen-kernel/                              (repo racine — build multi-module Ma
 │
 ├── egen-adapters/                        # UN sous-module PAR intégration externe — dépendances isolées
 │   ├── egen-adapter-nomad/               # dépend du SDK/API Nomad UNIQUEMENT ici
+│   ├── egen-adapter-kubernetes/          # dépend de l'API Kubernetes UNIQUEMENT ici — second DeploymentPort (Phase 6), voir 07
 │   ├── egen-adapter-consul/              # dépend du SDK/API Consul UNIQUEMENT ici
 │   ├── egen-adapter-nats/                # dépend du client NATS UNIQUEMENT ici
 │   ├── egen-adapter-kafka/               # dépend du client Kafka UNIQUEMENT ici (activable en V2)
