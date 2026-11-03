@@ -50,9 +50,18 @@ public class EgenSecurityContext {
         this.adminRole = adminRole;
     }
 
-    /** L'equipe portee par le jeton de l'appelant, ou {@code null} si le claim est absent. */
+    /**
+     * L'equipe portee par le jeton de l'appelant, ou {@code null} si le claim est absent — ou si le principal
+     * n'est pas un jeton JWT du tout : un appelant sans equipe n'est l'equipe proprietaire de rien, donc 403
+     * (refus par defaut, docs 14) et jamais une erreur serveur.
+     */
     public String callerTeam() {
-        Object claim = jwt.getClaim(teamClaim);
+        Object claim;
+        try {
+            claim = jwt.getClaim(teamClaim);
+        } catch (IllegalStateException principalIsNotAJwt) {
+            return null;
+        }
         return claim == null ? null : claim.toString();
     }
 
