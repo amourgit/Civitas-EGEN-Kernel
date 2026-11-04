@@ -16,7 +16,7 @@ Mise à jour : 3 novembre 2026.
 | Élément | Statut | Reste à faire |
 |---|---|---|
 | Phases 0 à 5 du Kernel | **Fait** | Compléments liés à la Plateforme, listés dans chaque phase : Phase 1 (A-X1 reporté), Phase 2 (décision D20 actée), Phase 4 (A3 fait, A-X2 reporté), Phase 5 (A5 fait) |
-| Phase 6 (continue) | **En cours** | Élément 1 : adapter écrit, tests de niveaux 1 et 2 verts, reste le build CI et le niveau 3 ; éléments 2 à 4 à faire (voir la phase) |
+| Phase 6 (continue) | **En cours** | Élément 1 livré et validé (adapter Kubernetes, routage par service) ; éléments 2 à 4 à faire (voir la phase) |
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
 | Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
@@ -346,39 +346,37 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
 
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 
-- [~] Ajouter un **second** adapter de déploiement **sans modifier
+- [x] Ajouter un **second** adapter de déploiement **sans modifier
       `egen-domain` ni `egen-application`** — c'est le test ultime de la
-      promesse architecturale.
+      promesse architecturale. *Livré et validé (5 novembre 2026).*
       *Choix : `KubernetesDeploymentAdapter`* (Kubernetes a nativement
       réplicas, rolling update, historique et liste des pods : l'adapter
       traduit sans écrire de logique de planification ; un adapter Docker
       aurait dû réimplémenter ces mécanismes, contre le garde-fou n°3).
       Contrat normatif : [07](07-ports-et-adapters.md#kubernetes-adapter--second-adapter-de-déploiement).
-      *Écrit :* module `egen-adapter-kubernetes`, câblage dans
-      `DeploymentAdapterBeans`, tests de niveaux 1 et 2 (faux serveur). Build
-      Maven complet vert chez Samuel le 3 novembre 2026 (18 modules, dont la
-      règle ArchUnit « un adapter ne dépend d'aucun autre »).
-      *Routage par service (décidé par délégation de Samuel, 4 novembre
-      2026) :* le champ `deployment.adapter` du manifeste est désormais
-      utilisé. Un Kernel active une liste d'adapters
-      (`egen.deployment.adapters`) ; chaque service choisit le sien ; l'adapter
-      d'un service est immuable ; un `RoutingDeploymentPort` délègue. Ce
-      changement touche `egen-application` (le critère « sans modifier le
-      cœur » vaut pour l'adapter Kubernetes lui-même, déjà livré sans y
-      toucher). Contrat : [07](07-ports-et-adapters.md#sélection-et-routage--un-moteur-par-service).
-      *Validé chez Samuel le 4 novembre 2026 (`mvn verify`, 18 modules) et
-      mergé sur `main` : routage par service, `EnabledDeploymentAdapters`
-      (renommé depuis un nom que la règle A4 refusait).*
-      *Validé et mergé (4 novembre 2026) :* test HTTP de
-      `POST /api/v1/services` (202 adapter activé, 400 adapter non activé,
-      409 adapter changé).
-      *Écrit, en attente de validation :* test de niveau 3
-      `KubernetesDeploymentAdapterIT` contre un vrai cluster k3s
-      (Testcontainers ; 1ʳᵉ exécution échouée le 5 novembre : le module `k3s`
-      1.20.4 est incompatible avec le noyau 2.0.4 imposé par le BOM de Quarkus,
-      remplacé par un `GenericContainer`) ; il vérifiera aussi les deux faits encore « à vérifier »
-      du document 07 (annotation `restartedAt`, retour arrière).
-      *Reste à faire :* cocher cet élément quand ce test est vert chez Samuel.
+      *Preuve que le cœur n'a pas changé :*
+      `git diff 0216cd0 b1e5165 -- egen-domain egen-application` est vide :
+      l'adapter n'a ajouté que le module `egen-adapters/egen-adapter-kubernetes`,
+      des lignes d'interdiction dans les poms des autres adapters, et le
+      câblage de `egen-bootstrap`.
+      *Tests, verts chez Samuel :* niveaux 1 et 2 (faux serveur) ; niveau 3
+      `KubernetesDeploymentAdapterIT` contre un vrai cluster k3s v1.31.2, avec
+      de vrais pods, qui prouve que les droits minimaux du document 07
+      suffisent et exerce création, convergence, idempotence, `scale`, mise à
+      jour, `rollback`, `restart`, `stop` et `remove` ; build Maven complet des
+      18 modules (dont la règle ArchUnit « un adapter ne dépend d'aucun autre »).
+      Le module `k3s` de Testcontainers est volontairement écarté : il est
+      incompatible avec le noyau 2.0.4 que le BOM de Quarkus impose (voir le
+      pom du module).
+      *Ajout décidé ensuite, par délégation de Samuel (4 novembre 2026) :*
+      routage par service. Le champ `deployment.adapter` du manifeste est
+      utilisé : un Kernel active une liste d'adapters
+      (`egen.deployment.adapters`), chaque service choisit le sien, l'adapter
+      d'un service est immuable, un `RoutingDeploymentPort` délègue. Ce
+      changement touche `egen-application`, **séparément** de la preuve
+      ci-dessus. Validé et mergé, avec un test HTTP de `POST /api/v1/services`
+      (202 adapter activé, 400 adapter non activé, 409 adapter changé).
+      Contrat : [07](07-ports-et-adapters.md#sélection-et-routage--un-moteur-par-service).
 - [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
 - [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).
@@ -405,8 +403,10 @@ trimestrielle.
       `egen-domain`/`egen-application` (voir [18](18-anti-patterns.md)).
 - [ ] Toutes les intégrations passent par des adapters isolés (vérifié
       mécaniquement en CI).
-- [ ] Un second adapter de déploiement a été ajouté sans modification du
-      cœur (Phase 6) — preuve empirique, pas déclaration d'intention.
+- [x] Un second adapter de déploiement a été ajouté sans modification du
+      cœur (Phase 6) — preuve empirique, pas déclaration d'intention : le
+      diff de `egen-domain` et `egen-application` entre `0216cd0` et `b1e5165`
+      est vide (voir la Phase 6).
 
 **Services**
 

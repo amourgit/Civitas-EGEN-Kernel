@@ -132,7 +132,7 @@ Chemins relatifs à `{address}`, `{ns}` = namespace configuré, `{id}` = identif
 | `create(id, spec)` | `PATCH /apis/apps/v1/namespaces/{ns}/deployments/{id}?fieldManager=egen-kernel&force=true`, `Content-Type: application/apply-patch+yaml` | Server-side apply : idempotent par construction (crée ou met à jour). Un `ServiceManifest` → **un** Deployment, **un** conteneur, nommés `{id}`. |
 | `update(id, spec)` | identique à `create` | Le rolling update est fait par Kubernetes ; l'adapter ne le réimplémente pas. |
 | `scale(id, n)` | `PATCH …/deployments/{id}/scale`, `application/merge-patch+json`, corps `{"spec":{"replicas":n}}` | Sous-ressource dédiée au changement de réplicas. |
-| `restart(id)` | `PATCH …/deployments/{id}`, `application/merge-patch+json`, annotation `kubectl.kubernetes.io/restartedAt` = l'heure courante dans `spec.template.metadata.annotations` | Changer le modèle de pod provoque un rolling update sans changer l'image. *À vérifier* dans la documentation officielle de la version cible (c'est la convention de `kubectl rollout restart`). |
+| `restart(id)` | `PATCH …/deployments/{id}`, `application/merge-patch+json`, annotation `kubectl.kubernetes.io/restartedAt` = l'heure courante dans `spec.template.metadata.annotations` | Changer le modèle de pod provoque un rolling update sans changer l'image. Vérifié contre un vrai cluster (test de niveau 3, k3s v1.31.2) : l'annotation remplace bien le pod (c'est la convention de `kubectl rollout restart`). |
 | `stop(id)` | `scale(id, 0)` | Kubernetes n'a pas d'« arrêt qui garde l'historique » : le Deployment reste, à 0 réplica (l'historique est conservé, comme `purge=false` chez Nomad). Un Deployment absent (404) n'est pas une erreur. |
 | `remove(id)` | `DELETE …/deployments/{id}` avec `propagationPolicy=Background` | Les ReplicaSets et pods sont supprimés ensuite par Kubernetes. 404 = déjà supprimé, pas une erreur. |
 | `getStatus(id)` | `GET …/deployments/{id}` + `GET /api/v1/namespaces/{ns}/pods?labelSelector=…` | Voir « Comptage ». Deployment absent (404) → `DeploymentObservation.empty()`. |
@@ -165,7 +165,7 @@ Statut d'une allocation : `Running` → `running`, `Pending` → `pending`, `Suc
 
 #### Retour arrière (`rollback`)
 
-Kubernetes n'expose **pas** de point d'accès de retour arrière : `kubectl rollout undo` est exécuté côté client (il retrouve le ReplicaSet de la révision voulue, retire l'étiquette `pod-template-hash` de son modèle, et remplace le modèle du Deployment — source : `pkg/kubectl/rollback.go`, version 1.15 ; *à recouper* avec la version courante). L'adapter fait la même chose :
+Kubernetes n'expose **pas** de point d'accès de retour arrière : `kubectl rollout undo` est exécuté côté client (il retrouve le ReplicaSet de la révision voulue, retire l'étiquette `pod-template-hash` de son modèle, et remplace le modèle du Deployment — source : `pkg/kubectl/rollback.go`, version 1.15 ; mécanisme confirmé sur un vrai cluster k3s v1.31.2 par le test de niveau 3). L'adapter fait la même chose :
 
 1. lister les ReplicaSets du sélecteur, ne garder que ceux dont le propriétaire est le Deployment `{id}` ;
 2. garder ceux dont l'image du conteneur finit par `:{version}` (même règle que l'adapter Nomad) ; en cas de plusieurs, prendre la plus haute révision (annotation `deployment.kubernetes.io/revision`) ;
@@ -180,8 +180,9 @@ Le nombre de versions retenues est celui de `revisionHistoryLimit` du Deployment
 |---|---|
 | Server-side apply : `PATCH`, `application/apply-patch+yaml`, `fieldManager` obligatoire, `force` pour reprendre les champs en conflit, stable depuis la v1.22 | Vérifié (kubernetes.io, « Server-Side Apply ») |
 | Sous-ressource `deployments/{name}/scale` (GET, PATCH, PUT) | Vérifié (référence de l'API `autoscaling/v1`) |
-| Retour arrière réalisé côté client | Vérifié sur `rollback.go` v1.15 ; à recouper sur la version cible |
-| Annotation `restartedAt`, valeur par défaut de `revisionHistoryLimit` | **À vérifier** |
+| Retour arrière réalisé côté client | Vérifié sur `rollback.go` v1.15, et confirmé sur un vrai cluster k3s v1.31.2 (test de niveau 3, 5 novembre 2026) |
+| Annotation `restartedAt` remplace le pod | Vérifié sur un vrai cluster k3s v1.31.2 (test de niveau 3, 5 novembre 2026) |
+| Valeur par défaut de `revisionHistoryLimit` (10) | **À vérifier** (le test de niveau 3 ne remonte qu'une version en arrière) |
 
 #### Tests
 
