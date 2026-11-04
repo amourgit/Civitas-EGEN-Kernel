@@ -1,5 +1,6 @@
 package africa.civitas.egen.application.usecase;
 
+import africa.civitas.egen.application.port.DeploymentAdapterCatalog;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.TraceContext;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
@@ -32,26 +33,25 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
     private final RegistryStorePort registryStorePort;
     private final WorkQueue workQueue;
     private final PendingDeclareTraces pendingDeclareTraces;
+    private final DeploymentAdapterCatalog adapterCatalog;
 
-    /**
-     * Conserve pour compatibilite (tests, usages qui n'ont pas besoin de
-     * propager de trace) : cree son propre {@link PendingDeclareTraces}
-     * isole, non partage avec un {@code ReconciliationEngine} — le lien de
-     * trace ne fonctionnera donc simplement pas pour cette instance, sans
-     * aucune autre consequence (voir la javadoc de
-     * {@link #declare(ServiceManifest, TargetEnvironment, TraceContext)}).
-     * En production, {@code egen-bootstrap} cable toujours le constructeur
-     * a 3 arguments avec l'instance PARTAGEE injectee.
-     */
     public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue) {
         this(registryStorePort, workQueue, new PendingDeclareTraces());
     }
 
     public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue,
                                      PendingDeclareTraces pendingDeclareTraces) {
+        this(registryStorePort, workQueue, pendingDeclareTraces, DeploymentAdapterCatalog.acceptingAny());
+    }
+
+    /** Constructeur de production : {@code adapterCatalog} liste les adapters activés dans ce Kernel. */
+    public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue,
+                                     PendingDeclareTraces pendingDeclareTraces,
+                                     DeploymentAdapterCatalog adapterCatalog) {
         this.registryStorePort = registryStorePort;
         this.workQueue = workQueue;
         this.pendingDeclareTraces = pendingDeclareTraces;
+        this.adapterCatalog = adapterCatalog;
     }
 
     @Override
@@ -62,6 +62,7 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
     @Override
     public DeclareResult declare(ServiceManifest manifest, TargetEnvironment targetEnvironment,
                                   TraceContext triggeringTrace) {
+        assertAdapterIsEnabledAndUnchanged(manifest);
         assertNoCycleIntroduced(manifest);
 
         DesiredState saved = registryStorePort.save(new DesiredState(manifest, 0L, targetEnvironment));
@@ -76,6 +77,24 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
      * nouveau manifeste, et rejette le Declare si un cycle apparait —
      * quelle que soit sa longueur.
      */
+    /**
+     * Étapes 2 et 3 de la validation (docs/architecture/06-service-manifest.md) : l'adapter déclaré est
+     * activé dans ce Kernel, et il ne change pas pour un service qui existe déjà (docs/architecture/07,
+     * « Sélection et routage »). Avant toute persistance : un refus ne laisse aucune trace.
+     */
+    private void assertAdapterIsEnabledAndUnchanged(ServiceManifest incoming) {
+        String requested = incoming.deployment().adapter();
+        if (!adapterCatalog.isEnabled(requested)) {
+            throw new UnknownDeploymentAdapterException(requested, adapterCatalog.enabledNames());
+        }
+        registryStorePort.findById(incoming.id()).ifPresent(existing -> {
+            String current = existing.manifest().deployment().adapter();
+            if (!current.equals(requested)) {
+                throw new DeploymentAdapterChangeException(incoming.id(), current, requested);
+            }
+        });
+    }
+
     private void assertNoCycleIntroduced(ServiceManifest incoming) {
         Map<ServiceId, Set<ServiceId>> edges = new HashMap<>();
         for (ServiceId id : registryStorePort.findAllIds()) {
