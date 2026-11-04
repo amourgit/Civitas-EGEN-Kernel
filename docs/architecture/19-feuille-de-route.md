@@ -366,12 +366,14 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       changement touche `egen-application` (le critère « sans modifier le
       cœur » vaut pour l'adapter Kubernetes lui-même, déjà livré sans y
       toucher). Contrat : [07](07-ports-et-adapters.md#sélection-et-routage--un-moteur-par-service).
-      *Reste à faire :* (a) `mvn verify` complet sur le routage par service
-      (changements dans `egen-application`, `egen-api` et `egen-bootstrap`, non
-      compilés hors de Maven) ; (b) test de niveau 3 contre un vrai cluster
-      (Testcontainers, module k3s) ; (c) test HTTP de la réponse 400 (adapter
-      non activé) et 409 (adapter changé) de `POST /api/v1/services` ;
-      (d) cocher cet élément seulement quand (a), (b) et (c) sont verts.
+      *Validé chez Samuel le 4 novembre 2026 (`mvn verify`, 18 modules) et
+      mergé sur `main` : routage par service, `EnabledDeploymentAdapters`
+      (renommé depuis un nom que la règle A4 refusait).*
+      *Écrit, en attente de validation :* test HTTP de `POST /api/v1/services`
+      (202 adapter activé, 400 adapter non activé, 409 adapter changé).
+      *Reste à faire :* (a) test de niveau 3 contre un vrai cluster
+      (Testcontainers, module k3s) ; (b) cocher cet élément seulement quand le
+      test de niveau 3 est vert.
 - [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
 - [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).

@@ -77,7 +77,12 @@ public class TestUseCaseProducers {
     @Produces
     @ApplicationScoped
     DeployServiceUseCase deployServiceUseCase() {
-        return new DeployServiceUseCaseImpl(registryStorePort, workQueue);
+        // Les deux adapters connus du Kernel sont « actives » : les tests HTTP exercent donc la vraie validation
+        // de deployment.adapter (docs/architecture/06, validation, etape 3).
+        return new DeployServiceUseCaseImpl(registryStorePort, workQueue,
+                new africa.civitas.egen.application.reconciliation.PendingDeclareTraces(),
+                africa.civitas.egen.application.port.EnabledDeploymentAdapters.of(
+                        java.util.Set.of("nomad", "kubernetes")));
     }
 
     @Produces
