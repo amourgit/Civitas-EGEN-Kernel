@@ -37,10 +37,35 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <!--
+      Testcontainers (docs/architecture/17-strategie-de-tests.md, niveau 3) : demarre un vrai cluster
+      Kubernetes (k3s, image rancher/k3s) pour verifier le mapping contre l'API reelle, pas seulement
+      contre un faux serveur. Versions gerees par testcontainers-bom (reacteur racine).
+    -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>k3s</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <!-- Execute les tests de niveau 3 (*IT.java, Testcontainers) a la phase verify. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
       <!--
         Garde-fou n6 (docs/architecture/02-principes-fondamentaux.md) rendu mecanique : un adapter
         ne depend jamais d'un autre adapter, ni des couches primaires (egen-api, egen-bootstrap).

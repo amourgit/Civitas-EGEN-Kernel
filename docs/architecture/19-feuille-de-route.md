@@ -369,11 +369,14 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       *Validé chez Samuel le 4 novembre 2026 (`mvn verify`, 18 modules) et
       mergé sur `main` : routage par service, `EnabledDeploymentAdapters`
       (renommé depuis un nom que la règle A4 refusait).*
-      *Écrit, en attente de validation :* test HTTP de `POST /api/v1/services`
-      (202 adapter activé, 400 adapter non activé, 409 adapter changé).
-      *Reste à faire :* (a) test de niveau 3 contre un vrai cluster
-      (Testcontainers, module k3s) ; (b) cocher cet élément seulement quand le
-      test de niveau 3 est vert.
+      *Validé et mergé (4 novembre 2026) :* test HTTP de
+      `POST /api/v1/services` (202 adapter activé, 400 adapter non activé,
+      409 adapter changé).
+      *Écrit, en attente de validation :* test de niveau 3
+      `KubernetesDeploymentAdapterIT` contre un vrai cluster k3s
+      (Testcontainers) ; il vérifiera aussi les deux faits encore « à vérifier »
+      du document 07 (annotation `restartedAt`, retour arrière).
+      *Reste à faire :* cocher cet élément quand ce test est vert chez Samuel.
 - [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
 - [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).

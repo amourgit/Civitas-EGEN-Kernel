@@ -185,7 +185,7 @@ Le nombre de versions retenues est celui de `revisionHistoryLimit` du Deployment
 
 #### Tests
 
-Niveau 1 : conversion des quantités, construction du Deployment (aucun réseau). Niveau 2 : comptage et statuts avec un faux serveur HTTP. Niveau 3 : contre un vrai cluster Kubernetes (Testcontainers, module k3s) — **à faire**, voir [17](17-strategie-de-tests.md).
+Niveau 1 : conversion des quantités, construction du Deployment (aucun réseau). Niveau 2 : comptage et statuts avec un faux serveur HTTP. Niveau 3 : `KubernetesDeploymentAdapterIT` contre un vrai cluster Kubernetes (k3s dans Testcontainers), avec de vrais pods. Il s'authentifie par jeton d'un compte de service qui porte **exactement** les droits listés plus haut (donc il prouve qu'ils suffisent), puis suit la vie d'un service : création, convergence, idempotence, `scale`, mise à jour, `rollback`, `restart`, `stop`, `remove`. Il vérifie aussi directement dans le cluster (par `kubectl`) ce que Kubernetes a enregistré : propriétaire `egen-kernel`, image, annotation `restartedAt`. Prérequis : Docker autorisant un conteneur privilégié, et accès à Docker Hub pour `nginx:1.26.0` et `nginx:1.27.0`. Voir [17](17-strategie-de-tests.md).
 
 ## Discovery Port
 
