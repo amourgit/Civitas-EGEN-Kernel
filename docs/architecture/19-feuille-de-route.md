@@ -374,7 +374,9 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       409 adapter changé).
       *Écrit, en attente de validation :* test de niveau 3
       `KubernetesDeploymentAdapterIT` contre un vrai cluster k3s
-      (Testcontainers) ; il vérifiera aussi les deux faits encore « à vérifier »
+      (Testcontainers ; 1ʳᵉ exécution échouée le 5 novembre : le module `k3s`
+      1.20.4 est incompatible avec le noyau 2.0.4 imposé par le BOM de Quarkus,
+      remplacé par un `GenericContainer`) ; il vérifiera aussi les deux faits encore « à vérifier »
       du document 07 (annotation `restartedAt`, retour arrière).
       *Reste à faire :* cocher cet élément quand ce test est vert chez Samuel.
 - [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).

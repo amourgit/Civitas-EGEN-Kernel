@@ -39,8 +39,15 @@
     </dependency>
     <!--
       Testcontainers (docs/architecture/17-strategie-de-tests.md, niveau 3) : demarre un vrai cluster
-      Kubernetes (k3s, image rancher/k3s) pour verifier le mapping contre l'API reelle, pas seulement
-      contre un faux serveur. Versions gerees par testcontainers-bom (reacteur racine).
+      Kubernetes (image rancher/k3s) pour verifier le mapping contre l'API reelle, pas seulement contre
+      un faux serveur.
+
+      PIEGE : le BOM de Quarkus, importe en premier dans le reacteur racine, fixe le noyau
+      « testcontainers » en 2.0.x, alors que testcontainers-bom 1.20.4 gere encore les modules a
+      l'ancien nom (junit-jupiter, k3s...). Le module « k3s » 1.20.4 appelle une classe que le noyau
+      2.x n'embarque plus (NoClassDefFoundError org.testcontainers.shaded...IOUtils). On n'utilise donc
+      PAS le module k3s : le test configure un GenericContainer du noyau, exactement comme le fait
+      K3sContainer (voir KubernetesDeploymentAdapterIT).
     -->
     <dependency>
       <groupId>org.testcontainers</groupId>
@@ -50,11 +57,6 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>k3s</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

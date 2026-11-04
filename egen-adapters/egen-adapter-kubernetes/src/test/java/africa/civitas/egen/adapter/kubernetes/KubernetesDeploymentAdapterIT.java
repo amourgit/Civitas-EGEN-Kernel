@@ -13,12 +13,13 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.io.TempDir;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.Container.ExecResult;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.k3s.K3sContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.net.URI;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -66,11 +68,30 @@ class KubernetesDeploymentAdapterIT {
     private static final ServiceId SERVICE = ServiceId.of("it-news");
     private static final String KUBECONFIG = "--kubeconfig=/etc/rancher/k3s/k3s.yaml";
 
+    private static final int KUBE_SECURE_PORT = 6443;
+
     // Version k3s verifiee : la release v1.31.2+k3s1 existe sur github.com/k3s-io/k3s (le « + » devient « - »
     // dans l'etiquette Docker).
     @Container
-    static final K3sContainer K3S = new K3sContainer(DockerImageName.parse("rancher/k3s:v1.31.2-k3s1"))
-            .withStartupTimeout(Duration.ofMinutes(3));
+    static final GenericContainer<?> K3S = newK3sContainer();
+
+    /**
+     * Un conteneur k3s configure comme le fait {@code org.testcontainers.k3s.K3sContainer} (code source
+     * verifie en 1.20.4 et 2.0.4, configuration identique). On ne depend pas du module k3s : voir la note
+     * « PIEGE » du pom de ce module.
+     */
+    private static GenericContainer<?> newK3sContainer() {
+        GenericContainer<?> k3s = new GenericContainer<>("rancher/k3s:v1.31.2-k3s1");
+        k3s.withExposedPorts(KUBE_SECURE_PORT)
+                .withPrivilegedMode(true) // k3s lance containerd : il lui faut un conteneur privilegie
+                .withCreateContainerCmdModifier(cmd -> cmd.getHostConfig().withCgroupnsMode("host"))
+                .withFileSystemBind("/sys/fs/cgroup", "/sys/fs/cgroup", BindMode.READ_WRITE)
+                .withTmpFs(Map.of("/run", "", "/var/run", ""))
+                .withCommand("server", "--disable=traefik", "--tls-san=" + k3s.getHost())
+                .waitingFor(Wait.forLogMessage(".*Node controller sync successful.*", 1))
+                .withStartupTimeout(Duration.ofMinutes(3));
+        return k3s;
+    }
 
     private static final String RBAC = """
             apiVersion: v1
@@ -136,7 +157,7 @@ class KubernetesDeploymentAdapterIT {
         Path caFile = tempDir.resolve("k3s-ca.pem");
         Files.write(caFile, Base64.getDecoder().decode(caBase64));
 
-        URI address = URI.create("https://" + K3S.getHost() + ":" + K3S.getMappedPort(K3sContainer.KUBE_SECURE_PORT));
+        URI address = URI.create("https://" + K3S.getHost() + ":" + K3S.getMappedPort(KUBE_SECURE_PORT));
         adapter = new KubernetesDeploymentAdapter(new KubernetesConfig(address, NAMESPACE, token, caFile, CONTAINER_PORT));
     }
 
