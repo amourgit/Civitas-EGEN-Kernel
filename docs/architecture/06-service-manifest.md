@@ -29,7 +29,7 @@ runtime:
   language: python                # informatif uniquement — EGEN ne l'interprète jamais
 
 deployment:
-  adapter: nomad                  # quel Deployment Adapter cible ce service (extensible)
+  adapter: nomad                  # quel Deployment Adapter exécute ce service : un adapter activé du Kernel (immuable, voir 07)
   image: registry.civitas.africa/news-service:2.4.0
   resources:
     cpu: "500m"
@@ -269,9 +269,9 @@ normative dans [12](12-communication-fabric.md#sémantique-normative-de-la-rési
    `dependencies.services` **au niveau de l'écosystème entier** (le graphe
    global, pas seulement local à ce manifeste), noms d'endpoints uniques.
 3. Vérification que l'`adapter` déclaré dans `deployment.adapter` est bien
-   enregistré dans le Kernel (voir [07.1](07-ports-et-adapters.md#deployment-port)).
-   *Non appliquée aujourd'hui* : le Kernel ne compare pas encore ce champ à
-   l'adapter actif ; voir [19](19-feuille-de-route.md), point ouvert 6.
+   activé dans le Kernel (voir [07](07-ports-et-adapters.md#sélection-et-routage--un-moteur-par-service)).
+   Sinon : refus (HTTP 400). Si le service existe déjà avec un **autre**
+   adapter : refus (HTTP 409), car l'adapter d'un service est immuable.
 4. Compatibilité de version : si `notification-service` existe déjà en
    version `1.1.0` et que ce manifeste exige `>=1.2.0`, le manifeste est
    accepté (déclaré) mais la réconciliation retient le service en phase

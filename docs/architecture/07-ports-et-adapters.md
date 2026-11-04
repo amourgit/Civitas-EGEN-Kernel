@@ -72,7 +72,7 @@ latence de détection de changement.
 
 **À quoi sert cette section.** Elle fixe le contrat de `KubernetesDeploymentAdapter`, le second adapter du `DeploymentPort` (Phase 6, [19](19-feuille-de-route.md)). Elle est normative : le code s'y conforme, pas l'inverse.
 
-**Ce qu'elle ne couvre pas.** Le choix d'un moteur par service (un Kernel utilise **un seul** Deployment Adapter à la fois, voir « Sélection »), les namespaces Kubernetes par tenant, la découverte par `Service` Kubernetes.
+**Ce qu'elle ne couvre pas.** Les namespaces Kubernetes par tenant et la découverte par `Service` Kubernetes. Le choix du moteur par service est décrit dans « Sélection et routage ».
 
 **Pourquoi Kubernetes.** Nomad et Kubernetes sont deux moteurs qui placent, redémarrent et mettent à jour des conteneurs. Kubernetes sait nativement ajuster le nombre de réplicas, faire un rolling update (remplacer les instances une à une), garder l'historique des versions et lister les instances. L'adapter n'a donc **aucune logique de planification à écrire** : il traduit (garde-fou n°3, [02](02-principes-fondamentaux.md)). Une organisation qui exploite déjà un cluster Kubernetes peut ainsi utiliser EGEN sans installer Nomad.
 
@@ -88,11 +88,28 @@ latence de détection de changement.
 
 **Exemple de bout en bout.** Le service `news-service` (image `registry.civitas.africa/news-service:2.4.0`, 500m de CPU, 512Mi de mémoire, 2 réplicas minimum) est déclaré via `POST /api/v1/services`. (1) Le moteur de réconciliation appelle `create(news-service, spec)`. (2) L'adapter envoie à Kubernetes **un** Deployment nommé `news-service`. (3) Kubernetes crée un ReplicaSet puis deux pods. (4) Au cycle suivant, `getStatus` compte les pods : 2 voulus, 2 en cours, 2 prêts → le service passe `RUNNING`. (5) `listAllocations` renvoie l'adresse et le port de chaque pod ; le moteur les enregistre dans Discovery (Consul). (6) Pour passer à `2.5.0`, `update` renvoie le même Deployment avec la nouvelle image : Kubernetes remplace les pods un par un. (7) `rollback(news-service, 2.4.0)` retrouve le ReplicaSet de `2.4.0` et remet son modèle de pod dans le Deployment.
 
-#### Sélection de l'adapter
+#### Sélection et routage : un moteur par service
 
-- Propriété `egen.deployment.adapter` : `nomad` (défaut) ou `kubernetes`. Toute autre valeur fait **échouer le démarrage** avec un message qui liste les valeurs permises.
-- Le seul code qui connaît cette propriété est `DeploymentAdapterBeans` (`egen-bootstrap`), comme le prévoit [19](19-feuille-de-route.md) (Phase 6). `egen-domain` et `egen-application` ne changent pas.
-- **Limite assumée.** Le champ `deployment.adapter` du manifeste ([06](06-service-manifest.md)) n'est **pas** encore comparé à l'adapter actif : un manifeste qui déclare `nomad` sur un Kernel configuré `kubernetes` est déployé par Kubernetes sans erreur. Corriger cela demande de toucher le domaine ou l'application : décision à prendre, voir [19](19-feuille-de-route.md), point ouvert 6.
+**Principe.** Un même Kernel peut exécuter **plusieurs** Deployment Adapters en parallèle. Chaque service choisit le sien dans son manifeste, par `deployment.adapter` ([06](06-service-manifest.md)). Le moteur de réconciliation ne change pas : il parle toujours à **un seul** `DeploymentPort`.
+
+**Propriété** `egen.deployment.adapters` : liste, séparée par des virgules, des adapters **activés** dans ce Kernel. Valeurs possibles : `nomad`, `kubernetes`. Défaut : `nomad`. Une valeur inconnue, un doublon ou une liste vide fait **échouer le démarrage**, avec un message qui liste les valeurs permises. Un adapter non activé n'est jamais construit (pas de connexion, pas de configuration exigée).
+
+**Qui fait quoi, dans l'ordre** (exemple : le Kernel active `nomad,kubernetes` ; `news-service` déclare `adapter: kubernetes`) :
+
+1. **Declare.** `DeployServiceUseCase` lit `deployment.adapter` du manifeste. Si cet adapter n'est pas activé, la déclaration est refusée (HTTP 400, message : « adapter "docker" non activé ; adapters activés : nomad, kubernetes »). C'est l'étape 3 de la validation décrite en [06](06-service-manifest.md#validation-du-manifeste-obligatoire-avant-tout-declare).
+2. **Adapter immuable.** Si `news-service` existe déjà avec un autre adapter, la déclaration est refusée (HTTP 409). Sans cette règle, les instances de l'ancien moteur resteraient en vie sans personne pour les piloter. Pour changer de moteur : déclarer un **nouveau** service (nouvel identifiant), puis arrêter l'ancien.
+3. **Réconciliation.** Le moteur appelle `DeploymentPort`. Cet objet est un `RoutingDeploymentPort` (dans `egen-application`) : pour `create` et `update`, il lit l'adapter dans la `DeploymentSpec` reçue ; pour toutes les autres opérations, il lit l'adapter du manifeste courant du service dans le Registry. Il délègue ensuite à l'adapter correspondant. Il ne contient **aucune** logique de déploiement.
+4. **Observabilité.** Chaque adapter est enveloppé séparément dans `ObservedDeploymentPort` avec son propre nom : les métriques distinguent `nomad` de `kubernetes`.
+
+**Cas limites** (comportement fixé, pas de repli silencieux) :
+
+| Situation | Résultat |
+|---|---|
+| `getStatus` ou `listAllocations` sur un service absent du Registry | `DeploymentObservation.empty()` / liste vide |
+| `scale`, `restart`, `stop`, `remove`, `rollback` sur un service absent du Registry | `DeploymentException` (service inconnu) |
+| Service enregistré avec un adapter qui n'est plus activé (le Kernel a redémarré avec une autre liste) | `DeploymentException` qui nomme l'adapter ; aucun repli sur un autre moteur |
+
+**Où vit le code.** `DeploymentAdapterBeans` (`egen-bootstrap`) construit les adapters activés et le routeur ; c'est le seul code qui connaît la propriété. `egen-domain` ne change pas. `egen-application` reçoit `RoutingDeploymentPort`, `DeploymentAdapterCatalog` (la liste des adapters activés, lue par le use case de déclaration) et deux exceptions.
 
 #### Configuration
 
