@@ -2,40 +2,59 @@ package africa.civitas.egen.bootstrap.wiring;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Niveau 1 (docs/architecture/17) : la regle de selection de egen.deployment.adapter, sans conteneur. */
+/** Niveau 1 (docs/architecture/17) : la lecture de egen.deployment.adapters, sans conteneur. */
 class DeploymentAdapterKindTest {
 
     @Test
-    void nomadIsTheDefault() {
-        assertEquals(DeploymentAdapterKind.NOMAD, DeploymentAdapterKind.parse(DeploymentAdapterKind.DEFAULT));
+    void nomadAloneIsTheDefault() {
+        assertEquals(List.of(DeploymentAdapterKind.NOMAD),
+                List.copyOf(DeploymentAdapterKind.parseList(DeploymentAdapterKind.DEFAULT)));
     }
 
     @Test
-    void bothKnownAdaptersAreRecognisedIgnoringCaseAndSpaces() {
-        assertEquals(DeploymentAdapterKind.NOMAD, DeploymentAdapterKind.parse("nomad"));
-        assertEquals(DeploymentAdapterKind.KUBERNETES, DeploymentAdapterKind.parse("kubernetes"));
-        assertEquals(DeploymentAdapterKind.KUBERNETES, DeploymentAdapterKind.parse("  Kubernetes "));
+    void aListEnablesSeveralAdaptersAndKeepsTheGivenOrder() {
+        assertEquals(List.of(DeploymentAdapterKind.KUBERNETES, DeploymentAdapterKind.NOMAD),
+                List.copyOf(DeploymentAdapterKind.parseList("kubernetes,nomad")));
     }
 
     @Test
-    void anUnknownValueFailsAndListsTheAllowedOnes() {
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parse("docker"));
+    void caseAndSpacesAroundNamesAreIgnored() {
+        assertEquals(List.of(DeploymentAdapterKind.NOMAD, DeploymentAdapterKind.KUBERNETES),
+                List.copyOf(DeploymentAdapterKind.parseList("  Nomad , KUBERNETES ")));
+    }
+
+    @Test
+    void anUnknownNameFailsAndListsTheAllowedOnes() {
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> DeploymentAdapterKind.parseList("nomad,docker"));
         assertTrue(e.getMessage().contains("docker"), e.getMessage());
         assertTrue(e.getMessage().contains("nomad") && e.getMessage().contains("kubernetes"), e.getMessage());
     }
 
     @Test
-    void blankOrNullIsRejectedNotSilentlyDefaulted() {
-        assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parse(""));
-        assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parse(null));
+    void aDuplicateIsRejectedNotSilentlyMerged() {
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> DeploymentAdapterKind.parseList("nomad,Nomad"));
+        assertTrue(e.getMessage().contains("deux fois"), e.getMessage());
     }
 
     @Test
-    void propertyValuesMatchTheNamesUsedByTheMetrics() {
+    void anEmptyOrBlankListOrAnEmptyItemIsRejectedNotSilentlyDefaulted() {
+        assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parseList(""));
+        assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parseList("   "));
+        assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parseList(null));
+        assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parseList("nomad,"));
+        assertThrows(IllegalStateException.class, () -> DeploymentAdapterKind.parseList(",nomad"));
+    }
+
+    @Test
+    void propertyValuesMatchTheNamesUsedInManifestsAndMetrics() {
         assertEquals("nomad", DeploymentAdapterKind.NOMAD.propertyValue());
         assertEquals("kubernetes", DeploymentAdapterKind.KUBERNETES.propertyValue());
     }

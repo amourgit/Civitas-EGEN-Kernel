@@ -1,6 +1,7 @@
 package africa.civitas.egen.bootstrap.wiring;
 
 import africa.civitas.egen.application.port.ConfigurationPort;
+import africa.civitas.egen.application.port.DeploymentAdapterCatalog;
 import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.MessagingPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
@@ -69,10 +70,14 @@ public class UseCaseBeans {
     @Inject
     ConfigurationPort configurationPort;
 
+    @Inject
+    DeploymentAdapterCatalog deploymentAdapterCatalog;
+
     @Produces
     @ApplicationScoped
     public DeployServiceUseCase deployServiceUseCase() {
-        return new DeployServiceUseCaseImpl(registryStorePort, workQueue, pendingDeclareTraces);
+        return new DeployServiceUseCaseImpl(registryStorePort, workQueue, pendingDeclareTraces,
+                deploymentAdapterCatalog);
     }
 
     @Produces

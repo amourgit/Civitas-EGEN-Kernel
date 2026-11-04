@@ -12,11 +12,13 @@ import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.TraceContext;
 import africa.civitas.egen.application.port.TraceSpan;
 import africa.civitas.egen.application.usecase.DeclareResult;
+import africa.civitas.egen.application.usecase.DeploymentAdapterChangeException;
 import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
 import africa.civitas.egen.application.usecase.ServiceNotFoundException;
 import africa.civitas.egen.application.usecase.StopServiceUseCase;
+import africa.civitas.egen.application.usecase.UnknownDeploymentAdapterException;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ServiceId;
@@ -27,6 +29,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
@@ -128,7 +131,16 @@ public class ServiceResource {
                 // fourni aucun traceparent (le span http.declare lui-meme
                 // sert alors de racine a lier) — voir
                 // PendingDeclareTraces et docs/architecture/15-observabilite.md.
-                DeclareResult result = deployServiceUseCase.declare(manifest, targetEnvironment, span.context());
+                DeclareResult result;
+                try {
+                    result = deployServiceUseCase.declare(manifest, targetEnvironment, span.context());
+                } catch (UnknownDeploymentAdapterException e) {
+                    // deployment.adapter désigne un adapter non activé : requête invalide (06, validation, étape 3).
+                    throw new BadRequestException(e.getMessage());
+                } catch (DeploymentAdapterChangeException e) {
+                    // L'adapter d'un service existant est immuable (07, « Sélection et routage »).
+                    throw new ClientErrorException(e.getMessage(), Response.Status.CONFLICT);
+                }
                 String statusUrl = "/api/v1/services/" + result.serviceId().value() + "/status";
 
                 return Response.accepted(
