@@ -4,7 +4,7 @@ import africa.civitas.egen.adapter.kubernetes.KubernetesConfig;
 import africa.civitas.egen.adapter.kubernetes.KubernetesDeploymentAdapter;
 import africa.civitas.egen.adapter.nomad.NomadDeploymentAdapter;
 import africa.civitas.egen.application.observability.ObservedDeploymentPort;
-import africa.civitas.egen.application.port.DeploymentAdapterCatalog;
+import africa.civitas.egen.application.port.EnabledDeploymentAdapters;
 import africa.civitas.egen.application.port.DeploymentPort;
 import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
@@ -57,13 +57,13 @@ public class DeploymentAdapterBeans {
     /** Les adapters activés, lus par le use case de déclaration (docs/architecture/06, validation, étape 3). */
     @Produces
     @ApplicationScoped
-    public DeploymentAdapterCatalog deploymentAdapterCatalog(
+    public EnabledDeploymentAdapters enabledDeploymentAdapters(
             @ConfigProperty(name = "egen.deployment.adapters", defaultValue = DeploymentAdapterKind.DEFAULT)
             String adapters) {
         Set<String> names = DeploymentAdapterKind.parseList(adapters).stream()
                 .map(DeploymentAdapterKind::propertyValue)
                 .collect(Collectors.toSet());
-        return DeploymentAdapterCatalog.of(names);
+        return EnabledDeploymentAdapters.of(names);
     }
 
     @Produces

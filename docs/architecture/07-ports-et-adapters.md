@@ -109,7 +109,7 @@ latence de détection de changement.
 | `scale`, `restart`, `stop`, `remove`, `rollback` sur un service absent du Registry | `DeploymentException` (service inconnu) |
 | Service enregistré avec un adapter qui n'est plus activé (le Kernel a redémarré avec une autre liste) | `DeploymentException` qui nomme l'adapter ; aucun repli sur un autre moteur |
 
-**Où vit le code.** `DeploymentAdapterBeans` (`egen-bootstrap`) construit les adapters activés et le routeur ; c'est le seul code qui connaît la propriété. `egen-domain` ne change pas. `egen-application` reçoit `RoutingDeploymentPort`, `DeploymentAdapterCatalog` (la liste des adapters activés, lue par le use case de déclaration) et deux exceptions.
+**Où vit le code.** `DeploymentAdapterBeans` (`egen-bootstrap`) construit les adapters activés et le routeur ; c'est le seul code qui connaît la propriété. `egen-domain` ne change pas. `egen-application` reçoit `RoutingDeploymentPort`, `EnabledDeploymentAdapters` (la liste des adapters activés, lue par le use case de déclaration) et deux exceptions.
 
 #### Configuration
 

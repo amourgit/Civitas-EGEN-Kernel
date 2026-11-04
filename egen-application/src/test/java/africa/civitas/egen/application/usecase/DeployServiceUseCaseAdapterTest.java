@@ -1,6 +1,6 @@
 package africa.civitas.egen.application.usecase;
 
-import africa.civitas.egen.application.port.DeploymentAdapterCatalog;
+import africa.civitas.egen.application.port.EnabledDeploymentAdapters;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
 import africa.civitas.egen.application.registry.InMemoryRegistryStore;
@@ -33,7 +33,7 @@ class DeployServiceUseCaseAdapterTest {
     private final InMemoryRegistryStore registry = new InMemoryRegistryStore();
     private final WorkQueue queue = new WorkQueue();
     private final DeployServiceUseCase useCase = new DeployServiceUseCaseImpl(registry, queue,
-            new PendingDeclareTraces(), DeploymentAdapterCatalog.of(Set.of("nomad", "kubernetes")));
+            new PendingDeclareTraces(), EnabledDeploymentAdapters.of(Set.of("nomad", "kubernetes")));
 
     private static ServiceManifest manifest(String adapter) {
         return new ServiceManifest(NEWS, ServiceVersion.parse("1.0.0"),
@@ -47,7 +47,7 @@ class DeployServiceUseCaseAdapterTest {
     void anEnabledAdapterIsAccepted() {
         assertEquals(1L, useCase.declare(manifest("kubernetes"), ENV).generation());
         assertEquals(1L, new DeployServiceUseCaseImpl(new InMemoryRegistryStore(), new WorkQueue(),
-                new PendingDeclareTraces(), DeploymentAdapterCatalog.of(Set.of("nomad")))
+                new PendingDeclareTraces(), EnabledDeploymentAdapters.of(Set.of("nomad")))
                 .declare(manifest("nomad"), ENV).generation());
     }
 
@@ -83,10 +83,10 @@ class DeployServiceUseCaseAdapterTest {
     }
 
     @Test
-    void theCatalogRejectsAnEmptyListAndSortsItsNames() {
-        assertThrows(IllegalArgumentException.class, () -> DeploymentAdapterCatalog.of(Set.of()));
+    void theEnabledAdaptersRejectAnEmptyListAndSortTheirNames() {
+        assertThrows(IllegalArgumentException.class, () -> EnabledDeploymentAdapters.of(Set.of()));
         assertEquals(java.util.List.of("kubernetes", "nomad"),
-                java.util.List.copyOf(DeploymentAdapterCatalog.of(Set.of("nomad", "kubernetes")).enabledNames()));
-        assertFalse(DeploymentAdapterCatalog.of(Set.of("nomad")).isEnabled("kubernetes"));
+                java.util.List.copyOf(EnabledDeploymentAdapters.of(Set.of("nomad", "kubernetes")).enabledNames()));
+        assertFalse(EnabledDeploymentAdapters.of(Set.of("nomad")).isEnabled("kubernetes"));
     }
 }

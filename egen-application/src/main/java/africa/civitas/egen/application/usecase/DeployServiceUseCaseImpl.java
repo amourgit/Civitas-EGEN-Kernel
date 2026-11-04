@@ -1,6 +1,6 @@
 package africa.civitas.egen.application.usecase;
 
-import africa.civitas.egen.application.port.DeploymentAdapterCatalog;
+import africa.civitas.egen.application.port.EnabledDeploymentAdapters;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.TraceContext;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
@@ -33,7 +33,7 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
     private final RegistryStorePort registryStorePort;
     private final WorkQueue workQueue;
     private final PendingDeclareTraces pendingDeclareTraces;
-    private final DeploymentAdapterCatalog adapterCatalog;
+    private final EnabledDeploymentAdapters enabledAdapters;
 
     public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue) {
         this(registryStorePort, workQueue, new PendingDeclareTraces());
@@ -41,17 +41,17 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
 
     public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue,
                                      PendingDeclareTraces pendingDeclareTraces) {
-        this(registryStorePort, workQueue, pendingDeclareTraces, DeploymentAdapterCatalog.acceptingAny());
+        this(registryStorePort, workQueue, pendingDeclareTraces, EnabledDeploymentAdapters.acceptingAny());
     }
 
-    /** Constructeur de production : {@code adapterCatalog} liste les adapters activés dans ce Kernel. */
+    /** Constructeur de production : {@code enabledAdapters} liste les adapters activés dans ce Kernel. */
     public DeployServiceUseCaseImpl(RegistryStorePort registryStorePort, WorkQueue workQueue,
                                      PendingDeclareTraces pendingDeclareTraces,
-                                     DeploymentAdapterCatalog adapterCatalog) {
+                                     EnabledDeploymentAdapters enabledAdapters) {
         this.registryStorePort = registryStorePort;
         this.workQueue = workQueue;
         this.pendingDeclareTraces = pendingDeclareTraces;
-        this.adapterCatalog = adapterCatalog;
+        this.enabledAdapters = enabledAdapters;
     }
 
     @Override
@@ -84,8 +84,8 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
      */
     private void assertAdapterIsEnabledAndUnchanged(ServiceManifest incoming) {
         String requested = incoming.deployment().adapter();
-        if (!adapterCatalog.isEnabled(requested)) {
-            throw new UnknownDeploymentAdapterException(requested, adapterCatalog.enabledNames());
+        if (!enabledAdapters.isEnabled(requested)) {
+            throw new UnknownDeploymentAdapterException(requested, enabledAdapters.enabledNames());
         }
         registryStorePort.findById(incoming.id()).ifPresent(existing -> {
             String current = existing.manifest().deployment().adapter();
