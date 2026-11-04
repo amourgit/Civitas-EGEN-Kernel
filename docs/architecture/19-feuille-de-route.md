@@ -20,7 +20,7 @@ Mise à jour : 3 novembre 2026.
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
 | Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
-| Points ouverts du Kernel | **Ouverts** | 5 points, à décider par Samuel |
+| Points ouverts du Kernel | **Ouverts** | 6 points, à décider par Samuel |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts non tranchés → points ouverts 3 à 5 |
 
 ## Phase 0 — Fondations et décisions structurantes
@@ -344,6 +344,11 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
 - *Options* : (a) aligner le document 07 sur les ports livrés ; (b) ajouter ces méthodes quand un appelant en a besoin.
 - *Impact* : le document 07 reste, en attendant, plus riche que le code.
 
+**6. Aucune sortie de `FAILED` ni de `STOPPED` ([09](09-cycle-de-vie.md), [23](23-runbooks-operateur.md)).**
+- *Problème* : le document 09 dit qu'un service `FAILED` se corrige par « un nouveau manifeste » et qu'un service `STOPPED` repart « sur redemande explicite ». La machine à états autorise `FAILED → DEPLOYING` et `STOPPED → DEPLOYING`, mais **aucun code ne déclenche ces transitions** : le moteur ignore les phases `FAILED`, `STOPPED` et `REMOVED`, et `Declare` ne modifie pas le statut. `actions/restart` et `actions/rollback`, cités dans [13](13-api-et-contrats.md), n'existent pas non plus. Un service `FAILED` ou `STOPPED` ne peut donc pas être relancé sous le même identifiant ; le contournement est un nouvel identifiant.
+- *Options* : (a) un `Declare` qui porte une **nouvelle génération** remet un service `FAILED` ou `STOPPED` en `DEPLOYING` (l'état désiré l'emporte, comportement « déclaratif ») ; (b) ajouter `POST /api/v1/services/{id}/actions/restart` pour un geste explicite de l'opérateur ; (c) assumer que `FAILED` est terminal, retirer la promesse du document 09 et garder le contournement.
+- *Impact* : toute reprise après incident ; c'est le premier geste qu'un opérateur cherchera.
+
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 
 - [x] Ajouter un **second** adapter de déploiement **sans modifier
@@ -380,8 +385,12 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
 - [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
 - [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).
-- [ ] Documentation opérateur complète (runbooks pour les scénarios
+- [~] Documentation opérateur complète (runbooks pour les scénarios
       `FAILED`, `COMPENSATION_FAILED`, divergence prolongée).
+      *Écrit :* [23](23-runbooks-operateur.md), d'après le comportement
+      réel du code (pas la seule documentation) ; il met au jour le point
+      ouvert 6. *Reste à faire :* relecture par un opérateur, et mise à jour
+      du runbook selon la décision du point 6.
 
 Sur la durée de vie du projet, chaque phase suivante ne doit jamais casser
 les garanties déjà prouvées par la précédente — chaque livrable de phase
