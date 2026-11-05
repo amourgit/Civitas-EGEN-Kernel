@@ -377,7 +377,14 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       ci-dessus. Validé et mergé, avec un test HTTP de `POST /api/v1/services`
       (202 adapter activé, 400 adapter non activé, 409 adapter changé).
       Contrat : [07](07-ports-et-adapters.md#sélection-et-routage--un-moteur-par-service).
-- [ ] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
+- [~] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
+      *Écrit, en attente de validation :* niveau 6a,
+      `ReconciliationEngineCrashRecoveryTest` — mort brutale du processus
+      simulée à chaque point d'appel de port, pour un déploiement complet et
+      pour un arrêt gracieux ; il a aussi établi que le moteur réapplique
+      l'état désiré à chaque cycle. *Reste à faire :* niveau 6b (infrastructure
+      réelle : latence vers Consul, coupure de NATS, redémarrage brutal d'un
+      vrai Kernel), après choix de l'outil d'injection de pannes.
 - [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).
 - [ ] Documentation opérateur complète (runbooks pour les scénarios
