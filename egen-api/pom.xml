@@ -85,6 +85,12 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <!-- @JwtSecurity / @Claim : un jeton de test qui porte le claim « team » (voir ServiceResourceTeamOwnershipTest). -->
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-security-jwt</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
       <scope>test</scope>
