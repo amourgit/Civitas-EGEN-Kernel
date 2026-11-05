@@ -49,6 +49,8 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
 
 - Il ne stocke jamais un secret en clair (ni en base, ni en log, ni en
   cache mémoire persistant au-delà de la durée d'un appel).
+- Il ne rejoue jamais la réponse d'un appelant à un autre : la clé de cache
+  d'idempotence inclut l'appelant ([13](13-api-et-contrats.md#sécurité-de-lapi)).
 - Il ne délivre jamais un token de portée plus large que celle
   strictement requise par l'opération demandée.
 - Il ne fait jamais confiance implicitement à un appel interne juste parce

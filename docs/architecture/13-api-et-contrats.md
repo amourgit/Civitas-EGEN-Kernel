@@ -161,7 +161,14 @@ Cette API expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#confi
   pour permettre un retry client sûr côté API — complémentaire de
   l'idempotence interne des adapters (voir
   [04.3](04-moteur-de-reconciliation.md#idempotence--condition-de-survie-de-la-boucle)),
-  cette fois côté contrat public.
+  cette fois côté contrat public. **La réponse mémorisée est propre à
+  l'appelant** : la clé de cache combine l'appelant authentifié, la méthode, le
+  chemin et la valeur de l'en-tête. Deux appelants qui choisissent la même
+  valeur ne partagent donc jamais une entrée (sinon le second recevrait la
+  réponse du premier et sa requête ne serait jamais exécutée). Le cache vit en
+  mémoire du processus, expire après 10 minutes et garde au plus 10 000
+  réponses ; au-delà, les nouvelles réponses ne sont plus rejouables, mais les
+  requêtes sont traitées normalement.
 - Toute évolution du schéma `ServiceManifest` est **rétro-compatible en
   lecture** (un vieux client doit pouvoir lire un manifeste plus récent en
   ignorant les nouveaux champs) — règles classiques d'évolution de schéma

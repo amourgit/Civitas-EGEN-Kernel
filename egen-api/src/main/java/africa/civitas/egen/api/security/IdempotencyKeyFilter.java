@@ -49,6 +49,12 @@ public class IdempotencyKeyFilter implements ContainerRequestFilter, ContainerRe
     private static final String HEADER = "Idempotency-Key";
     private static final String CACHE_KEY_PROPERTY = "egen.idempotency.cacheKey";
     private static final Duration TTL = Duration.ofMinutes(10);
+    /**
+     * Nombre maximal de réponses gardées. Au-delà, les nouvelles réponses ne sont plus mises en cache (la
+     * requête est traitée normalement, seule sa réponse n'est plus rejouable) : un appelant ne peut pas faire
+     * grossir la mémoire du Kernel sans limite.
+     */
+    private static final int MAX_ENTRIES = 10_000;
     // Les noms d'en-tete HTTP sont insensibles a la casse (RFC 7230, section
     // 3.2) — TreeSet avec CASE_INSENSITIVE_ORDER plutot qu'un Set.of ordinaire.
     private static final Set<String> REPLAY_EXCLUDED_HEADERS = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
@@ -65,7 +71,11 @@ public class IdempotencyKeyFilter implements ContainerRequestFilter, ContainerRe
         if (key == null || key.isBlank()) {
             throw new BadRequestException("En-tete " + HEADER + " obligatoire sur cette mutation");
         }
-        String cacheKey = requestContext.getMethod() + " " + requestContext.getUriInfo().getPath() + " " + key;
+        // L'appelant fait partie de la clé : voir IdempotencyCacheKey (sans lui, un appelant pourrait recevoir la
+        // réponse d'un autre, et sa propre requête ne serait jamais exécutée).
+        java.security.Principal caller = requestContext.getSecurityContext().getUserPrincipal();
+        String cacheKey = IdempotencyCacheKey.of(caller == null ? null : caller.getName(),
+                requestContext.getMethod(), requestContext.getUriInfo().getPath(), key);
         evictExpired();
         CachedResponse cached = cache.get(cacheKey);
         if (cached != null) {
@@ -82,7 +92,7 @@ public class IdempotencyKeyFilter implements ContainerRequestFilter, ContainerRe
             return;
         }
         int status = responseContext.getStatus();
-        if (status >= 200 && status < 300) {
+        if (status >= 200 && status < 300 && cache.size() < MAX_ENTRIES) {
             // Toute la reponse originale est rejouee a l'identique en cas de
             // repetition de la cle, pas seulement son corps : un en-tete
             // comme Location (voir ServiceResource.declare()) fait partie du
