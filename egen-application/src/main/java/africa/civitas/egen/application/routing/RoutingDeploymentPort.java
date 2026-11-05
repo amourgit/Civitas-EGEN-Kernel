@@ -11,6 +11,7 @@ import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceVersion;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,7 +37,9 @@ public final class RoutingDeploymentPort implements DeploymentPort {
         if (adapters == null || adapters.isEmpty()) {
             throw new IllegalArgumentException("Le routeur a besoin d'au moins un Deployment Adapter");
         }
-        this.adapters = Map.copyOf(new TreeMap<>(adapters));
+        // Trié ET stable : Map.copyOf() renvoie une table dont l'ordre d'itération change à chaque lancement de la
+        // JVM, ce qui rendrait non déterministe la liste des adapters activés citée dans les messages d'erreur.
+        this.adapters = Collections.unmodifiableMap(new TreeMap<>(adapters));
         this.registryStorePort = registryStorePort;
     }
 
