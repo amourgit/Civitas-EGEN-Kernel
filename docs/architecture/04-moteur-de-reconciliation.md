@@ -119,6 +119,8 @@ indisponible n'est visible que dans la Condition d'un service qui tourne.
 
 ## Idempotence — condition de survie de la boucle
 
+> **Le moteur réapplique l'état désiré à chaque cycle.** Une trace d'un déploiement sans panne montre que, même en régime permanent (un cycle toutes les ~10 s), chaque cycle rappelle `create()`, ré-enregistre les instances dans Discovery et ré-enregistre le statut. Conséquences : la sûreté de la boucle repose entièrement sur l'idempotence de chaque appel, et **toute modification manuelle faite directement dans Nomad ou Kubernetes (par exemple `kubectl scale`) est annulée au cycle suivant**. Cette propriété est vérifiée point par point par `ReconciliationEngineCrashRecoveryTest` ([17](17-strategie-de-tests.md#niveau-6a--mort-brutale-du-processus-simulée-de-façon-déterministe-livré)).
+
 Chaque opération de `Delegate` doit être conçue pour être **rejouée sans
 dommage** :
 

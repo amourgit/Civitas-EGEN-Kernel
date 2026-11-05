@@ -84,6 +84,8 @@ compte :
 3. **Ensuite** `DeploymentPort.stop()` — arrête réellement le
    processus/conteneur via Nomad.
 
+**Si le Kernel meurt pendant l'arrêt.** Le marqueur « désinscrit à tel instant » que le moteur utilise pour compter le délai de grâce est gardé **en mémoire**, pas persisté. Un Kernel redémarré le retrouve vide : il refait la désinscription (idempotente), puis attend de nouveau tout le délai de grâce avant d'arrêter. L'arrêt est donc plus long que prévu, jamais incomplet ; c'est vérifié par le test de chaos de niveau 6a ([17](17-strategie-de-tests.md#niveau-6a--mort-brutale-du-processus-simulée-de-façon-déterministe-livré)).
+
 Inverser cet ordre (arrêter Nomad avant de désenregistrer Consul) provoque
 des erreurs 502/connexions refusées côté clients pendant la fenêtre de
 propagation du health check — c'est l'erreur la plus fréquente en
