@@ -147,6 +147,22 @@ valider concrètement la propriété d'idempotence et de reprise sur
 laquelle repose toute l'architecture (voir
 [04.3](04-moteur-de-reconciliation.md#idempotence--condition-de-survie-de-la-boucle)).
 
+### Niveau 6a — Mort brutale du processus, simulée de façon déterministe (livré)
+
+`ReconciliationEngineCrashRecoveryTest` (`egen-application`), sans aucune infrastructure.
+
+**Qui fait quoi, dans l'ordre.** (1) Le test compte tous les appels qu'un déploiement complet fait à ses ports (déploiement, découverte, registre) : chacun est un point de mort possible. (2) Pour **chaque** appel numéro *k*, il rejoue le scénario en faisant « mourir » le processus juste **avant** l'appel, puis juste **après** son effet (l'effet est persisté, mais le moteur n'a pas la suite). La mort est une `Error`, jamais une exception : le moteur ne peut pas la prendre pour un échec d'adapter, comme un processus tué n'exécute plus rien. (3) Un **nouveau** moteur, avec une file de travail vide et aucune mémoire, reprend sur le même registre et les mêmes faux ports. (4) Le test vérifie que le service converge et que Discovery contient **exactement** les instances voulues.
+
+**Deux scénarios** : un déploiement complet (de `DECLARED` jusqu'à `RUNNING` et son régime permanent), et un arrêt gracieux (de `STOPPING` jusqu'à `STOPPED`, sans aucune instance restée enregistrée).
+
+**Vérification du test lui-même.** Un test de chaos qui ne peut pas échouer ne prouve rien. Avec un Discovery volontairement non idempotent, 49 des 92 scénarios de déploiement échouent, avec le point de mort exact dans le message.
+
+**Ce que ce niveau prouve, et ne prouve pas.** Il prouve l'idempotence et la reprise de la **logique du moteur**, face à des ports qui se comportent bien. Il ne prouve rien sur le comportement de vrais Nomad, Kubernetes, Consul ou NATS sous panne : c'est l'objet du niveau 6b.
+
+### Niveau 6b — Injection de pannes sur l'infrastructure réelle (à faire)
+
+Les trois scénarios cités plus haut : latence réseau vers Consul, coupure de NATS pendant une rafale de publications, redémarrage brutal d'un vrai processus Kernel en plein cycle. Ils demandent une infrastructure réelle et un outil d'injection de pannes réseau, à choisir et à valider avant de l'écrire.
+
 ## Tests de contrat inter-langages (Communication Fabric)
 
 La résilience ([12](12-communication-fabric.md#sémantique-normative-de-la-résilience))

@@ -12,7 +12,7 @@
   l'API de contrôle propage son `traceparent` jusqu'au premier appel
   réseau vers Nomad/Consul/Kafka.
 - **Métriques** — jeu minimal à exposer dès la V1 :
-  - `egen_services_total{phase="RUNNING|DEGRADED|FAILED|..."}`
+  - `egen_services_total{phase="RUNNING|DEGRADED|FAILED|..."}` — *état réel du code* : un **compteur** incrémenté à chaque enregistrement du statut, donc à chaque cycle d'un service actif ; ce n'est pas le nombre de services actuellement dans la phase. Une jauge du nombre courant n'existe pas encore.
   - `egen_reconcile_duration_seconds` (histogramme, par type de ressource)
   - `egen_reconcile_failures_total{service, reason}`
   - `egen_dependency_unresolved_total{service, dependency}`
