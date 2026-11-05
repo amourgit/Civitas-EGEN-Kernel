@@ -31,7 +31,7 @@ Tous les appels sont sur l'API de contrôle. La **lecture** est ouverte à tout 
 
 | Métrique | Ce qu'elle compte |
 |---|---|
-| `egen_services_total{phase}` | Un **compteur** : il augmente de 1 chaque fois qu'un service **entre** dans une phase. Ce n'est **pas** le nombre de services actuellement dans cette phase. |
+| `egen_services_total{phase}` | Un **compteur** : il augmente de 1 **à chaque enregistrement du statut**, donc à chaque cycle d'un service actif (environ toutes les 10 secondes pour un service `RUNNING`). Ce n'est **pas** le nombre de services actuellement dans cette phase, et son rythme ne dit rien du nombre de changements de phase. Pour `FAILED`, le statut n'est enregistré qu'une fois : le moteur ignore ensuite le service. |
 | `egen_reconcile_failures_total{service, reason}` | Les échecs d'adapter pendant un cycle ; `reason` est le nom de la classe de l'erreur (par exemple `DeploymentException`). |
 | `egen_adapter_call_errors_total{adapter, operation}` et `egen_adapter_call_duration_seconds{adapter, operation}` | Les appels aux adapters, par adapter (`nomad`, `kubernetes`) et par opération. |
 | `egen_dependency_unresolved_total{service, dependency}` | Les dépendances non résolues. |
@@ -129,6 +129,8 @@ Exemple : le workflow `publish-article` réserve un créneau (`reserve-notificat
 ## 3. Divergence prolongée entre désiré et observé
 
 **Ce que cela veut dire.** Le service devrait être `RUNNING` (c'est ce qu'a demandé le manifeste) mais ne l'est pas, ou plus, depuis plus longtemps que prévu. Le Kernel ne mesure pas cette durée aujourd'hui (le critère de fin « la divergence est mesurée en continu » de [19](19-feuille-de-route.md) n'est pas atteint) : il faut lire la phase.
+
+**Le moteur réapplique l'état désiré en continu** : à chaque cycle il rappelle `create()` et ré-enregistre les instances (constaté en traçant un déploiement sans panne). Toute modification faite à la main directement dans Nomad ou Kubernetes (un `kubectl scale`, un changement d'image) est donc **annulée au cycle suivant**, environ 10 secondes plus tard. Pour changer un service, changez son manifeste.
 
 **Rythmes du moteur** à connaître : un service convergé est ré-observé toutes les **10 secondes**, et toutes les ressources sont ré-examinées toutes les **5 minutes**, même sans changement ([04](04-moteur-de-reconciliation.md)). Une panne est donc vue en quelques secondes ; une phase qui reste bloquée plus longtemps n'est pas un retard d'observation.
 
