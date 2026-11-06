@@ -123,6 +123,13 @@ public class ServiceResource {
                 }
                 span.setAttribute("service.id", manifest.id().value());
 
+                // Redéclarer un service qui existe déjà exige d'en être propriétaire (ou administrateur). Le contrôle
+                // précédent (assertCanDeclare) ne compare le jeton qu'à l'équipe écrite dans le NOUVEAU manifeste :
+                // sans celui-ci, l'équipe B pouvait réécrire le service de l'équipe A en déclarant « team: B »
+                // (voir docs/architecture/14-securite.md, « refus par défaut »). Un service sans équipe reste
+                // ouvert, comme pour toute action (note de migration du document 14).
+                assertOwnsOrAdminIfKnown(manifest.id());
+
                 TargetEnvironment targetEnvironment = TargetEnvironment.of(
                         environment != null && !environment.isBlank() ? environment : defaultEnvironment);
 
