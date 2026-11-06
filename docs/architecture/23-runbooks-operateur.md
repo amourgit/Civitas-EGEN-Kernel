@@ -32,12 +32,11 @@ Tous les appels sont sur l'API de contrôle. Tout appel exige un jeton valide. L
 | Métrique | Ce qu'elle compte |
 |---|---|
 | `egen_services_total{phase}` | Un **compteur** : il augmente de 1 **à chaque enregistrement du statut**, donc à chaque cycle d'un service actif (environ toutes les 10 secondes pour un service `RUNNING`). Ce n'est **pas** le nombre de services actuellement dans cette phase, et son rythme ne dit rien du nombre de changements de phase. Pour `FAILED`, le statut n'est enregistré qu'une fois : le moteur ignore ensuite le service. |
+| `egen_reconcile_duration_seconds{service}` | La durée de chaque cycle de réconciliation, par service. |
 | `egen_reconcile_failures_total{service, reason}` | Les échecs d'adapter pendant un cycle ; `reason` est le nom de la classe de l'erreur (par exemple `DeploymentException`). |
 | `egen_adapter_call_errors_total{adapter, operation}` et `egen_adapter_call_duration_seconds{adapter, operation}` | Les appels aux adapters, par adapter (`nomad`, `kubernetes`) et par opération. |
 | `egen_dependency_unresolved_total{service, dependency}` | Les dépendances non résolues. |
 | `egen_workflow_executions_total{workflow, status}` | Compté **une fois**, quand une exécution entre dans un statut terminal. |
-
-`egen_reconcile_duration_seconds`, citée dans [15](15-observabilite.md), **n'est pas émise** à ce jour.
 
 **Alertes à poser** (conditions exprimées sans syntaxe de requête, car le nom exact côté exportateur dépend de la configuration d'OpenTelemetry) :
 
@@ -84,15 +83,15 @@ Exemple : `news-service`, déclaré avec `adapter: kubernetes`.
 
 3. Pour comprendre **quand** les échecs ont commencé : la métrique `egen_reconcile_failures_total{service="news-service"}`, ventilée par `reason`.
 
-### Ce que vous pouvez faire aujourd'hui
+### Ce que vous pouvez faire
 
-1. **Corrigez la cause** (tableau ci-dessus). Le moteur **ne réessaie pas** un service en `FAILED` : il l'ignore tant que sa phase est `FAILED`, `STOPPED` ou `REMOVED`. Corriger la cause ne suffit donc pas à le relancer.
-2. **Libérez les ressources** si nécessaire : `POST /api/v1/services/news-service/actions/stop` (rôle administrateur). La machine à états autorise `FAILED → STOPPING → STOPPED`.
-3. Pour **faire tourner à nouveau** ce service, voir ci-dessous.
+1. **Corrigez la cause** (tableau ci-dessus). Le moteur **ne réessaie pas** un service en `FAILED` : il l'ignore tant que sa phase est `FAILED`, `STOPPED` ou `REMOVED`. Corriger la cause ne relance donc rien tout seul.
+2. **Relancez le service** : envoyez de nouveau `POST /api/v1/services` avec son manifeste (le même, ou corrigé) **sous le même identifiant**, et une **nouvelle** valeur d'`Idempotency-Key`. Avec une valeur déjà utilisée, l'API rejoue l'ancienne réponse sans rien exécuter. Le service repart de `DECLARED` avec ses Conditions effacées, puis suit le chemin normal jusqu'à `RUNNING` ([09](09-cycle-de-vie.md#relance-par-declare)). Suivez-le par `GET /api/v1/services/{id}/status`. Seuls son équipe propriétaire ou un administrateur peuvent le faire.
+3. **Si vous préférez libérer les ressources** sans relancer : `POST /api/v1/services/news-service/actions/stop` (rôle administrateur). La machine à états autorise `FAILED → STOPPING → STOPPED`. Un service `STOPPED` se relance de la même façon, par un nouveau `Declare`.
 
-### Ce qui n'existe pas encore (point ouvert 6)
+**Si le service retombe en `FAILED` après la relance**, la cause n'est pas corrigée : relisez la Condition `DeploymentReady`. Il faut de nouveau cinq échecs consécutifs d'adapter pour qu'il y retombe.
 
-Le document 09 promet qu'un service `FAILED` se corrige par « un nouveau manifeste » et qu'un service `STOPPED` repart « sur redemande explicite ». Le code ne le fait pas : la machine à états autorise `FAILED → DEPLOYING` et `STOPPED → DEPLOYING`, mais **rien ne déclenche ces transitions**, et `Declare` ne modifie pas le statut. De même, `actions/restart` et `actions/rollback`, cités dans [13](13-api-et-contrats.md), n'existent pas. **Un service tombé en `FAILED` ne peut donc pas être relancé sous le même identifiant aujourd'hui.** Contournement : déclarer le service sous un nouvel identifiant, après avoir arrêté l'ancien (attention : les services qui en dépendent doivent être redéclarés avec le nouvel identifiant). La décision à prendre est décrite dans [19](19-feuille-de-route.md), point ouvert 6.
+**Ce qui n'existe pas.** `actions/restart` et `actions/rollback`, cités dans [13](13-api-et-contrats.md), ne sont pas livrés : la relance passe uniquement par `Declare`.
 
 ---
 

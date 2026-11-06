@@ -48,11 +48,14 @@ public final class LifecycleStateMachine {
         table.put(Phase.DEPLOYING, EnumSet.of(Phase.RUNNING, Phase.FAILED));
         table.put(Phase.RUNNING, EnumSet.of(Phase.DEGRADED, Phase.UPDATING, Phase.STOPPING, Phase.FAILED));
         table.put(Phase.DEGRADED, EnumSet.of(Phase.RUNNING, Phase.STOPPING, Phase.FAILED));
-        table.put(Phase.FAILED, EnumSet.of(Phase.DEPLOYING, Phase.STOPPING));
+        // FAILED et STOPPED -> DECLARED : un nouveau Declare relance le service, qui repart comme un service neuf
+        // (docs/architecture/09-cycle-de-vie.md, « Relance par Declare »). Les arêtes vers DEPLOYING restent
+        // autorisées mais aucun code ne les emprunte : elles sont réservées à une éventuelle action restart.
+        table.put(Phase.FAILED, EnumSet.of(Phase.DEPLOYING, Phase.STOPPING, Phase.DECLARED));
         table.put(Phase.UPDATING, EnumSet.of(Phase.RUNNING, Phase.ROLLED_BACK, Phase.FAILED));
         table.put(Phase.ROLLED_BACK, EnumSet.of(Phase.RUNNING));
         table.put(Phase.STOPPING, EnumSet.of(Phase.STOPPED));
-        table.put(Phase.STOPPED, EnumSet.of(Phase.DEPLOYING, Phase.REMOVING));
+        table.put(Phase.STOPPED, EnumSet.of(Phase.DEPLOYING, Phase.REMOVING, Phase.DECLARED));
         table.put(Phase.REMOVING, EnumSet.of(Phase.REMOVED));
         table.put(Phase.REMOVED, EnumSet.noneOf(Phase.class));
         return Map.copyOf(table);

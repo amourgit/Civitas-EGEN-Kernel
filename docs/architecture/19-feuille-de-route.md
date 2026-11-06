@@ -11,97 +11,100 @@ Ce document est la **seule source de statut** des phases du Kernel, de la phase 
 
 Légende : `[x]` fait · `[~]` en cours · `[ ]` à faire · `[>]` reporté, avec un **déclencheur écrit** (on ne le fait que si le déclencheur se produit) · `[?]` proposé, à valider.
 
-Mise à jour : 5 novembre 2026. **Reprendre par la section « Reprise de session » ci-dessous.**
+Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session » ci-dessous.**
 
 | Élément | Statut | Reste à faire |
 |---|---|---|
 | Phases 0 à 5 du Kernel | **Fait** | Compléments liés à la Plateforme, listés dans chaque phase : Phase 1 (A-X1 reporté), Phase 2 (décision D20 actée), Phase 4 (A3 fait, A-X2 reporté), Phase 5 (A5 fait) |
-| Phase 6 (continue) | **En cours** | Élément 1 livré et validé (adapter Kubernetes, routage par service). Éléments 2 (chaos 6a), 3 (dossier de sécurité) et 4 (runbooks) **écrits, en attente de validation** sur `phase-6/integration`. Reste : chaos 6b, relecteur externe, runbooks à mettre à jour selon le point ouvert 6 |
+| Phase 6 (continue) | **En cours** | Élément 1 livré et validé. Éléments 2 (chaos 6a), 3 (dossier de sécurité) et 4 (runbooks) écrits et mergés sur `main`. **Relance par `Declare` (point ouvert 6, option a) écrite sur `feat/relance-par-declare`, en attente de validation.** Reste : chaos 6b, relecteur externe |
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
 | Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
-| Points ouverts du Kernel | **Ouverts** | 6 points, à décider par Samuel |
+| Points ouverts du Kernel | **Ouverts** | 5 points, à décider par Samuel (le point 6 est décidé et implémenté, voir la Phase 6) |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts non tranchés → points ouverts 3 à 5 |
 
-## Reprise de session — point de situation du 5 novembre 2026
+## Reprise de session — point de situation du 6 novembre 2026
 
 > **À lire en premier par quiconque reprend le développement.** Le reste du document dit *ce qui est prévu* ; cette section dit *où l'on en est exactement*, ce qui est validé, ce qui ne l'est pas, et dans quel ordre continuer.
 
 ### 1. Où est le code
 
 ```
-main  (204190e)                  = VALIDÉ par `mvn verify` chez Samuel
+main (fcc4697)                    = tout le travail des 5 et 6 novembre, mergé sur instruction de Samuel
    │
-   └── phase-6/integration       = main + 6 morceaux ci-dessous, JAMAIS VALIDÉ EN BLOC
+   └── feat/relance-par-declare   = main + la relance par Declare (point ouvert 6, option a), EN ATTENTE DE VALIDATION
 ```
 
-- **`main` (`204190e`)** contient : le module `egen-adapter-kubernetes`, le routage du Deployment Adapter par service (`egen.deployment.adapters`, `RoutingDeploymentPort`, `EnabledDeploymentAdapters`), le test HTTP 202/400/409 de `POST /api/v1/services`, le test de niveau 3 contre un vrai cluster k3s, et la documentation correspondante.
-- **`phase-6/integration`** réunit en une seule branche tout ce qui attend validation. **Une seule validation suffit** :
+- **`main` (`fcc4697`)** contient tout ce qui était en attente : correctifs de sécurité C1 et C2, chaos 6a, runbooks, dossier de revue de sécurité (documents 23 et 24), plus la correction d'un test (voir ci-dessous). **Attention : `main` n'a pas passé un `mvn verify` complet.** Le dernier build de Samuel était rouge sur **un seul** test de `egen-api` (sur 101), corrigé dans `fcc4697` : le test supposait qu'un service enregistré directement dans le Registry est en génération 0, alors que le Registry attribue lui-même la génération (1 pour le premier enregistrement). Ce build s'est arrêté à `egen-api` : `egen-bootstrap`, `egen-sdk-java` et `egen-sidecar` n'ont **pas tourné** sur cet état.
+- **`feat/relance-par-declare`** ne touche que `egen-domain`, `egen-application` et la documentation : aucun code d'API ni de bootstrap.
+
+**Une seule validation suffit** pour les deux, puisque la branche contient `main` :
 
 ```
-git fetch && git checkout phase-6/integration && git pull
+git fetch && git checkout feat/relance-par-declare && git pull
 mvn verify
 ```
 
-Si c'est **vert** : `git push origin phase-6/integration:main` (avance directe : `main` est un ancêtre de la branche, rien n'est réécrit). Les branches intermédiaires listées plus bas deviennent alors inutiles.
-Si c'est **rouge** : voir « Si `mvn verify` échoue » plus bas.
+Si c'est **vert** : `git push origin feat/relance-par-declare:main` (avance directe). Si c'est **rouge** : voir « Si `mvn verify` échoue ».
 
-### 2. Ce que contient `phase-6/integration`
+### 2. Ce que contient `feat/relance-par-declare`
 
-| # | Branche d'origine | Commit | Fonctionnalité et fichiers touchés | Tests |
-|---|---|---|---|---|
-| 1 | `fix/routing-ordre-deterministe` | `9b96084` | `RoutingDeploymentPort` : `Map.copyOf` annulait le tri, l'ordre des adapters cités dans les messages d'erreur changeait à chaque lancement de JVM. Une ligne de production. | `RoutingDeploymentPortTest` échouait 8 fois sur 16 lancements, 0 sur 16 après |
-| 2 | `phase-6/chaos-6a` | `9b5c53d`, `d98abc9` | Chaos niveau 6a : `ReconciliationEngineCrashRecoveryTest` (`egen-application`). Docs 04, 09, 15, 17. | 2 tests ; vérifié par mutation (49 scénarios sur 92 échouent avec un Discovery non idempotent) |
-| 3 | `phase-6/runbooks-operateur` | `3f8c35a`, `7c9ad80` | Doc 23 (runbooks), README, point ouvert 6. | Documentation |
-| 4 | `fix/idempotence-par-appelant` | `2f8082f` | `egen-api` : `IdempotencyCacheKey` (nouvelle classe) et `IdempotencyKeyFilter` ; cache borné à 10 000 réponses. Docs 13, 14. Faille **C2** du doc 24. | `IdempotencyCacheKeyTest` (5), `ServiceResourceIdempotencyScopeTest` (Quarkus) |
-| 5 | `fix/declare-proprietaire-existant` | `99c31b9` | `egen-api` : `ServiceResource.declare()` applique le contrôle de propriétaire sur un service existant. Faille **C1** du doc 24. **Nouvelle dépendance de test** dans `egen-api/pom.xml` : `io.quarkus:quarkus-test-security-jwt`. | `ServiceResourceTeamOwnershipTest` (Quarkus, 4 cas, vrai claim `team`) |
-| 6 | `phase-6/revue-securite` | `2a5fdd7` | Doc 24 (dossier de cadrage de la revue de sécurité), correction du doc 23 sur les droits de lecture, README. | Documentation |
+**Point ouvert 6, option (a), décidée par Samuel le 6 novembre 2026 : un `Declare` accepté sur un service `FAILED` ou `STOPPED` le relance depuis `DECLARED`.** Contrat normatif : [09](09-cycle-de-vie.md#relance-par-declare).
+
+| Couche | Fichier | Changement |
+|---|---|---|
+| Domaine | `LifecycleStateMachine` | deux arêtes ajoutées : `FAILED → DECLARED` et `STOPPED → DECLARED` |
+| Application | `DeployServiceUseCaseImpl` | après l'enregistrement de la nouvelle génération, un service `FAILED` ou `STOPPED` est remis en `DECLARED`, Conditions effacées ; Javadoc remis à sa place |
+| Tests | `LifecycleStateMachineTest` | les deux arêtes autorisées, quatre transitions voisines refusées |
+| Tests | `DeployServiceRelaunchTest` (5 cas) | relance depuis `FAILED` et `STOPPED` ; **toutes les autres phases intactes** ; un `Declare` refusé ne touche à rien ; service neuf |
+| Tests | `FailedServiceRelaunchTest` (2 cas) | **de bout en bout avec le vrai moteur** : un service `FAILED` que le moteur ignorait revient en `RUNNING` avec exactement 2 instances ; idem pour `STOPPED` |
+| Docs | 09, 13, 15, 23, 19 | contrat de relance ; routes non livrées marquées dans le 13 ; runbook réécrit ; métrique corrigée |
+
+*Pourquoi `DECLARED` et pas `DEPLOYING`* (arête déjà autorisée) : `DEPLOYING` sauterait les contrôles de configuration, de secrets, de dépendances et de messagerie, alors que le nouveau manifeste peut changer exactement cela.
 
 ### 3. Ce qui a été vérifié, et ce qui ne l'a pas été
 
 L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas de Maven, pas de Quarkus, pas de Testcontainers. On y compile et teste avec `javac` et les JAR JUnit et Jackson installés par `apt`.
 
-- **Vérifié ici** : `egen-domain` et `egen-application` compilent ; leurs 178 tests passent (lancés plusieurs fois) ; `IdempotencyCacheKeyTest` passe ; le `pom.xml` de `egen-api` est bien formé.
-- **Jamais compilé ni exécuté ici** : tout `egen-api` (Quarkus), `egen-bootstrap`, et les deux tests Quarkus des morceaux 4 et 5, qui n'ont donc **jamais tourné** : `ServiceResourceIdempotencyScopeTest` et `ServiceResourceTeamOwnershipTest`.
+- **Vérifié ici** : `egen-domain` (182 tests) et `egen-application` (185 tests, lancés quatre fois) compilent et passent. **Test de mutation** : sans l'appel de relance, les 4 tests qui la vérifient échouent et les 3 autres restent verts.
+- **Non vérifié ici** : tout `egen-api` (Quarkus), `egen-bootstrap`, `egen-sdk-java`, `egen-sidecar`.
 
-**Si `mvn verify` échoue**, les suspects, par ordre de probabilité :
-1. `ServiceResourceTeamOwnershipTest` : première utilisation de `@JwtSecurity` / `@Claim` dans le dépôt (artefact `quarkus-test-security-jwt` ajouté au `pom.xml`).
-2. `ServiceResourceIdempotencyScopeTest` : dépend de l'ordre d'exécution de ses trois méthodes et du nom d'utilisateur de `@TestSecurity`.
-3. `IdempotencyKeyFilter` : le seul changement de production du morceau 4 (`requestContext.getSecurityContext().getUserPrincipal()`).
-4. `ServiceResource.declare()` : l'ordre des contrôles (le `403` de propriété arrive après la conversion du manifeste).
+**Si `mvn verify` échoue**, regarder d'abord le premier module rouge :
+1. `egen-api` : `ServiceResourceTeamOwnershipTest` (première utilisation de `@JwtSecurity`, déjà corrigée une fois) et `ServiceResourceIdempotencyScopeTest` (dépend de l'ordre de ses méthodes).
+2. `egen-bootstrap`, `egen-sdk-java`, `egen-sidecar` : jamais exécutés sur l'état de `main` ; suspects, les changements de `IdempotencyKeyFilter` (clé de cache par appelant) et de `ServiceResource.declare()` (contrôle de propriétaire) si un test de bout en bout s'authentifie sans équipe.
 
 ### 4. Décisions attendues de Samuel, par priorité
 
-1. **Point ouvert 6** (aucune sortie de `FAILED` ni de `STOPPED`) : à trancher en premier, c'est le premier geste qu'un opérateur cherchera après un incident. *Recommandation* : l'option (a), un `Declare` portant une nouvelle génération relance le service. Elle touche le moteur et la machine à états, donc non faite sans accord.
-2. **Constats du document 24** : surtout **K6** (mot de passe PostgreSQL par défaut en production), **K9** (aucun `securityContext` sur les pods Kubernetes générés), **K4** (graphe et découverte sans filtre d'équipe : voulu ou lacune ?), **K2** (audience du jeton non vérifiée), **K1** (fin de la tolérance « service sans équipe »).
-3. **Outil d'injection de pannes réseau** pour le niveau 6b du chaos.
+1. **Constats du document 24** : surtout **K6** (mot de passe PostgreSQL par défaut en production), **K9** (aucun `securityContext` sur les pods Kubernetes générés), **K4** (graphe et découverte sans filtre d'équipe : voulu ou lacune ?), **K2** (audience du jeton non vérifiée), **K1** (fin de la tolérance « service sans équipe »).
+2. **Outil d'injection de pannes réseau** pour le niveau 6b du chaos.
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **Valider et merger** `phase-6/integration` (section 1).
-2. Selon la décision du point ouvert 6 : l'implémenter dans le moteur et la machine à états, puis mettre à jour le doc 09 et la section 1 du runbook 23 (qui décrit aujourd'hui le contournement par un nouvel identifiant).
-3. **K6**, petit et sans ambiguïté : retirer la valeur par défaut `egen` de `quarkus.datasource.password` en production (`%prod.`), pour que le démarrage échoue si la variable manque.
-4. **K9** : poser un `securityContext` sûr par défaut dans `KubernetesDeploymentAdapter.buildDeployment` (`runAsNonRoot`, système de fichiers en lecture seule, profil `seccomp`, capacités retirées), avec la section normative du doc 07 d'abord, puis une vérification dans le test de niveau 3.
-5. **K10** : limites explicites sur l'analyse YAML (alias, taille) et un test de « bombe YAML ».
-6. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
-7. **Chaos 6b** : après le choix de l'outil.
-8. **Revue externe** : choisir le relecteur et lui remettre le document 24.
-9. Écarts relevés, non traités : `egen_reconcile_duration_seconds` (doc 15) n'est jamais émise ; `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart` et `actions/rollback` (doc 13) n'existent pas ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
+1. **Valider et merger** `feat/relance-par-declare` (section 1).
+2. **K6**, petit et sans ambiguïté : retirer la valeur par défaut `egen` de `quarkus.datasource.password` en production (`%prod.`), pour que le démarrage échoue si la variable manque.
+3. **K9** : poser un `securityContext` sûr par défaut dans `KubernetesDeploymentAdapter.buildDeployment` (`runAsNonRoot`, système de fichiers en lecture seule, profil `seccomp`, capacités retirées), avec la section normative du doc 07 d'abord, puis une vérification dans le test de niveau 3.
+4. **K10** : limites explicites sur l'analyse YAML (alias, taille) et un test de « bombe YAML ».
+5. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
+6. **Chaos 6b** : après le choix de l'outil.
+7. **Revue externe** : choisir le relecteur et lui remettre le document 24.
+8. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
 
 ### 6. Règles de travail à ne pas perdre
 
-- **`main` ne reçoit que du code validé** par un `mvn verify` vert chez Samuel, en avance directe. Après validation, on merge sans attendre.
+- **`main` ne reçoit que du code validé** par un `mvn verify` vert chez Samuel, en avance directe. Samuel peut ordonner un merge explicite (cela a eu lieu le 6 novembre) : dans ce cas, le dire clairement dans la section 1, comme ci-dessus.
 - **La documentation d'abord** : le contrat normatif s'écrit avant le code. Tout fait externe est vérifié dans une source (code, dépôt officiel) ou marqué « à vérifier ».
 - **Des commits explicites** : un titre qui dit la fonctionnalité touchée, un corps qui liste modules, fichiers, tests et état de vérification. Des commits supplémentaires plutôt qu'une réécriture d'historique.
 - **Ne jamais écrire un jeton ou un mot de passe** dans un fichier, un commit ou une doc. Le jeton GitHub qui a servi à pousser a été exposé dans une conversation : **à révoquer**.
-- **Vérifier avant de conclure** : relire le code plutôt que la seule doc (cela a corrigé plusieurs affirmations du runbook), et prouver qu'un test peut échouer (test de mutation).
+- **Vérifier avant de conclure** : relire le code plutôt que la seule doc, essayer plusieurs motifs de recherche avant d'affirmer qu'une chose « n'existe pas », et prouver qu'un test peut échouer (test de mutation).
 
 ### 7. Pièges déjà rencontrés
 
 - **Testcontainers** : le BOM de Quarkus, importé en premier dans le `pom.xml` racine, fixe le noyau `testcontainers` à 2.0.4. Le module `k3s` 1.20.4 est incompatible (`NoClassDefFoundError … shaded … IOUtils`) : on utilise un `GenericContainer` configuré comme `K3sContainer`.
 - **Règle A4** (`PlatformBoundaryRuleTest`) : des mots réservés à la Plateforme sont interdits dans les identifiants du code du Kernel (relire la liste dans le test ; `catalog` a fait échouer un build, `DeploymentAdapterCatalog` est devenu `EnabledDeploymentAdapters`).
 - **`Map.copyOf` et `Set.of`** renvoient des collections dont l'ordre d'itération change à chaque lancement de JVM : ne jamais les utiliser quand l'ordre apparaît dans un message ou un résultat.
+- **Le Registry attribue lui-même la génération** à l'enregistrement : `save(new DesiredState(…, 0L, …))` donne la génération 1. Un test ne doit jamais supposer une génération absolue, mais comparer à la valeur observée avant.
 - **Le moteur réapplique l'état désiré à chaque cycle** (`create()` rappelé toutes les ~10 s) : toute modification manuelle dans Nomad ou Kubernetes est annulée ; la sûreté repose sur l'idempotence de chaque appel.
+- **Un recensement par recherche textuelle peut rater une forme d'appel** : la durée de réconciliation était émise via `recordDuration(new MetricSample("egen_…"))`, que mon premier motif ne couvrait pas, et deux documents ont affirmé à tort qu'elle n'existait pas.
 - **Un script de modification qui échoue à mi-chemin** laisse des changements partiels : lire `git status` avant de commiter, et vérifier que le message de commit décrit bien ce qui est dedans.
 
 ## Phase 0 — Fondations et décisions structurantes
@@ -425,11 +428,6 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
 - *Options* : (a) aligner le document 07 sur les ports livrés ; (b) ajouter ces méthodes quand un appelant en a besoin.
 - *Impact* : le document 07 reste, en attendant, plus riche que le code.
 
-**6. Aucune sortie de `FAILED` ni de `STOPPED` ([09](09-cycle-de-vie.md), [23](23-runbooks-operateur.md)).**
-- *Problème* : le document 09 dit qu'un service `FAILED` se corrige par « un nouveau manifeste » et qu'un service `STOPPED` repart « sur redemande explicite ». La machine à états autorise `FAILED → DEPLOYING` et `STOPPED → DEPLOYING`, mais **aucun code ne déclenche ces transitions** : le moteur ignore les phases `FAILED`, `STOPPED` et `REMOVED`, et `Declare` ne modifie pas le statut. `actions/restart` et `actions/rollback`, cités dans [13](13-api-et-contrats.md), n'existent pas non plus. Un service `FAILED` ou `STOPPED` ne peut donc pas être relancé sous le même identifiant ; le contournement est un nouvel identifiant.
-- *Options* : (a) un `Declare` qui porte une **nouvelle génération** remet un service `FAILED` ou `STOPPED` en `DEPLOYING` (l'état désiré l'emporte, comportement « déclaratif ») ; (b) ajouter `POST /api/v1/services/{id}/actions/restart` pour un geste explicite de l'opérateur ; (c) assumer que `FAILED` est terminal, retirer la promesse du document 09 et garder le contournement.
-- *Impact* : toute reprise après incident ; c'est le premier geste qu'un opérateur cherchera.
-
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 
 - [x] Ajouter un **second** adapter de déploiement **sans modifier
@@ -483,10 +481,20 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       externe et lui remettre le dossier.
 - [~] Documentation opérateur complète (runbooks pour les scénarios
       `FAILED`, `COMPENSATION_FAILED`, divergence prolongée).
-      *Écrit :* [23](23-runbooks-operateur.md), d'après le comportement
-      réel du code (pas la seule documentation) ; il met au jour le point
-      ouvert 6. *Reste à faire :* relecture par un opérateur, et mise à jour
-      du runbook selon la décision du point 6.
+      *Écrit et mergé :* [23](23-runbooks-operateur.md), d'après le
+      comportement réel du code (pas la seule documentation) ; il a mis au
+      jour le point ouvert 6, depuis traité (voir l'élément suivant) et
+      reporté dans la section 1 du runbook. *Reste à faire :* relecture par
+      un opérateur.
+- [~] **Relance par `Declare`** (ancien point ouvert 6, option (a) décidée
+      par Samuel le 6 novembre 2026) : un `Declare` accepté sur un service
+      `FAILED` ou `STOPPED` le remet en `DECLARED`, Conditions effacées, et il
+      repart comme un service neuf. Contrat :
+      [09](09-cycle-de-vie.md#relance-par-declare). *Écrit sur
+      `feat/relance-par-declare`, en attente de validation :* deux arêtes dans
+      `LifecycleStateMachine`, la relance dans `DeployServiceUseCaseImpl`, sept
+      tests dont deux de bout en bout avec le vrai moteur (vérifiés par test de
+      mutation). *Reste à faire :* `mvn verify` chez Samuel, puis merge.
 
 Sur la durée de vie du projet, chaque phase suivante ne doit jamais casser
 les garanties déjà prouvées par la précédente — chaque livrable de phase

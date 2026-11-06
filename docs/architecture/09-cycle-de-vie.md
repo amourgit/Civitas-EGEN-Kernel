@@ -11,6 +11,7 @@ DECLARED ──▶ REGISTERED ──▶ CONFIGURED ──▶ DEPLOYING ──▶
 RUNNING/DEGRADED ──▶ UPDATING ──▶ RUNNING (ou ROLLED_BACK ──▶ RUNNING si échec)
 RUNNING/DEGRADED/FAILED ──▶ STOPPING ──▶ STOPPED
 STOPPED ──▶ REMOVING ──▶ REMOVED
+FAILED / STOPPED ──▶ DECLARED       (un nouveau Declare du même service le relance, voir « Relance par Declare »)
 ```
 
 | Phase | Signification | Condition de sortie (calculée par la réconciliation) |
@@ -21,12 +22,40 @@ STOPPED ──▶ REMOVING ──▶ REMOVED
 | `DEPLOYING` | `DeploymentPort.create/update` a été appelé, en attente de convergence. | `RUNNING` si `ObservedState.deployment.healthyCount >= desiredCount` **et** `DiscoveryObservation` confirme des instances saines. `FAILED` si le déploiement échoue au-delà du seuil de retry. |
 | `RUNNING` | État nominal — désiré et observé convergent. | `DEGRADED` si une partie des instances devient malsaine ; `UPDATING` sur nouvelle génération du manifeste ; `STOPPING` sur demande d'arrêt. |
 | `DEGRADED` | Convergence partielle (ex. 3 instances saines sur 5 désirées). | Retour `RUNNING` si la convergence se rétablit ; `FAILED` si aucune amélioration après un délai configurable. |
-| `FAILED` | Le Kernel ne parvient pas à converger malgré les retries. | Nécessite une action corrective (nouveau manifeste, intervention infra) ou reste en `FAILED` avec alerting actif — **jamais de retry infini silencieux**, le compteur d'échecs est plafonné et visible. |
+| `FAILED` | Le Kernel ne parvient pas à converger malgré les retries. | Ne se corrige pas seul : **jamais de retry infini silencieux**, le compteur d'échecs est plafonné et visible. Un nouveau `Declare` du même identifiant (manifeste identique ou corrigé) le relance depuis `DECLARED` ([Relance par Declare](#relance-par-declare)) ; sinon il reste en `FAILED` avec alerting actif, ou passe en `STOPPING`. |
 | `UPDATING` | Nouvelle génération en cours de déploiement par-dessus une version `RUNNING`/`DEGRADED`. | `RUNNING` sur succès ; `ROLLED_BACK` puis `RUNNING` si `updateStrategy.autoRevert` déclenche un retour arrière automatique (mappé sur le mécanisme natif de rollback Nomad, voir [07.1](07-ports-et-adapters.md#deployment-port)). |
 | `STOPPING` | Arrêt gracieux en cours (deregister Consul avant arrêt Nomad — ordre important, voir plus bas). | `STOPPED` une fois toutes les instances arrêtées. |
-| `STOPPED` | Aucune instance active, mais le manifeste reste dans le Registry (peut être redéployé). | `DEPLOYING` sur redemande explicite, ou `REMOVING` sur suppression définitive. |
+| `STOPPED` | Aucune instance active, mais le manifeste reste dans le Registry (peut être redéployé). | `DECLARED` sur un nouveau `Declare` du même identifiant (relance, [Relance par Declare](#relance-par-declare)), ou `REMOVING` sur suppression définitive. |
 | `REMOVING` | Suppression en cours (purge Nomad, désenregistrement Consul, nettoyage des topics/streams si demandé). | `REMOVED`. |
 | `REMOVED` | Suppression terminée. Conservé en historique pour audit, filtré des vues actives par défaut. | Terminal. |
+
+## Relance par `Declare`
+
+**Règle.** Un `Declare` accepté sur un service dont la phase est `FAILED` ou `STOPPED` remet ce service en `DECLARED`. Il repart alors comme un service neuf, par le chemin normal : `DECLARED → REGISTERED → CONFIGURED → DEPLOYING → RUNNING`. L'identifiant et l'historique des générations sont conservés. Le Kernel ne relance **jamais** un service tout seul (garde-fou n°10, [02](02-principes-fondamentaux.md)) : c'est toujours une déclaration de l'opérateur qui le fait.
+
+**Pourquoi `DECLARED` et non `DEPLOYING`.** La machine à états autorise aussi `FAILED → DEPLOYING` et `STOPPED → DEPLOYING`, mais ce chemin sauterait les contrôles de `REGISTERED` (configuration et secrets résolus) et de `CONFIGURED` (dépendances `required` démarrées, flux d'événements garantis). Or le nouveau manifeste peut changer exactement ces choses, et un service `FAILED` a pu tomber avant l'un de ces contrôles. Repartir de `DECLARED` rejoue donc tout, sans règle spéciale. Les deux arêtes vers `DEPLOYING` restent autorisées mais **aucun code ne les emprunte** : elles sont réservées à une éventuelle action explicite `restart`.
+
+**Qui fait quoi, dans l'ordre.** Exemple : `news-service` est `FAILED` parce que le namespace Kubernetes n'existait pas.
+
+1. L'opérateur crée le namespace.
+2. Il envoie `POST /api/v1/services` avec le manifeste (le même, ou corrigé) et une **nouvelle** valeur d'`Idempotency-Key`. Avec une valeur déjà utilisée, l'API rejoue la réponse mémorisée **sans rien exécuter** ([13](13-api-et-contrats.md)).
+3. Le use case de déclaration valide la requête (adapter activé et inchangé, pas de cycle, propriétaire ou administrateur) et enregistre une nouvelle génération.
+4. Il constate la phase `FAILED` et écrit le statut `DECLARED`, avec une liste de Conditions **vide** et l'`observedGeneration` de la nouvelle génération. Il met ensuite le service dans la file de travail.
+5. Le moteur de réconciliation prend le relais : `ManifestValid`, puis `ConfigResolved`, puis `DependenciesSatisfied` et `MessagingBindingsReady`, puis le déploiement. L'opérateur suit la progression par `GET /api/v1/services/news-service/status`.
+
+**Effet selon la phase au moment du `Declare`.**
+
+| Phase | Effet |
+|---|---|
+| `FAILED`, `STOPPED` | Remise en `DECLARED`, Conditions effacées. |
+| `DECLARED`, `REGISTERED`, `CONFIGURED`, `DEPLOYING`, `RUNNING`, `DEGRADED`, `UPDATING`, `ROLLED_BACK` | **Inchangé** : une nouvelle génération est enregistrée et le moteur la prend en compte comme avant. |
+| `STOPPING` | **Inchangé** : l'arrêt va à son terme (il n'est pas interrompu). Un second `Declare` relance ensuite le service arrêté. |
+| `REMOVING`, `REMOVED` | **Inchangé** : phases terminales. |
+| Service inconnu | Création normale. |
+
+**Pourquoi effacer les Conditions.** Sans cela, la Condition `DeploymentReady = False` (raison `AdapterFailureThresholdExceeded`) de l'ancien échec resterait lisible pendant que le service est de nouveau `DECLARED`, ce qui induirait l'opérateur en erreur. Chaque Condition est réécrite par le cycle qui la concerne.
+
+**Ce que la relance ne fait pas.** Un `Declare` **refusé** (adapter non activé, adapter changé, cycle, droits insuffisants) ne touche à rien : toutes les validations précèdent l'écriture. La relance n'ajoute aucun droit : seuls le propriétaire du service ou un administrateur peuvent déclarer un service existant ([14](14-securite.md)).
 
 ## Conditions
 

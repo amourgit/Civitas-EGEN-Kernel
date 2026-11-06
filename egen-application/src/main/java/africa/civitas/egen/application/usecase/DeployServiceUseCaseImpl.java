@@ -6,6 +6,9 @@ import africa.civitas.egen.application.port.TraceContext;
 import africa.civitas.egen.application.reconciliation.PendingDeclareTraces;
 import africa.civitas.egen.application.reconciliation.WorkQueue;
 import africa.civitas.egen.domain.dependency.DependencyGraph;
+import africa.civitas.egen.domain.lifecycle.LifecycleStateMachine;
+import africa.civitas.egen.domain.lifecycle.Phase;
+import africa.civitas.egen.domain.lifecycle.ServiceStatus;
 import africa.civitas.egen.domain.model.Dependency;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.ServiceId;
@@ -14,6 +17,7 @@ import africa.civitas.egen.domain.model.TargetEnvironment;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -29,6 +33,8 @@ import java.util.stream.Collectors;
  * bannir : la reconciliation synchrone dans l'API").
  */
 public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
+
+    private static final LifecycleStateMachine LIFECYCLE = new LifecycleStateMachine();
 
     private final RegistryStorePort registryStorePort;
     private final WorkQueue workQueue;
@@ -66,17 +72,32 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
         assertNoCycleIntroduced(manifest);
 
         DesiredState saved = registryStorePort.save(new DesiredState(manifest, 0L, targetEnvironment));
+        relaunchIfFailedOrStopped(saved.serviceId(), saved.generation());
         pendingDeclareTraces.record(saved.serviceId(), saved.generation(), triggeringTrace);
         workQueue.enqueue(saved.serviceId());
         return new DeclareResult(saved.serviceId(), saved.generation());
     }
 
     /**
-     * Reconstruit le graphe de dependances de tout l'ecosysteme CONNU
-     * (voir 10.1 : jamais seulement local a ce manifeste) en y injectant ce
-     * nouveau manifeste, et rejette le Declare si un cycle apparait —
-     * quelle que soit sa longueur.
+     * Relance par Declare (docs/architecture/09-cycle-de-vie.md, « Relance par Declare ») : un service FAILED ou
+     * STOPPED repart de DECLARED, comme un service neuf, pour que la configuration, les secrets, les dependances
+     * et les flux d'evenements soient re-verifies avec le nouveau manifeste. Les Conditions sont effacees : celles
+     * de l'ancien echec (DeploymentReady=False, AdapterFailureThresholdExceeded) ne doivent pas rester lisibles
+     * sur un service redevenu DECLARED. Toute autre phase est laissee telle quelle.
+     *
+     * <p>Appele apres l'enregistrement de la nouvelle generation : toutes les validations (adapter, cycle)
+     * l'ont precedee, donc un Declare refuse ne touche jamais au statut. Le moteur ignore les phases FAILED et
+     * STOPPED : il n'ecrit pas le statut en meme temps, il n'y a pas de concurrence a arbitrer.</p>
      */
+    private void relaunchIfFailedOrStopped(ServiceId id, long generation) {
+        registryStorePort.findStatus(id)
+                .filter(status -> status.phase() == Phase.FAILED || status.phase() == Phase.STOPPED)
+                .ifPresent(status -> {
+                    LIFECYCLE.assertTransitionAllowed(status.phase(), Phase.DECLARED);
+                    registryStorePort.saveStatus(id, new ServiceStatus(Phase.DECLARED, List.of(), generation));
+                });
+    }
+
     /**
      * Étapes 2 et 3 de la validation (docs/architecture/06-service-manifest.md) : l'adapter déclaré est
      * activé dans ce Kernel, et il ne change pas pour un service qui existe déjà (docs/architecture/07,
@@ -95,6 +116,12 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
         });
     }
 
+    /**
+     * Reconstruit le graphe de dependances de tout l'ecosysteme CONNU
+     * (voir 10.1 : jamais seulement local a ce manifeste) en y injectant ce
+     * nouveau manifeste, et rejette le Declare si un cycle apparait —
+     * quelle que soit sa longueur.
+     */
     private void assertNoCycleIntroduced(ServiceManifest incoming) {
         Map<ServiceId, Set<ServiceId>> edges = new HashMap<>();
         for (ServiceId id : registryStorePort.findAllIds()) {

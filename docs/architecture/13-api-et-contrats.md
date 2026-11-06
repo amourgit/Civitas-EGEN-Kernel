@@ -15,20 +15,20 @@
 ## Ressources de premier niveau de l'API
 
 ```
-/api/v1/services                          # CRUD sur ServiceManifest (Declare)
+/api/v1/services                          # CRUD sur ServiceManifest (Declare). Un Declare sur un service FAILED ou STOPPED le relance (09, « Relance par Declare »)
 /api/v1/services/{id}/status              # lecture du ServiceStatus (Observe)
-/api/v1/services/{id}/history             # historique des générations
+/api/v1/services/{id}/history             # historique des générations — NON LIVRÉ
 /api/v1/services/{id}/configuration      # publication/lecture de la configuration technique d'un service (évolution A3)
 /api/v1/services/{id}/actions/stop        # actions impératives explicites (rares — la norme reste déclarative) : arrêt gracieux (09.3), livré
-/api/v1/services/{id}/actions/restart
-/api/v1/services/{id}/actions/rollback
+/api/v1/services/{id}/actions/restart     # NON LIVRÉ (la relance d'un service FAILED/STOPPED passe par Declare)
+/api/v1/services/{id}/actions/rollback    # NON LIVRÉ
 /api/v1/dependencies/graph                # lecture du DependencyGraph global
 /api/v1/workflows                         # CRUD sur WorkflowDefinition
 /api/v1/workflows/{id}/executions         # déclenchement et suivi d'exécutions
 /api/v1/discover/{serviceName}            # proxy pratique vers DiscoveryPort.resolve (lecture seule)
 /api/v1/events/publish                    # point d'entrée générique de publication d'événement technique (pour systèmes externes hors écosystème EGEN)
 /api/v1/health                            # santé du Kernel lui-même
-/api/v1/adapters                          # introspection : quels adapters sont enregistrés et opérationnels
+/api/v1/adapters                          # introspection : quels adapters sont enregistrés et opérationnels — NON LIVRÉ
 ```
 
 ### Lecture des manifestes — `GET /api/v1/services` et `GET /api/v1/services/{id}`

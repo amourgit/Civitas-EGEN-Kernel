@@ -31,6 +31,7 @@ class LifecycleStateMachineTest {
             "DEGRADED, FAILED",
             "FAILED, DEPLOYING",
             "FAILED, STOPPING",
+            "FAILED, DECLARED",      // relance par Declare (09, « Relance par Declare »)
             "UPDATING, RUNNING",
             "UPDATING, ROLLED_BACK",
             "UPDATING, FAILED",
@@ -38,6 +39,7 @@ class LifecycleStateMachineTest {
             "STOPPING, STOPPED",
             "STOPPED, DEPLOYING",
             "STOPPED, REMOVING",
+            "STOPPED, DECLARED",     // relance par Declare
             "REMOVING, REMOVED",
     })
     void allowsDocumentedTransitions(Phase from, Phase to) {
@@ -52,6 +54,10 @@ class LifecycleStateMachineTest {
             "REGISTERED, RUNNING",
             "RUNNING, STOPPED",       // doit passer par STOPPING (arret gracieux, voir 09.3)
             "RUNNING, DECLARED",
+            "DEGRADED, DECLARED",    // seuls FAILED et STOPPED se relancent
+            "STOPPING, DECLARED",    // l'arret va a son terme avant toute relance
+            "REMOVING, DECLARED",
+            "REMOVED, DECLARED",
             "STOPPED, RUNNING",
             "FAILED, RUNNING",
             "REMOVED, DEPLOYING",     // REMOVED est terminal
