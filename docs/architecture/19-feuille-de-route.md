@@ -16,38 +16,28 @@ Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session
 | Élément | Statut | Reste à faire |
 |---|---|---|
 | Phases 0 à 5 du Kernel | **Fait** | Compléments liés à la Plateforme, listés dans chaque phase : Phase 1 (A-X1 reporté), Phase 2 (décision D20 actée), Phase 4 (A3 fait, A-X2 reporté), Phase 5 (A5 fait) |
-| Phase 6 (continue) | **En cours** | Élément 1 livré et validé. Éléments 2 (chaos 6a), 3 (dossier de sécurité) et 4 (runbooks) écrits et mergés sur `main`. **Relance par `Declare` (point ouvert 6, option a) écrite sur `feat/relance-par-declare`, en attente de validation.** Reste : chaos 6b, relecteur externe |
+| Phase 6 (continue) | **En cours** | Éléments 1 (adapter Kubernetes, routage par service), 2 (chaos 6a), 3 (dossier de sécurité), 4 (runbooks) et la relance par `Declare` livrés, **validés et sur `main`**. Reste : chaos 6b, relecteur externe, relecture des runbooks par un opérateur |
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
 | Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
-| Points ouverts du Kernel | **Ouverts** | 5 points, à décider par Samuel (le point 6 est décidé et implémenté, voir la Phase 6) |
+| Points ouverts du Kernel | **Ouverts** | 5 points, à décider par Samuel (l'ancien point 6 est traité : relance par `Declare`) |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts non tranchés → points ouverts 3 à 5 |
 
-## Reprise de session — point de situation du 6 novembre 2026
+## Reprise de session — point de situation du 6 novembre 2026 (soir)
 
 > **À lire en premier par quiconque reprend le développement.** Le reste du document dit *ce qui est prévu* ; cette section dit *où l'on en est exactement*, ce qui est validé, ce qui ne l'est pas, et dans quel ordre continuer.
 
 ### 1. Où est le code
 
 ```
-main (fcc4697)                    = tout le travail des 5 et 6 novembre, mergé sur instruction de Samuel
-   │
-   └── feat/relance-par-declare   = main + la relance par Declare (point ouvert 6, option a), EN ATTENTE DE VALIDATION
+main (950e3c2)   = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (18 modules, 6 novembre 2026, 21:50)
 ```
 
-- **`main` (`fcc4697`)** contient tout ce qui était en attente : correctifs de sécurité C1 et C2, chaos 6a, runbooks, dossier de revue de sécurité (documents 23 et 24), plus la correction d'un test (voir ci-dessous). **Attention : `main` n'a pas passé un `mvn verify` complet.** Le dernier build de Samuel était rouge sur **un seul** test de `egen-api` (sur 101), corrigé dans `fcc4697` : le test supposait qu'un service enregistré directement dans le Registry est en génération 0, alors que le Registry attribue lui-même la génération (1 pour le premier enregistrement). Ce build s'est arrêté à `egen-api` : `egen-bootstrap`, `egen-sdk-java` et `egen-sidecar` n'ont **pas tourné** sur cet état.
-- **`feat/relance-par-declare`** ne touche que `egen-domain`, `egen-application` et la documentation : aucun code d'API ni de bootstrap.
+**Il n'y a aucune branche en attente de validation** au moment de cette écriture. `main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1 et C2, le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et **la relance par `Declare`** (ancien point ouvert 6, option a).
 
-**Une seule validation suffit** pour les deux, puisque la branche contient `main` :
+Les branches `phase-6/*`, `fix/*` et `feat/relance-par-declare` du dépôt distant sont **toutes contenues dans `main`** : elles peuvent être supprimées. Pour continuer, partir de `main` : `git checkout main && git pull`.
 
-```
-git fetch && git checkout feat/relance-par-declare && git pull
-mvn verify
-```
-
-Si c'est **vert** : `git push origin feat/relance-par-declare:main` (avance directe). Si c'est **rouge** : voir « Si `mvn verify` échoue ».
-
-### 2. Ce que contient `feat/relance-par-declare`
+### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
 **Point ouvert 6, option (a), décidée par Samuel le 6 novembre 2026 : un `Declare` accepté sur un service `FAILED` ou `STOPPED` le relance depuis `DECLARED`.** Contrat normatif : [09](09-cycle-de-vie.md#relance-par-declare).
 
@@ -64,14 +54,10 @@ Si c'est **vert** : `git push origin feat/relance-par-declare:main` (avance dire
 
 ### 3. Ce qui a été vérifié, et ce qui ne l'a pas été
 
-L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas de Maven, pas de Quarkus, pas de Testcontainers. On y compile et teste avec `javac` et les JAR JUnit et Jackson installés par `apt`.
+L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas de Maven, pas de Quarkus, pas de Testcontainers. On y compile et teste avec `javac` et les JAR JUnit et Jackson installés par `apt` ; la validation complète se fait **chez Samuel** par `mvn verify`.
 
-- **Vérifié ici** : `egen-domain` (182 tests) et `egen-application` (185 tests, lancés quatre fois) compilent et passent. **Test de mutation** : sans l'appel de relance, les 4 tests qui la vérifient échouent et les 3 autres restent verts.
-- **Non vérifié ici** : tout `egen-api` (Quarkus), `egen-bootstrap`, `egen-sdk-java`, `egen-sidecar`.
-
-**Si `mvn verify` échoue**, regarder d'abord le premier module rouge :
-1. `egen-api` : `ServiceResourceTeamOwnershipTest` (première utilisation de `@JwtSecurity`, déjà corrigée une fois) et `ServiceResourceIdempotencyScopeTest` (dépend de l'ordre de ses méthodes).
-2. `egen-bootstrap`, `egen-sdk-java`, `egen-sidecar` : jamais exécutés sur l'état de `main` ; suspects, les changements de `IdempotencyKeyFilter` (clé de cache par appelant) et de `ServiceResource.declare()` (contrôle de propriétaire) si un test de bout en bout s'authentifie sans équipe.
+- **Validé chez Samuel** : `mvn verify` complet, 18 modules, dont le test de niveau 3 contre un vrai cluster k3s, tous les tests Quarkus et les règles ArchUnit, le 6 novembre 2026.
+- **Vérifié en plus, ici** : test de mutation de la relance (sans l'appel, les 4 tests qui la vérifient échouent) et du chaos 6a.
 
 ### 4. Décisions attendues de Samuel, par priorité
 
@@ -80,14 +66,13 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **Valider et merger** `feat/relance-par-declare` (section 1).
-2. **K6**, petit et sans ambiguïté : retirer la valeur par défaut `egen` de `quarkus.datasource.password` en production (`%prod.`), pour que le démarrage échoue si la variable manque.
-3. **K9** : poser un `securityContext` sûr par défaut dans `KubernetesDeploymentAdapter.buildDeployment` (`runAsNonRoot`, système de fichiers en lecture seule, profil `seccomp`, capacités retirées), avec la section normative du doc 07 d'abord, puis une vérification dans le test de niveau 3.
-4. **K10** : limites explicites sur l'analyse YAML (alias, taille) et un test de « bombe YAML ».
-5. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
-6. **Chaos 6b** : après le choix de l'outil.
-7. **Revue externe** : choisir le relecteur et lui remettre le document 24.
-8. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
+1. **K6**, petit et sans ambiguïté : retirer la valeur par défaut `egen` de `quarkus.datasource.password` en production (`%prod.`), pour que le démarrage échoue si la variable manque.
+2. **K9** : poser un `securityContext` sûr par défaut dans `KubernetesDeploymentAdapter.buildDeployment` (`runAsNonRoot`, système de fichiers en lecture seule, profil `seccomp`, capacités retirées), avec la section normative du doc 07 d'abord, puis une vérification dans le test de niveau 3.
+3. **K10** : limites explicites sur l'analyse YAML (alias, taille) et un test de « bombe YAML ».
+4. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
+5. **Chaos 6b** : après le choix de l'outil.
+6. **Revue externe** : choisir le relecteur et lui remettre le document 24.
+7. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
 
 ### 6. Règles de travail à ne pas perdre
 
@@ -462,7 +447,7 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       (202 adapter activé, 400 adapter non activé, 409 adapter changé).
       Contrat : [07](07-ports-et-adapters.md#sélection-et-routage--un-moteur-par-service).
 - [~] Chaos engineering (voir [17, niveau 6](17-strategie-de-tests.md#niveau-6--chaos-engineering-à-introduire-progressivement)).
-      *Écrit, en attente de validation :* niveau 6a,
+      *Écrit, validé chez Samuel et mergé sur `main` :* niveau 6a,
       `ReconciliationEngineCrashRecoveryTest` — mort brutale du processus
       simulée à chaque point d'appel de port, pour un déploiement complet et
       pour un arrêt gracieux ; il a aussi établi que le moteur réapplique
@@ -481,20 +466,20 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       externe et lui remettre le dossier.
 - [~] Documentation opérateur complète (runbooks pour les scénarios
       `FAILED`, `COMPENSATION_FAILED`, divergence prolongée).
-      *Écrit et mergé :* [23](23-runbooks-operateur.md), d'après le
+      *Écrit, validé et mergé :* [23](23-runbooks-operateur.md), d'après le
       comportement réel du code (pas la seule documentation) ; il a mis au
       jour le point ouvert 6, depuis traité (voir l'élément suivant) et
       reporté dans la section 1 du runbook. *Reste à faire :* relecture par
       un opérateur.
-- [~] **Relance par `Declare`** (ancien point ouvert 6, option (a) décidée
+- [x] **Relance par `Declare`** (ancien point ouvert 6, option (a) décidée
       par Samuel le 6 novembre 2026) : un `Declare` accepté sur un service
       `FAILED` ou `STOPPED` le remet en `DECLARED`, Conditions effacées, et il
       repart comme un service neuf. Contrat :
-      [09](09-cycle-de-vie.md#relance-par-declare). *Écrit sur
-      `feat/relance-par-declare`, en attente de validation :* deux arêtes dans
+      [09](09-cycle-de-vie.md#relance-par-declare). *Livré, validé chez Samuel
+      et mergé sur `main` (6 novembre 2026) :* deux arêtes dans
       `LifecycleStateMachine`, la relance dans `DeployServiceUseCaseImpl`, sept
       tests dont deux de bout en bout avec le vrai moteur (vérifiés par test de
-      mutation). *Reste à faire :* `mvn verify` chez Samuel, puis merge.
+      mutation).
 
 Sur la durée de vie du projet, chaque phase suivante ne doit jamais casser
 les garanties déjà prouvées par la précédente — chaque livrable de phase
