@@ -109,12 +109,15 @@ class ServiceResourceTeamOwnershipTest {
     @JwtSecurity(claims = @Claim(key = "team", value = "team-b"))
     void anotherTeamCannotRedeclareAnExistingServiceByWritingItsOwnTeamInTheManifest() {
         String name = serviceOwnedBy("team-a");
+        // Le registre attribue lui-même la génération à l'enregistrement (la valeur passée à save() est ignorée) :
+        // on compare donc à la génération observée AVANT la tentative, pas à une constante.
+        long generationBefore = registry.findById(ServiceId.of(name)).orElseThrow().generation();
 
         assertEquals(403, declare(name, "team-b", "attacker/image:9.9.9"));
 
         DesiredState unchanged = registry.findById(ServiceId.of(name)).orElseThrow();
         assertEquals("team-a", unchanged.manifest().ownerTeam().value(), "la propriété ne doit pas changer de main");
-        assertEquals(0L, unchanged.generation(), "aucune nouvelle génération ne doit avoir été enregistrée");
+        assertEquals(generationBefore, unchanged.generation(), "aucune nouvelle génération ne doit avoir été enregistrée");
         assertEquals("registry.civitas.africa/" + name + ":1.0.0", unchanged.manifest().deployment().image());
     }
 
