@@ -390,8 +390,16 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
       l'état désiré à chaque cycle. *Reste à faire :* niveau 6b (infrastructure
       réelle : latence vers Consul, coupure de NATS, redémarrage brutal d'un
       vrai Kernel), après choix de l'outil d'injection de pannes.
-- [ ] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
+- [~] Revue de sécurité externe (pentest ciblé sur l'API de contrôle et la
       gestion des secrets).
+      *Écrit :* le dossier de cadrage à remettre au relecteur,
+      [24](24-revue-de-securite-externe.md) (surface, promesses du document 14
+      face au code, constats déjà connus). Établi par relecture du code, **sans
+      test d'intrusion**. *Deux failles trouvées et corrigées pendant sa
+      rédaction :* C1 (une équipe pouvait redéclarer le service d'une autre) et
+      C2 (cache d'idempotence partagé entre appelants). *Reste à faire :*
+      trancher les constats K1 à K11 du document 24, puis choisir le relecteur
+      externe et lui remettre le dossier.
 - [~] Documentation opérateur complète (runbooks pour les scénarios
       `FAILED`, `COMPENSATION_FAILED`, divergence prolongée).
       *Écrit :* [23](23-runbooks-operateur.md), d'après le comportement
