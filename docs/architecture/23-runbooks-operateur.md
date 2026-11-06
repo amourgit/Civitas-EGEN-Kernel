@@ -18,7 +18,7 @@
 
 ## 0. Lire l'état avant d'agir
 
-Tous les appels sont sur l'API de contrôle. La **lecture** est ouverte à tout appelant authentifié ; toute **action** qui modifie quelque chose exige le rôle administrateur (`egen.security.admin-role`, valeur `egen-admin` par défaut ; voir [13](13-api-et-contrats.md) et [14](14-securite.md)).
+Tous les appels sont sur l'API de contrôle. Tout appel exige un jeton valide. Lire l'état d'un service, ou agir sur lui (par exemple l'arrêter), est réservé à **son équipe propriétaire ou à un administrateur** (`egen.security.admin-role`, valeur `egen-admin` par défaut) ; un service sans équipe est ouvert à tout appelant authentifié. Les mutations de workflows sont réservées aux administrateurs ; leur lecture, et celle du graphe de dépendances, sont ouvertes à tout appelant authentifié (voir [13](13-api-et-contrats.md), [14](14-securite.md) et [24](24-revue-de-securite-externe.md)).
 
 | Question | Appel | Ce que vous lisez |
 |---|---|---|
