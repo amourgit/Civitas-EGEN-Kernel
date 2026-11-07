@@ -51,6 +51,10 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   cache mémoire persistant au-delà de la durée d'un appel).
 - Il ne rejoue jamais la réponse d'un appelant à un autre : la clé de cache
   d'idempotence inclut l'appelant ([13](13-api-et-contrats.md#sécurité-de-lapi)).
+- Il ne démarre jamais en production avec un mot de passe de base de données absent
+  ou égal à la valeur par défaut du développement : le démarrage échoue, avec un
+  message qui nomme la variable d'environnement à définir
+  ([24](24-revue-de-securite-externe.md), constat K6).
 - Il ne délivre jamais un token de portée plus large que celle
   strictement requise par l'opération demandée.
 - Il ne fait jamais confiance implicitement à un appel interne juste parce

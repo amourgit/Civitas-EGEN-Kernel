@@ -33,9 +33,23 @@ Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session
 main (950e3c2)   = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (18 modules, 6 novembre 2026, 21:50)
 ```
 
-**Il n'y a aucune branche en attente de validation** au moment de cette écriture. `main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1 et C2, le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et **la relance par `Declare`** (ancien point ouvert 6, option a).
+**Une seule branche attend validation : `fix/k6-mot-de-passe-prod`** (constat K6 du document 24, détail ci-dessous) ; tout le reste est sur `main`. `main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1 et C2, le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et **la relance par `Declare`** (ancien point ouvert 6, option a).
 
-Les branches `phase-6/*`, `fix/*` et `feat/relance-par-declare` du dépôt distant sont **toutes contenues dans `main`** : elles peuvent être supprimées. Pour continuer, partir de `main` : `git checkout main && git pull`.
+Les branches `phase-6/*`, `fix/*` (sauf celle de K6) et `feat/relance-par-declare` du dépôt distant sont **toutes contenues dans `main`** : elles peuvent être supprimées.
+
+**`fix/k6-mot-de-passe-prod`** (constat **K6** : le mot de passe PostgreSQL valait `egen` par défaut, y compris en production) ne touche que `egen-bootstrap` et la documentation :
+
+| Fichier | Changement |
+|---|---|
+| `application.properties` | surcharge `%prod.quarkus.datasource.password=${EGEN_REGISTRY_DB_PASSWORD:}` : plus de valeur par défaut en production |
+| `ProductionConfigurationRules` (nouvelle, sans Quarkus) | refuse un mot de passe absent, vide, ou égal à `egen` |
+| `ProductionConfigGuard` (nouvelle) | observateur de démarrage prioritaire, actif **seulement en mode production** : applique la règle et fait échouer le démarrage |
+| `ProductionConfigurationRulesTest` (5 cas) | la règle, **et** le vrai fichier de configuration : toute propriété `password` ou `secret` doit avoir une surcharge `%prod.` sans défaut (vérifié par mutation : l'ancien fichier et un `:egen` réintroduit échouent) |
+| Docs 14, 24, 19 | promesse ajoutée, K6 marqué corrigé |
+
+*Non vérifié ici* : `ProductionConfigGuard` (Quarkus) n'a jamais été compilé ni exécuté, et le comportement réel d'un démarrage en production sans la variable n'a pas été observé. Pour l'observer : lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD`, et vérifier que le message « Démarrage refusé en production » apparaît.
+
+Pour valider : `git fetch && git checkout fix/k6-mot-de-passe-prod && git pull && mvn verify`, puis `git push origin fix/k6-mot-de-passe-prod:main`. Pour continuer sinon : `git checkout main && git pull`.
 
 ### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
@@ -66,7 +80,7 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **K6**, petit et sans ambiguïté : retirer la valeur par défaut `egen` de `quarkus.datasource.password` en production (`%prod.`), pour que le démarrage échoue si la variable manque.
+1. **K6** : écrit sur `fix/k6-mot-de-passe-prod`, **en attente de validation** (section 1). Reste, après le merge : observer le refus de démarrage sur un vrai jar de production.
 2. **K9** : poser un `securityContext` sûr par défaut dans `KubernetesDeploymentAdapter.buildDeployment` (`runAsNonRoot`, système de fichiers en lecture seule, profil `seccomp`, capacités retirées), avec la section normative du doc 07 d'abord, puis une vérification dans le test de niveau 3.
 3. **K10** : limites explicites sur l'analyse YAML (alias, taille) et un test de « bombe YAML ».
 4. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
