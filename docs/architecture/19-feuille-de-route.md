@@ -20,7 +20,7 @@ Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
 | Phase P0 « production du Kernel » | **Proposée** | À valider par Samuel |
-| Points ouverts du Kernel | **Ouverts** | 5 points, à décider par Samuel (l'ancien point 6 est traité : relance par `Declare`) |
+| Points ouverts du Kernel | **Ouverts** | 6 points, à décider par Samuel (le point 6 est le durcissement strict des pods, issu du constat K9) |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts non tranchés → points ouverts 3 à 5 |
 
 ## Reprise de session — point de situation du 6 novembre 2026 (soir)
@@ -30,26 +30,27 @@ Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session
 ### 1. Où est le code
 
 ```
-main (950e3c2)   = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (18 modules, 6 novembre 2026, 21:50)
+main (5c76019)                  = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (7 novembre 2026, 02:57)
+   │
+   └── fix/k9-contexte-securite-pods   = main + K9 (valeurs sûres des pods), EN ATTENTE DE VALIDATION
 ```
 
-**Une seule branche attend validation : `fix/k6-mot-de-passe-prod`** (constat K6 du document 24, détail ci-dessous) ; tout le reste est sur `main`. `main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1 et C2, le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et **la relance par `Declare`** (ancien point ouvert 6, option a).
+`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2 et **K6** (plus aucun mot de passe de base par défaut en production), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Toutes les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
 
-Les branches `phase-6/*`, `fix/*` (sauf celle de K6) et `feat/relance-par-declare` du dépôt distant sont **toutes contenues dans `main`** : elles peuvent être supprimées.
-
-**`fix/k6-mot-de-passe-prod`** (constat **K6** : le mot de passe PostgreSQL valait `egen` par défaut, y compris en production) ne touche que `egen-bootstrap` et la documentation :
+**`fix/k9-contexte-securite-pods`** (constat **K9** : les pods générés n'avaient aucun `securityContext`) ne touche que `egen-adapter-kubernetes` et la documentation :
 
 | Fichier | Changement |
 |---|---|
-| `application.properties` | surcharge `%prod.quarkus.datasource.password=${EGEN_REGISTRY_DB_PASSWORD:}` : plus de valeur par défaut en production |
-| `ProductionConfigurationRules` (nouvelle, sans Quarkus) | refuse un mot de passe absent, vide, ou égal à `egen` |
-| `ProductionConfigGuard` (nouvelle) | observateur de démarrage prioritaire, actif **seulement en mode production** : applique la règle et fait échouer le démarrage |
-| `ProductionConfigurationRulesTest` (5 cas) | la règle, **et** le vrai fichier de configuration : toute propriété `password` ou `secret` doit avoir une surcharge `%prod.` sans défaut (vérifié par mutation : l'ancien fichier et un `:egen` réintroduit échouent) |
-| Docs 14, 24, 19 | promesse ajoutée, K6 marqué corrigé |
+| `KubernetesDeploymentAdapter.buildDeployment` | pose `seccompProfile: RuntimeDefault` et `automountServiceAccountToken: false` (pod), `allowPrivilegeEscalation: false` (conteneur) ; jamais `privileged` |
+| `KubernetesDeploymentAdapterTest` | un test de plus : les trois valeurs posées, jamais de conteneur privilégié (vérifié par mutation sur l'adapter de `main`) |
+| `KubernetesDeploymentAdapterIT` (niveau 3) | vérifie, par `kubectl`, ce que Kubernetes a **réellement enregistré** ; la convergence des pods `nginx` prouve que l'image démarre avec ces restrictions |
+| Docs 07, 24, 19 | contrat « Contexte de sécurité des pods » ; K9 marqué corrigé **en partie** ; nouveau **point ouvert 6** pour le reste |
 
-*Non vérifié ici* : `ProductionConfigGuard` (Quarkus) n'a jamais été compilé ni exécuté, et le comportement réel d'un démarrage en production sans la variable n'a pas été observé. Pour l'observer : lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD`, et vérifier que le message « Démarrage refusé en production » apparaît.
+*Effet à connaître* : ces valeurs changent le modèle de pod. Au premier cycle après la mise à jour du Kernel, Kubernetes remplace donc progressivement les pods de **chaque service Kubernetes existant**, sans changement de version.
 
-Pour valider : `git fetch && git checkout fix/k6-mot-de-passe-prod && git pull && mvn verify`, puis `git push origin fix/k6-mot-de-passe-prod:main`. Pour continuer sinon : `git checkout main && git pull`.
+*Non vérifié ici* : le test de niveau 3 (il demande Docker et un cluster). Le risque principal est qu'`nginx:1.26.0` ne démarre pas avec ces restrictions ; il n'y a aucune raison technique de le penser, mais seul ce test le confirme.
+
+Pour valider : `git fetch && git checkout fix/k9-contexte-securite-pods && git pull && mvn verify`, puis `git push origin fix/k9-contexte-securite-pods:main`. Pour continuer sinon : `git checkout main && git pull`.
 
 ### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
@@ -80,8 +81,8 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **K6** : écrit sur `fix/k6-mot-de-passe-prod`, **en attente de validation** (section 1). Reste, après le merge : observer le refus de démarrage sur un vrai jar de production.
-2. **K9** : poser un `securityContext` sûr par défaut dans `KubernetesDeploymentAdapter.buildDeployment` (`runAsNonRoot`, système de fichiers en lecture seule, profil `seccomp`, capacités retirées), avec la section normative du doc 07 d'abord, puis une vérification dans le test de niveau 3.
+1. **K9** : écrit sur `fix/k9-contexte-securite-pods`, **en attente de validation** (section 1). Le reste du durcissement est le point ouvert 6.
+2. **K6, reste** : observer le refus de démarrage sur un vrai jar de production (lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD` ; le message « Démarrage refusé en production » doit apparaître).
 3. **K10** : limites explicites sur l'analyse YAML (alias, taille) et un test de « bombe YAML ».
 4. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
 5. **Chaos 6b** : après le choix de l'outil.
@@ -426,6 +427,11 @@ Aucun n'est tranché dans cette documentation. Décideur : Samuel.
 - *Problème* : `DiscoveryPort` n'a ni `health` ni `registerHealthCheck` ni le paramètre `dc` ; `MessagingPort.getBindingStatus` prend un sujet et un groupe de consommateurs et non un `ServiceId` ; l'état observé n'a pas de `MessagingObservation` ; l'exemple du document 20 montre `instances: 2` dans le statut, absent du contrat de [13](13-api-et-contrats.md). Le code est volontairement minimal (anti-pattern « évolution anticipée », [18](18-anti-patterns.md)).
 - *Options* : (a) aligner le document 07 sur les ports livrés ; (b) ajouter ces méthodes quand un appelant en a besoin.
 - *Impact* : le document 07 reste, en attendant, plus riche que le code.
+
+**6. Durcissement strict des pods Kubernetes (constat K9, [24](24-revue-de-securite-externe.md)).**
+- *Problème* : l'adapter pose maintenant les valeurs sûres qui ne cassent pas les images courantes (`seccompProfile: RuntimeDefault`, `automountServiceAccountToken: false`, `allowPrivilegeEscalation: false`). Il ne pose pas `runAsNonRoot`, `readOnlyRootFilesystem` ni `capabilities.drop: [ALL]`, parce qu'ils font échouer beaucoup d'images : l'image officielle `nginx` de notre test de niveau 3 démarre en root, écrit dans `/var/cache/nginx` et change d'utilisateur pour ses processus de travail.
+- *Options* : (a) un champ optionnel du manifeste (par exemple `deployment.security`) par lequel le propriétaire du service déclare ce que son image supporte, l'adapter appliquant le plus strict possible par défaut ; (b) des valeurs strictes par défaut pour tous, avec une dérogation explicite par service ; (c) laisser ces trois points aux règles du cluster (Pod Security Admission), l'adapter ne posant que le socle actuel.
+- *Impact* : le contrat du manifeste ([06](06-service-manifest.md)) si (a) ou (b) ; les images des services existants.
 
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
 

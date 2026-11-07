@@ -146,6 +146,22 @@ Chemins relatifs à `{address}`, `{ns}` = namespace configuré, `{id}` = identif
 - Ressources : `cpu` et `memory` du `DeploymentSpec` sont déjà des quantités Kubernetes (`500m`, `512Mi`) et sont transmises **telles quelles**, en `requests` **et** en `limits`. Le CPU accepte un entier, avec ou sans le suffixe `m` (`2`, `500m`) ; la mémoire accepte un entier, avec ou sans le suffixe `Ki`, `Mi`, `Gi` ou `Ti` (`512Mi`). Toute autre forme (par exemple `0.5` ou `512MB`) est refusée par `DeploymentException` avant tout appel réseau.
 - Aucun objet `Service` Kubernetes n'est créé : la découverte appartient à Discovery ([07](#discovery-port)), pas à Kubernetes.
 
+#### Contexte de sécurité des pods (constat K9)
+
+Le Deployment généré pose ces valeurs, **sans aucune configuration** :
+
+| Où | Champ | Valeur | Pourquoi |
+|---|---|---|---|
+| Pod | `securityContext.seccompProfile.type` | `RuntimeDefault` | Filtre les appels système avec le profil par défaut du moteur de conteneurs, au lieu de les laisser tous passer. |
+| Pod | `automountServiceAccountToken` | `false` | Un service géré par le Kernel n'a pas à parler à l'API Kubernetes. Sans cette valeur, chaque pod reçoit un jeton du compte de service de son namespace, qu'un attaquant ayant pris le conteneur pourrait utiliser. |
+| Conteneur | `securityContext.allowPrivilegeEscalation` | `false` | Un processus ne peut pas obtenir plus de privilèges que son parent (par exemple par un binaire `setuid`). |
+
+Le champ `privileged` n'est **jamais** posé.
+
+**Ce qui n'est volontairement pas posé** : `runAsNonRoot`, `readOnlyRootFilesystem` et le retrait des capacités (`drop: [ALL]`). Ils font échouer beaucoup d'images courantes : l'image officielle `nginx`, par exemple, démarre en root, écrit dans `/var/cache/nginx` et a besoin de changer d'utilisateur pour ses processus de travail. Les imposer exige que le propriétaire du service puisse déclarer, dans son manifeste, ce que son image supporte : c'est une décision ouverte ([19](19-feuille-de-route.md), point ouvert 6). En attendant, les règles du cluster (Pod Security Admission) restent la garde générale pour ces trois points.
+
+**Effet sur les services déjà déployés.** Ces valeurs changent le modèle de pod. Au premier cycle après la mise à jour du Kernel, Kubernetes remplace donc progressivement (rolling update) les pods de chaque service existant, sans changement de version ni d'image.
+
 #### Réseau
 
 Le conteneur déclare un port nommé `http` égal à `egen.kubernetes.container-port`, et reçoit la variable d'environnement `EGEN_PORT_http` portant cette valeur : c'est l'équivalent de `NOMAD_PORT_http` chez Nomad. Comme chez Nomad, c'est une réserve provisoire en attendant `network.endpoints` dans le manifeste ([19](19-feuille-de-route.md)). L'adresse d'une allocation est l'IP du pod. **Limite** : cette IP n'est joignable que depuis le réseau du cluster ; un Discovery (Consul) situé hors du cluster ne peut pas la joindre sans routage adapté.

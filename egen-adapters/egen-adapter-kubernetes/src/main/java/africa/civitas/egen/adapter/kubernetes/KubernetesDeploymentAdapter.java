@@ -233,9 +233,16 @@ public final class KubernetesDeploymentAdapter implements DeploymentPort {
         ObjectNode template = deploymentSpec.putObject("template");
         putLabels(template.putObject("metadata").putObject("labels"), id);
 
-        ObjectNode container = template.putObject("spec").putArray("containers").addObject();
+        ObjectNode podSpec = template.putObject("spec");
+        // Contexte de securite : valeurs sures qui ne cassent pas les images courantes (docs/architecture/07,
+        // « Contexte de securite des pods », constat K9). Jamais de « privileged ».
+        podSpec.put("automountServiceAccountToken", false);
+        podSpec.putObject("securityContext").putObject("seccompProfile").put("type", "RuntimeDefault");
+
+        ObjectNode container = podSpec.putArray("containers").addObject();
         container.put("name", id.value());
         container.put("image", spec.image());
+        container.putObject("securityContext").put("allowPrivilegeEscalation", false);
 
         ObjectNode port = container.putArray("ports").addObject();
         port.put("name", PORT_NAME);

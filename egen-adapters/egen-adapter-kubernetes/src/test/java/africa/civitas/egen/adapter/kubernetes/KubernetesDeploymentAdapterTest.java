@@ -110,6 +110,20 @@ class KubernetesDeploymentAdapterTest {
     }
 
     @Test
+    void podsCarryTheDocumentedSafeSecurityDefaultsAndNeverRunPrivileged() throws IOException {
+        adapter.create(NEWS, spec("registry.civitas.africa/news-service:2.4.0"));
+
+        JsonNode podSpec = body(only()).path("spec").path("template").path("spec");
+        assertEquals("RuntimeDefault", podSpec.path("securityContext").path("seccompProfile").path("type").asText());
+        assertTrue(podSpec.path("automountServiceAccountToken").isBoolean());
+        assertFalse(podSpec.path("automountServiceAccountToken").asBoolean(), "pas de jeton de compte de service dans les pods");
+        JsonNode containerSecurity = podSpec.path("containers").get(0).path("securityContext");
+        assertTrue(containerSecurity.path("allowPrivilegeEscalation").isBoolean());
+        assertFalse(containerSecurity.path("allowPrivilegeEscalation").asBoolean());
+        assertFalse(body(api.requests().get(0)).toString().contains("\"privileged\""), "jamais de conteneur privilegie");
+    }
+
+    @Test
     void createIsIdempotentTwoCallsTwoIdenticalRequestsNoError() {
         adapter.create(NEWS, spec("registry/news:1.0.0"));
         adapter.create(NEWS, spec("registry/news:1.0.0"));

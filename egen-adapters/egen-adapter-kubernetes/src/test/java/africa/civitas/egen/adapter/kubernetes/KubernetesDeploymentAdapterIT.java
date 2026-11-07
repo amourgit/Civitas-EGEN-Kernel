@@ -179,6 +179,15 @@ class KubernetesDeploymentAdapterIT {
                 "jsonpath={.metadata.managedFields[*].manager}").contains("egen-kernel"),
                 "le champ « fieldManager » du server-side apply doit etre egen-kernel");
         assertEquals(IMAGE_OLD, deploymentImage());
+
+        // Constat K9 : ce que Kubernetes a REELLEMENT enregistre. Le test de convergence suivant prouve en plus que
+        // l'image nginx demarre bel et bien avec ces restrictions.
+        assertEquals("RuntimeDefault", kubectl("-n", NAMESPACE, "get", "deployment", "it-news", "-o",
+                "jsonpath={.spec.template.spec.securityContext.seccompProfile.type}"));
+        assertEquals("false", kubectl("-n", NAMESPACE, "get", "deployment", "it-news", "-o",
+                "jsonpath={.spec.template.spec.automountServiceAccountToken}"));
+        assertEquals("false", kubectl("-n", NAMESPACE, "get", "deployment", "it-news", "-o",
+                "jsonpath={.spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation}"));
     }
 
     @Test
