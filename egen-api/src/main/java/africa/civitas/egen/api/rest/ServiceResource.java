@@ -5,6 +5,7 @@ import africa.civitas.egen.api.dto.ServiceManifestDto;
 import africa.civitas.egen.api.dto.ServiceManifestResponseDto;
 import africa.civitas.egen.api.dto.ServiceStatusDto;
 import africa.civitas.egen.api.mapper.ServiceManifestMapper;
+import africa.civitas.egen.api.mapper.YamlMappers;
 import africa.civitas.egen.api.security.EgenSecurityContext;
 import africa.civitas.egen.api.security.IdempotencyRequired;
 import africa.civitas.egen.application.port.ObservabilityPort;
@@ -24,8 +25,6 @@ import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceManifest;
 import africa.civitas.egen.domain.model.TargetEnvironment;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -64,7 +63,6 @@ import java.util.List;
 @Authenticated
 public class ServiceResource {
 
-    private static final ObjectMapper YAML_MAPPER = new YAMLMapper();
 
     private final DeployServiceUseCase deployServiceUseCase;
     private final GetServiceStatusUseCase getServiceStatusUseCase;
@@ -105,7 +103,7 @@ public class ServiceResource {
             try {
                 ServiceManifestDto dto;
                 try {
-                    dto = YAML_MAPPER.readValue(manifestYaml, ServiceManifestDto.class);
+                    dto = YamlMappers.read(manifestYaml, ServiceManifestDto.class);
                 } catch (IOException e) {
                     throw new BadRequestException("Manifeste YAML illisible : " + e.getMessage());
                 }

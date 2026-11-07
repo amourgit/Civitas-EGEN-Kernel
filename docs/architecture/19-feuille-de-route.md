@@ -30,27 +30,29 @@ Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session
 ### 1. Où est le code
 
 ```
-main (5c76019)                  = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (7 novembre 2026, 02:57)
+main (87e8ed8)                  = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (7 novembre 2026, 03:16)
    │
-   └── fix/k9-contexte-securite-pods   = main + K9 (valeurs sûres des pods), EN ATTENTE DE VALIDATION
+   └── fix/k10-limites-yaml     = main + K10 (limites d'entrée), EN ATTENTE DE VALIDATION
 ```
 
-`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2 et **K6** (plus aucun mot de passe de base par défaut en production), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Toutes les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
+`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6** (plus de mot de passe de base par défaut en production) et **K9** (valeurs sûres sur les pods), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Toutes les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
 
-**`fix/k9-contexte-securite-pods`** (constat **K9** : les pods générés n'avaient aucun `securityContext`) ne touche que `egen-adapter-kubernetes` et la documentation :
+**`fix/k10-limites-yaml`** (constat **K10** : l'analyse YAML n'avait aucune limite explicite) ne touche que `egen-api`, `egen-bootstrap` (une propriété) et la documentation :
 
 | Fichier | Changement |
 |---|---|
-| `KubernetesDeploymentAdapter.buildDeployment` | pose `seccompProfile: RuntimeDefault` et `automountServiceAccountToken: false` (pod), `allowPrivilegeEscalation: false` (conteneur) ; jamais `privileged` |
-| `KubernetesDeploymentAdapterTest` | un test de plus : les trois valeurs posées, jamais de conteneur privilégié (vérifié par mutation sur l'adapter de `main`) |
-| `KubernetesDeploymentAdapterIT` (niveau 3) | vérifie, par `kubectl`, ce que Kubernetes a **réellement enregistré** ; la convergence des pods `nginx` prouve que l'image démarre avec ces restrictions |
-| Docs 07, 24, 19 | contrat « Contexte de sécurité des pods » ; K9 marqué corrigé **en partie** ; nouveau **point ouvert 6** pour le reste |
+| `YamlMappers`, `YamlRejectedException` (nouvelles) | **seul** endroit où le Kernel lit un YAML venu de l'extérieur : 256 Ki caractères, 32 niveaux d'imbrication, 10 alias de collections, clés dupliquées refusées. Toute violation sort en `IOException`, donc en `400` |
+| `ServiceResource`, `WorkflowResource` | utilisent `YamlMappers` ; les deux `new YAMLMapper()` disparaissent |
+| `application.properties` | `quarkus.http.limits.max-body-size=1M` (défaut de Quarkus : 10 Mo) : au-delà, `413` |
+| `YamlSamples`, `YamlMappersTest` (9 cas) | documents d'essai **bien formés** (chacun ne viole qu'une limite) ; chaque attaque a son pendant « juste sous la limite », accepté |
+| `ServiceResourceInputLimitsTest` (4 cas Quarkus) | `413` au-delà de 1 Mio ; `400` pour un YAML trop gros, trop imbriqué, ou à clé dupliquée |
+| Docs 13, 14, 24, 19 | contrat « Limites d'entrée » (13) ; promesse (14) ; K10 marqué corrigé |
 
-*Effet à connaître* : ces valeurs changent le modèle de pod. Au premier cycle après la mise à jour du Kernel, Kubernetes remplace donc progressivement les pods de **chaque service Kubernetes existant**, sans changement de version.
+*Vérifié ici* : le code compile contre des classes factices qui reproduisent les signatures lues dans les sources officielles de **Jackson 2.21.2** et **SnakeYAML 2.5** (les versions de ton build, relevées dans le BOM de Quarkus 3.33.2) ; 2 des 9 cas de `YamlMappersTest` (refus avant analyse) passent ; tous les documents d'essai ont été validés avec un vrai analyseur YAML (SnakeYAML 1.33), la bombe d'alias échouant sur la limite d'alias et non sur la syntaxe. *Établi dans les sources de Jackson 2.21* : `YAMLFactory.builder().loaderOptions(…)` existe ; refuser les clés dupliquées active la détection stricte ; `YAMLParser` hérite de `ParserBase`, qui valide la profondeur d'imbrication ; les erreurs SnakeYAML y sont enveloppées.
 
-*Non vérifié ici* : le test de niveau 3 (il demande Docker et un cluster). Le risque principal est qu'`nginx:1.26.0` ne démarre pas avec ces restrictions ; il n'y a aucune raison technique de le penser, mais seul ce test le confirme.
+*Non vérifié ici* : les **7 autres cas de `YamlMappersTest`** et les 4 de `ServiceResourceInputLimitsTest` (ils exigent les vraies bibliothèques et Quarkus). Si `mvn verify` est rouge, suspects par ordre de probabilité : (1) un cas de `YamlMappersTest` dont la limite n'est pas appliquée comme lu dans les sources ; (2) le cas « YAML profondément imbriqué » qui attend `400` et non `500` ; (3) le `413`, si Quarkus répond autrement à un corps trop gros.
 
-Pour valider : `git fetch && git checkout fix/k9-contexte-securite-pods && git pull && mvn verify`, puis `git push origin fix/k9-contexte-securite-pods:main`. Pour continuer sinon : `git checkout main && git pull`.
+Pour valider : `git fetch && git checkout fix/k10-limites-yaml && git pull && mvn verify`, puis `git push origin fix/k10-limites-yaml:main`. Pour continuer sinon : `git checkout main && git pull`.
 
 ### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
@@ -81,13 +83,12 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **K9** : écrit sur `fix/k9-contexte-securite-pods`, **en attente de validation** (section 1). Le reste du durcissement est le point ouvert 6.
+1. **K10** : écrit sur `fix/k10-limites-yaml`, **en attente de validation** (section 1).
 2. **K6, reste** : observer le refus de démarrage sur un vrai jar de production (lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD` ; le message « Démarrage refusé en production » doit apparaître).
-3. **K10** : limites explicites sur l'analyse YAML (alias, taille) et un test de « bombe YAML ».
-4. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
-5. **Chaos 6b** : après le choix de l'outil.
-6. **Revue externe** : choisir le relecteur et lui remettre le document 24.
-7. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
+3. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
+4. **Chaos 6b** : après le choix de l'outil.
+5. **Revue externe** : choisir le relecteur et lui remettre le document 24.
+6. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
 
 ### 6. Règles de travail à ne pas perdre
 

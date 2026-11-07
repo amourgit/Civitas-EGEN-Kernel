@@ -55,6 +55,10 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   ou égal à la valeur par défaut du développement : le démarrage échoue, avec un
   message qui nomme la variable d'environnement à définir
   ([24](24-revue-de-securite-externe.md), constat K6).
+- Il ne lit jamais un document YAML venu de l'extérieur sans limites explicites de
+  taille, d'imbrication, d'alias et de clés dupliquées, ni un corps de requête de
+  plus de 1 Mio ([13](13-api-et-contrats.md), « Limites d'entrée » ; constat K10
+  de [24](24-revue-de-securite-externe.md)).
 - Il ne délivre jamais un token de portée plus large que celle
   strictement requise par l'opération demandée.
 - Il ne fait jamais confiance implicitement à un appel interne juste parce

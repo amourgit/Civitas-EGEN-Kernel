@@ -169,6 +169,23 @@ Cette API expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#confi
   mémoire du processus, expire après 10 minutes et garde au plus 10 000
   réponses ; au-delà, les nouvelles réponses ne sont plus rejouables, mais les
   requêtes sont traitées normalement.
+- **Limites d'entrée**, explicites et testées (constat K10 de
+  [24](24-revue-de-securite-externe.md)). Un manifeste ou une définition de
+  workflow fait quelques Ko ; les valeurs par défaut des bibliothèques sont
+  beaucoup plus larges.
+
+  | Limite | Valeur | Réponse si dépassée |
+  |---|---|---|
+  | Corps d'une requête | 1 Mio (`quarkus.http.limits.max-body-size`) | `413` |
+  | Document YAML | 256 Ki caractères | `400` |
+  | Imbrication d'un document YAML | 32 niveaux | `400` |
+  | Alias YAML de collections | 10 | `400` |
+  | Clé dupliquée dans un document YAML | refusée | `400` |
+
+  Tout document YAML d'un manifeste ou d'un workflow passe par une seule
+  classe, `YamlMappers` : aucune ressource n'analyse de YAML elle-même. Un champ
+  inconnu est déjà refusé ; une clé écrite deux fois l'est maintenant aussi,
+  car la dernière valeur l'emporterait en silence.
 - Toute évolution du schéma `ServiceManifest` est **rétro-compatible en
   lecture** (un vieux client doit pouvoir lire un manifeste plus récent en
   ignorant les nouveaux champs) — règles classiques d'évolution de schéma

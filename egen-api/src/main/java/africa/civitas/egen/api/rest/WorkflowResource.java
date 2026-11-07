@@ -6,6 +6,7 @@ import africa.civitas.egen.api.dto.TerminateRequestDto;
 import africa.civitas.egen.api.dto.WorkflowDefinitionDto;
 import africa.civitas.egen.api.dto.WorkflowExecutionDto;
 import africa.civitas.egen.api.mapper.WorkflowMapper;
+import africa.civitas.egen.api.mapper.YamlMappers;
 import africa.civitas.egen.api.security.EgenSecurityContext;
 import africa.civitas.egen.api.security.IdempotencyRequired;
 import africa.civitas.egen.application.port.ObservabilityPort;
@@ -22,7 +23,6 @@ import africa.civitas.egen.domain.workflow.WorkflowExecution;
 import africa.civitas.egen.domain.workflow.WorkflowId;
 import africa.civitas.egen.domain.workflow.WorkflowInput;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -63,7 +63,6 @@ import java.util.Map;
 @Authenticated
 public class WorkflowResource {
 
-    private static final ObjectMapper YAML_MAPPER = new YAMLMapper();
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     private final DefineWorkflowUseCase defineWorkflowUseCase;
@@ -92,7 +91,7 @@ public class WorkflowResource {
                 securityContext.assertAdmin();
                 WorkflowDefinitionDto dto;
                 try {
-                    dto = YAML_MAPPER.readValue(workflowYaml, WorkflowDefinitionDto.class);
+                    dto = YamlMappers.read(workflowYaml, WorkflowDefinitionDto.class);
                 } catch (IOException e) {
                     throw new BadRequestException("Definition YAML illisible : " + e.getMessage());
                 }
