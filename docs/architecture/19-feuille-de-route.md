@@ -45,7 +45,8 @@ main (87e8ed8)                  = TOUT est dessus, VALIDÉ par un `mvn verify` c
 | `ServiceResource`, `WorkflowResource` | utilisent `YamlMappers` ; les deux `new YAMLMapper()` disparaissent |
 | `application.properties` | `quarkus.http.limits.max-body-size=1M` (défaut de Quarkus : 10 Mo) : au-delà, `413` |
 | `YamlSamples`, `YamlMappersTest` (9 cas) | documents d'essai **bien formés** (chacun ne viole qu'une limite) ; chaque attaque a son pendant « juste sous la limite », accepté |
-| `ServiceResourceInputLimitsTest` (4 cas Quarkus) | `413` au-delà de 1 Mio ; `400` pour un YAML trop gros, trop imbriqué, ou à clé dupliquée |
+| `ServiceResourceInputLimitsTest` (4 cas Quarkus) | `413` au-delà de 1 Mio ; `400` pour un YAML trop gros, trop imbriqué, ou à clé dupliquée. Un profil de test pose la limite de 1 Mio, car `egen-api` n'a pas de `application.properties` (celui d'`egen-bootstrap` n'est pas sur son classpath) |
+| `InputLimitsConfigurationTest` (`egen-bootstrap`, niveau 1) | le fichier `application.properties` réel contient `quarkus.http.limits.max-body-size=1M` |
 | Docs 13, 14, 24, 19 | contrat « Limites d'entrée » (13) ; promesse (14) ; K10 marqué corrigé |
 
 *Vérifié ici* : le code compile contre des classes factices qui reproduisent les signatures lues dans les sources officielles de **Jackson 2.21.2** et **SnakeYAML 2.5** (les versions de ton build, relevées dans le BOM de Quarkus 3.33.2) ; 2 des 9 cas de `YamlMappersTest` (refus avant analyse) passent ; tous les documents d'essai ont été validés avec un vrai analyseur YAML (SnakeYAML 1.33), la bombe d'alias échouant sur la limite d'alias et non sur la syntaxe. *Établi dans les sources de Jackson 2.21* : `YAMLFactory.builder().loaderOptions(…)` existe ; refuser les clés dupliquées active la détection stricte ; `YAMLParser` hérite de `ParserBase`, qui valide la profondeur d'imbrication ; les erreurs SnakeYAML y sont enveloppées.
