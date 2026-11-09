@@ -2,6 +2,7 @@ package africa.civitas.egen.adapter.kubernetes;
 
 import africa.civitas.egen.adapter.kubernetes.FakeKubernetesApi.Recorded;
 import africa.civitas.egen.adapter.kubernetes.FakeKubernetesApi.Reply;
+import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.AllocationInfo;
 import africa.civitas.egen.application.port.DeploymentException;
 import africa.civitas.egen.domain.model.DeploymentObservation;
@@ -158,6 +159,25 @@ class KubernetesDeploymentAdapterTest {
                 () -> adapter.create(NEWS, spec("registry/news:1.0.0")));
         assertTrue(e.getMessage().contains("HTTP 422"), e.getMessage());
         assertFalse(e.getMessage().contains("tok-123"), "le jeton ne doit jamais apparaitre dans une erreur");
+    }
+
+    @Test
+    void theRejectionBodyIsKeptInTheMessageSoThatTheFailureCanBeDebugged() {
+        String body = "{\"kind\":\"Status\",\"reason\":\"Invalid\",\"message\":\"spec.replicas: Invalid value: -1\"}";
+        api.respondWith(r -> new Reply(422, body));
+        DeploymentException e = assertThrows(DeploymentException.class,
+                () -> adapter.create(NEWS, spec("registry/news:1.0.0")));
+        assertTrue(e.getMessage().contains(body), e.getMessage());
+    }
+
+    @Test
+    void aVeryLongRejectionBodyIsBoundedInTheMessage() {
+        api.respondWith(r -> new Reply(502, "<html>" + "x".repeat(20_000) + "</html>"));
+        DeploymentException e = assertThrows(DeploymentException.class,
+                () -> adapter.create(NEWS, spec("registry/news:1.0.0")));
+        assertTrue(e.getMessage().contains("HTTP 502"), e.getMessage());
+        assertTrue(e.getMessage().endsWith(AdapterErrorBody.TRUNCATION_MARK), e.getMessage());
+        assertTrue(e.getMessage().length() < 1_000, "le message doit rester borne, longueur : " + e.getMessage().length());
     }
 
     @Test

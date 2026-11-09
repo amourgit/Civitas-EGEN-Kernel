@@ -11,7 +11,7 @@ Ce document est la **seule source de statut** des phases du Kernel, de la phase 
 
 Légende : `[x]` fait · `[~]` en cours · `[ ]` à faire · `[>]` reporté, avec un **déclencheur écrit** (on ne le fait que si le déclencheur se produit) · `[?]` proposé, à valider.
 
-Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session » ci-dessous.**
+Mise à jour : 9 novembre 2026. **Reprendre par la section « Reprise de session » ci-dessous.**
 
 | Élément | Statut | Reste à faire |
 |---|---|---|
@@ -23,37 +23,33 @@ Mise à jour : 6 novembre 2026. **Reprendre par la section « Reprise de session
 | Points ouverts du Kernel | **Ouverts** | 6 points, à décider par Samuel (le point 6 est le durcissement strict des pods, issu du constat K9) |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts non tranchés → points ouverts 3 à 5 |
 
-## Reprise de session — point de situation du 6 novembre 2026 (soir)
+## Reprise de session — point de situation du 9 novembre 2026
 
 > **À lire en premier par quiconque reprend le développement.** Le reste du document dit *ce qui est prévu* ; cette section dit *où l'on en est exactement*, ce qui est validé, ce qui ne l'est pas, et dans quel ordre continuer.
 
 ### 1. Où est le code
 
 ```
-main (87e8ed8)                  = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (7 novembre 2026, 03:16)
+main (45aa87e)                        = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (9 novembre 2026, 22:26)
    │
-   └── fix/k10-limites-yaml     = main + K10 (limites d'entrée), EN ATTENTE DE VALIDATION
+   └── fix/k8-messages-adapter-bornes = main + K8 (corps d'erreur borné), EN ATTENTE DE VALIDATION
 ```
 
-`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6** (plus de mot de passe de base par défaut en production) et **K9** (valeurs sûres sur les pods), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Toutes les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
+`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6** (plus de mot de passe de base par défaut en production), **K9** (valeurs sûres sur les pods) et **K10** (limites d'entrée : une seule classe `YamlMappers` avec 256 Ki caractères, 32 niveaux, 10 alias, clés dupliquées refusées ; corps de requête limité à 1 Mio, `413` au-delà), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
 
-**`fix/k10-limites-yaml`** (constat **K10** : l'analyse YAML n'avait aucune limite explicite) ne touche que `egen-api`, `egen-bootstrap` (une propriété) et la documentation :
+**`fix/k8-messages-adapter-bornes`** (constat **K8** : le message d'erreur d'un adapter recopiait tout le corps de la réponse du système externe) touche `egen-application` (une classe), les quatre adapters HTTP et la documentation. **Décision de Samuel (9 novembre 2026) : le corps est conservé, car le code d'état seul est moins explicite pour le débogage, mais il est borné à 500 caractères.**
 
 | Fichier | Changement |
 |---|---|
-| `YamlMappers`, `YamlRejectedException` (nouvelles) | **seul** endroit où le Kernel lit un YAML venu de l'extérieur : 256 Ki caractères, 32 niveaux d'imbrication, 10 alias de collections, clés dupliquées refusées. Toute violation sort en `IOException`, donc en `400` |
-| `ServiceResource`, `WorkflowResource` | utilisent `YamlMappers` ; les deux `new YAMLMapper()` disparaissent |
-| `application.properties` | `quarkus.http.limits.max-body-size=1M` (défaut de Quarkus : 10 Mo) : au-delà, `413` |
-| `YamlSamples`, `YamlMappersTest` (9 cas) | documents d'essai **bien formés** (chacun ne viole qu'une limite) ; chaque attaque a son pendant « juste sous la limite », accepté |
-| `ServiceResourceInputLimitsTest` (4 cas Quarkus) | `413` au-delà de 1 Mio ; `400` pour un YAML trop gros, trop imbriqué, ou à clé dupliquée. Un profil de test pose la limite de 1 Mio, car `egen-api` n'a pas de `application.properties` (celui d'`egen-bootstrap` n'est pas sur son classpath) |
-| `InputLimitsConfigurationTest` (`egen-bootstrap`, niveau 1) | le fichier `application.properties` réel contient `quarkus.http.limits.max-body-size=1M` |
-| Docs 13, 14, 24, 19 | contrat « Limites d'entrée » (13) ; promesse (14) ; K10 marqué corrigé |
+| `AdapterErrorBody` (nouvelle, `egen-application`, paquet `port`) | **seul** endroit où le corps est borné : 500 caractères Java, suffixe ` [tronque]`, corps nul traité comme vide, paire de substitution jamais coupée |
+| `KubernetesDeploymentAdapter`, `NomadDeploymentAdapter`, `ConsulDiscoveryAdapter`, `ConsulConfigurationAdapter`, `VaultSecretsAdapter` | un seul changement chacun : `response.body()` devient `AdapterErrorBody.bounded(response.body())` dans le message d'erreur |
+| `AdapterErrorBodyTest` (niveau 1, 7 cas) | les bornes, le cas exact, le corps nul, la paire de substitution |
+| `KubernetesDeploymentAdapterTest` (+2 cas), `NomadErrorMessageTest` (2), `ConsulErrorMessageTest` (4), `VaultErrorMessageTest` (2) | niveau 2, faux serveur du JDK : corps conservé, corps de 20 000 caractères borné |
+| Docs 07, 14, 24, 19 | contrat « Messages d'erreur des adapters HTTP » (07) ; promesse (14) ; K8 décidé et K10 marqué validé (24) |
 
-*Vérifié ici* : le code compile contre des classes factices qui reproduisent les signatures lues dans les sources officielles de **Jackson 2.21.2** et **SnakeYAML 2.5** (les versions de ton build, relevées dans le BOM de Quarkus 3.33.2) ; 2 des 9 cas de `YamlMappersTest` (refus avant analyse) passent ; tous les documents d'essai ont été validés avec un vrai analyseur YAML (SnakeYAML 1.33), la bombe d'alias échouant sur la limite d'alias et non sur la syntaxe. *Établi dans les sources de Jackson 2.21* : `YAMLFactory.builder().loaderOptions(…)` existe ; refuser les clés dupliquées active la détection stricte ; `YAMLParser` hérite de `ParserBase`, qui valide la profondeur d'imbrication ; les erreurs SnakeYAML y sont enveloppées.
+*Vérifié ici* : `AdapterErrorBody` compilé avec le compilateur du JDK 21 et ses 7 cas rejoués dans un lanceur sans JUnit ; deux mutations (suppression de la garde de paire de substitution, suppression de la troncature) font échouer le lanceur. *Non vérifié ici* : la compilation et l'exécution des 10 tests d'adapters (ils exigent Maven, JUnit, Jackson et les modules du Kernel).
 
-*Non vérifié ici* : les **7 autres cas de `YamlMappersTest`** et les 4 de `ServiceResourceInputLimitsTest` (ils exigent les vraies bibliothèques et Quarkus). Si `mvn verify` est rouge, suspects par ordre de probabilité : (1) un cas de `YamlMappersTest` dont la limite n'est pas appliquée comme lu dans les sources ; (2) le cas « YAML profondément imbriqué » qui attend `400` et non `500` ; (3) le `413`, si Quarkus répond autrement à un corps trop gros.
-
-Pour valider : `git fetch && git checkout fix/k10-limites-yaml && git pull && mvn verify`, puis `git push origin fix/k10-limites-yaml:main`. Pour continuer sinon : `git checkout main && git pull`.
+Pour valider : `git fetch && git checkout fix/k8-messages-adapter-bornes && git pull && mvn verify`, puis `git push origin fix/k8-messages-adapter-bornes:main`. Pour continuer sinon : `git checkout main && git pull`.
 
 ### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
@@ -74,7 +70,7 @@ Pour valider : `git fetch && git checkout fix/k10-limites-yaml && git pull && mv
 
 L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas de Maven, pas de Quarkus, pas de Testcontainers. On y compile et teste avec `javac` et les JAR JUnit et Jackson installés par `apt` ; la validation complète se fait **chez Samuel** par `mvn verify`.
 
-- **Validé chez Samuel** : `mvn verify` complet, 18 modules, dont le test de niveau 3 contre un vrai cluster k3s, tous les tests Quarkus et les règles ArchUnit, le 6 novembre 2026.
+- **Validé chez Samuel** : `mvn verify` complet, 18 modules, dont le test de niveau 3 contre un vrai cluster k3s, tous les tests Quarkus et les règles ArchUnit, le 6 novembre 2026 ; puis de nouveau le 9 novembre 2026 pour K10 (premier essai rouge sur un seul test, corrigé : la limite de 1 Mio n'était pas sur le classpath d'`egen-api`).
 - **Vérifié en plus, ici** : test de mutation de la relance (sans l'appel, les 4 tests qui la vérifient échouent) et du chaos 6a.
 
 ### 4. Décisions attendues de Samuel, par priorité
@@ -84,9 +80,9 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **K10** : écrit sur `fix/k10-limites-yaml`, **en attente de validation** (section 1).
+1. **K8** : écrit sur `fix/k8-messages-adapter-bornes`, **en attente de validation** (section 1).
 2. **K6, reste** : observer le refus de démarrage sur un vrai jar de production (lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD` ; le message « Démarrage refusé en production » doit apparaître).
-3. **K8** : décider si les messages d'erreur d'adapter doivent encore recopier le corps des réponses de Kubernetes ou Nomad.
+3. **Décisions du document 24 encore ouvertes** : K1, K2, K3, K4, K5, K7 (à décider ou à examiner par Samuel).
 4. **Chaos 6b** : après le choix de l'outil.
 5. **Revue externe** : choisir le relecteur et lui remettre le document 24.
 6. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.

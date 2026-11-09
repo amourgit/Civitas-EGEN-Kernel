@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.consul;
 
+import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.DiscoveryException;
 import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.ResolvedInstance;
@@ -147,7 +148,7 @@ public final class ConsulDiscoveryAdapter implements DiscoveryPort {
     private void requireSuccess(HttpResponse<String> response, String context) {
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new DiscoveryException("Consul a rejete " + context + " : HTTP "
-                    + response.statusCode() + " — " + response.body());
+                    + response.statusCode() + " — " + AdapterErrorBody.bounded(response.body()));
         }
     }
 

@@ -466,3 +466,44 @@ public interface ServiceInvocationPort {
   `RetryPolicy`, si ce statut doit déclencher une nouvelle tentative ou un
   échec d'étape. Seule une erreur réseau (DNS, connexion refusée, timeout)
   lève une exception.
+
+## Messages d'erreur des adapters HTTP
+
+*Constat K8 de [24](24-revue-de-securite-externe.md). Décidé par Samuel le 9 novembre 2026.*
+
+### À quoi sert cette section
+
+Elle fixe ce que contient le message d'une exception d'adapter quand le système externe qu'il appelle répond par une erreur. Elle ne couvre pas les erreurs réseau (connexion refusée, délai dépassé) : leur message ne contient aucun corps de réponse.
+
+### Les termes
+
+- **Adapter HTTP** : un adapter qui parle à un système externe par des requêtes HTTP. Quatre systèmes (Nomad, Kubernetes, Consul, Vault), cinq classes, lèvent une exception en cas de refus : `NomadDeploymentAdapter`, `KubernetesDeploymentAdapter`, `ConsulDiscoveryAdapter`, `ConsulConfigurationAdapter`, `VaultSecretsAdapter`.
+- **Corps** : le texte renvoyé par le système externe avec son code HTTP. Kubernetes y met un objet JSON qui dit, par exemple, quel champ est invalide ou quel droit manque ; Nomad, Consul et Vault y mettent une phrase ou un petit JSON.
+- **Condition** : une information lisible sur un service (voir [09](09-cycle-de-vie.md)). Le Moteur de Réconciliation copie le message de l'exception d'un adapter dans une Condition et dans le journal du Kernel. Le propriétaire du service peut lire la Condition.
+
+### Le contrat
+
+1. Quand le système externe répond hors de la famille `2xx` (et que le code n'est pas un cas prévu, comme `404` pour « absent »), l'adapter lève son exception avec un message de la forme `<Système> a rejete <contexte> : HTTP <code> — <corps>`.
+2. **Le corps est conservé** : il est ce qui permet de déboguer.
+3. **Le corps est borné à 500 caractères Java** (`String.length()`, c'est-à-dire des unités UTF-16). Au-delà, le message contient les 500 premiers caractères suivis de ` [tronque]`. Un caractère hors du plan de base, qui occupe deux unités, n'est jamais coupé en deux : la coupure recule alors d'une unité.
+4. Un corps absent est traité comme un corps vide : le mot « null » n'apparaît jamais dans un message.
+5. La borne est appliquée par **une seule classe**, `AdapterErrorBody` (`egen-application`, paquet `port`), que les quatre adapters utilisent. Aucun adapter ne dépend d'un autre.
+
+### Exemple de bout en bout
+
+L'Université X déclare son service `news`. Le Kernel génère un Deployment et l'envoie à Kubernetes.
+
+- **Cas 1, un refus précis.** Kubernetes répond `422` avec un corps de quelques dizaines de caractères qui nomme le champ refusé. L'adapter lève `DeploymentException("Kubernetes a rejete create(news) : HTTP 422 — {…le champ refusé…}")`. Le développeur de l'équipe lit la Condition, voit quel champ est en cause et corrige son manifeste, sans demander l'aide d'un opérateur. Le texte exact d'un corps Kubernetes dépend de la version de Kubernetes (à vérifier) : cet exemple montre le principe, pas un message garanti.
+- **Cas 2, un corps énorme.** Un mandataire intermédiaire renvoie une page HTML de 20 000 caractères avec un `502`. La Condition et le journal ne contiennent que les 500 premiers caractères de cette page, suivis de ` [tronque]`. Le code `502` reste lisible au début du message.
+
+### Ce que ce contrat ne protège pas
+
+Le corps conservé peut contenir des détails d'infrastructure (un nom de namespace, le nom du compte de service du Kernel, le droit qui manque). Le lecteur est un développeur authentifié de l'équipe propriétaire du service. **Ce risque est accepté** : retirer le corps priverait ce développeur de l'information qui lui permet de corriger son manifeste. Il n'y a pas de secret dans ces corps : les jetons des adapters ne sont jamais recopiés (test `apiRejectionBecomesADeploymentExceptionWithTheStatus`).
+
+### Tests
+
+| Niveau | Test | Ce qu'il prouve |
+|---|---|---|
+| 1 | `AdapterErrorBodyTest` (`egen-application`) | corps court inchangé ; exactement 500 inchangé ; 501 coupé et marqué ; corps nul vide ; pas de coupure d'une paire de substitution |
+| 2 | `KubernetesDeploymentAdapterTest` (faux serveur) | corps conservé (`422`) ; corps de 20 000 caractères borné |
+| 2 | `NomadErrorMessageTest`, `ConsulErrorMessageTest` (deux adapters), `VaultErrorMessageTest` (faux serveur du JDK) | pour chaque adapter : corps conservé, corps de 20 000 caractères borné |

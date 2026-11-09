@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.vault;
 
+import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.SecretRef;
 import africa.civitas.egen.application.port.SecretReference;
 import africa.civitas.egen.application.port.SecretsException;
@@ -63,7 +64,7 @@ public final class VaultSecretsAdapter implements SecretsPort {
         }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new SecretsException("Vault a rejete la verification de \"" + reference.path()
-                    + "\" : HTTP " + response.statusCode() + " — " + response.body());
+                    + "\" : HTTP " + response.statusCode() + " — " + AdapterErrorBody.bounded(response.body()));
         }
     }
 

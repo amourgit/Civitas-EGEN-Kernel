@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.consul;
 
+import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.ConfigChangeHandler;
 import africa.civitas.egen.application.port.ConfigSet;
 import africa.civitas.egen.application.port.ConfigVersion;
@@ -244,7 +245,7 @@ public final class ConsulConfigurationAdapter implements ConfigurationPort {
     private void requireSuccess(HttpResponse<String> response, String context) {
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new ConfigurationException("Consul KV a rejete " + context + " : HTTP "
-                    + response.statusCode() + " — " + response.body());
+                    + response.statusCode() + " — " + AdapterErrorBody.bounded(response.body()));
         }
     }
 

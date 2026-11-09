@@ -59,6 +59,11 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   taille, d'imbrication, d'alias et de clés dupliquées, ni un corps de requête de
   plus de 1 Mio ([13](13-api-et-contrats.md), « Limites d'entrée » ; constat K10
   de [24](24-revue-de-securite-externe.md)).
+- Il ne recopie jamais sans borne le corps d'une réponse d'erreur d'un système
+  externe (Nomad, Kubernetes, Consul, Vault) dans un message d'erreur : le corps
+  est conservé, mais limité à 500 caractères
+  ([07](07-ports-et-adapters.md#messages-derreur-des-adapters-http), constat K8
+  de [24](24-revue-de-securite-externe.md)).
 - Il ne délivre jamais un token de portée plus large que celle
   strictement requise par l'opération demandée.
 - Il ne fait jamais confiance implicitement à un appel interne juste parce

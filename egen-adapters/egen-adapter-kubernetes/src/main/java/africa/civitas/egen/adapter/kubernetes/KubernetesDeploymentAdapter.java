@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.kubernetes;
 
+import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.AllocationInfo;
 import africa.civitas.egen.application.port.DeploymentException;
 import africa.civitas.egen.application.port.DeploymentHandle;
@@ -431,7 +432,7 @@ public final class KubernetesDeploymentAdapter implements DeploymentPort {
     private void requireSuccess(HttpResponse<String> response, String context) {
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new DeploymentException("Kubernetes a rejete " + context + " : HTTP "
-                    + response.statusCode() + " — " + response.body());
+                    + response.statusCode() + " — " + AdapterErrorBody.bounded(response.body()));
         }
     }
 
