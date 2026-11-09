@@ -47,8 +47,12 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
 - Le RBAC du Kernel (équipe + administrateur) reste volontairement **grossier** : il n'exprime ni hiérarchie de cellules ni droits métier. Ceux-ci relèvent de **SpiceDB** (moteur de droits de la Plateforme) et du contrôle d'usage du catalogue, documentés dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/06-identite-et-droits.md`.
 ## Ce que le Kernel ne fait jamais en matière de sécurité
 
-- Il ne stocke jamais un secret en clair (ni en base, ni en log, ni en
-  cache mémoire persistant au-delà de la durée d'un appel).
+- Il ne stocke jamais un secret **de service** en clair (ni en base, ni en log, ni
+  en cache mémoire persistant au-delà de la durée d'un appel). Un secret de
+  service est une valeur que les services déployés lisent (un mot de passe de
+  base de leur application, par exemple) : le Kernel ne la lit jamais, il
+  vérifie seulement qu'elle existe dans Vault. **Une exception, écrite
+  en fin de document** ([constat K7](#exception--les-identifiants-du-kernel-lui-même-constat-k7)).
 - Il ne rejoue jamais la réponse d'un appelant à un autre : la clé de cache
   d'idempotence inclut l'appelant ([13](13-api-et-contrats.md#sécurité-de-lapi)).
 - Il ne démarre jamais en production avec un mot de passe de base de données absent
@@ -70,3 +74,24 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   qu'il vient du réseau interne (« zero trust » par défaut, même en
   interne — cohérent avec les cas d'usage mixtes VM/conteneurs/edge
   possibles pour Consul).
+
+### Exception : les identifiants du Kernel lui-même (constat K7)
+
+*À quoi sert cette sous-section* : dire exactement quels identifiants le Kernel garde en mémoire, combien de temps, et ce qui limite le risque. *Ce qu'elle ne couvre pas* : les secrets des services déployés (voir ci-dessus).
+
+Pour parler à ses propres systèmes, le Kernel a besoin de cinq identifiants. Il les lit dans sa configuration **une seule fois**, à la création de l'adapter concerné au démarrage, puis les **garde en mémoire du processus pendant toute sa vie** :
+
+| Identifiant | Propriété de configuration | Où il est gardé |
+|---|---|---|
+| Jeton Nomad | `egen.nomad.token` | `NomadDeploymentAdapter` |
+| Jeton Kubernetes | `egen.kubernetes.token` | `KubernetesConfig`, utilisé par `KubernetesDeploymentAdapter` |
+| Jeton Consul | `egen.consul.token` | `ConsulDiscoveryAdapter` et `ConsulConfigurationAdapter` (le même jeton, deux adapters) |
+| Jeton Vault | `egen.vault.token` | `VaultSecretsAdapter` |
+| Mot de passe PostgreSQL | `quarkus.datasource.password` | le pool de connexions du Kernel |
+
+Ce qui limite le risque, vérifié dans le code :
+
+- Une recherche textuelle dans le code des adapters (9 novembre 2026) ne trouve aucune ligne de journal qui mentionne un jeton ou un mot de passe (une recherche textuelle peut rater une forme d'appel : ce n'est pas une preuve). `KubernetesConfig.toString()` masque le jeton (`***`). Pour l'adapter Kubernetes, le test `apiRejectionBecomesADeploymentExceptionWithTheStatus` vérifie que le jeton n'apparaît pas dans un message d'erreur ; les autres adapters n'ont pas ce test.
+- En production, le mot de passe PostgreSQL n'a pas de valeur par défaut et le démarrage échoue s'il manque ([24](24-revue-de-securite-externe.md), constat K6).
+
+Ce qui **n'est pas** couvert : un identifiant n'est pas relu après le démarrage. Changer un jeton (rotation) exige donc de **redémarrer** le Kernel. Un accès à la mémoire du processus (par exemple une copie de la mémoire) révèle ces cinq identifiants. Leur portée dépend des droits que l'opérateur a donnés à chacun côté Nomad, Kubernetes, Consul, Vault et PostgreSQL : le Kernel ne la vérifie pas ([24](24-revue-de-securite-externe.md), tableau 3).

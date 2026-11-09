@@ -30,26 +30,20 @@ Mise à jour : 9 novembre 2026. **Reprendre par la section « Reprise de session
 ### 1. Où est le code
 
 ```
-main (45aa87e)                        = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (9 novembre 2026, 22:26)
+main (578772b)                         = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (9 novembre 2026, 22:45)
    │
-   └── fix/k8-messages-adapter-bornes = main + K8 (corps d'erreur borné), EN ATTENTE DE VALIDATION
+   └── docs/k7-k3-et-point-de-situation = main + documentation seulement (aucun code), EN ATTENTE DE MERGE
 ```
 
-`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6** (plus de mot de passe de base par défaut en production), **K9** (valeurs sûres sur les pods) et **K10** (limites d'entrée : une seule classe `YamlMappers` avec 256 Ki caractères, 32 niveaux, 10 alias, clés dupliquées refusées ; corps de requête limité à 1 Mio, `413` au-delà), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
+`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6** (plus de mot de passe de base par défaut en production), **K9** (valeurs sûres sur les pods), **K10** (limites d'entrée : une seule classe `YamlMappers` avec 256 Ki caractères, 32 niveaux, 10 alias, clés dupliquées refusées ; corps de requête limité à 1 Mio, `413` au-delà) et **K8** (le corps d'erreur d'un adapter HTTP est conservé mais borné à 500 caractères, classe `AdapterErrorBody`, contrat dans [07](07-ports-et-adapters.md#messages-derreur-des-adapters-http)), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
 
-**`fix/k8-messages-adapter-bornes`** (constat **K8** : le message d'erreur d'un adapter recopiait tout le corps de la réponse du système externe) touche `egen-application` (une classe), les quatre adapters HTTP et la documentation. **Décision de Samuel (9 novembre 2026) : le corps est conservé, car le code d'état seul est moins explicite pour le débogage, mais il est borné à 500 caractères.**
+**`docs/k7-k3-et-point-de-situation`** ne contient que de la documentation, donc aucun `mvn verify` n'est nécessaire pour la fusionner :
 
 | Fichier | Changement |
 |---|---|
-| `AdapterErrorBody` (nouvelle, `egen-application`, paquet `port`) | **seul** endroit où le corps est borné : 500 caractères Java, suffixe ` [tronque]`, corps nul traité comme vide, paire de substitution jamais coupée |
-| `KubernetesDeploymentAdapter`, `NomadDeploymentAdapter`, `ConsulDiscoveryAdapter`, `ConsulConfigurationAdapter`, `VaultSecretsAdapter` | un seul changement chacun : `response.body()` devient `AdapterErrorBody.bounded(response.body())` dans le message d'erreur |
-| `AdapterErrorBodyTest` (niveau 1, 7 cas) | les bornes, le cas exact, le corps nul, la paire de substitution |
-| `KubernetesDeploymentAdapterTest` (+2 cas), `NomadErrorMessageTest` (2), `ConsulErrorMessageTest` (4), `VaultErrorMessageTest` (2) | niveau 2, faux serveur du JDK : corps conservé, corps de 20 000 caractères borné |
-| Docs 07, 14, 24, 19 | contrat « Messages d'erreur des adapters HTTP » (07) ; promesse (14) ; K8 décidé et K10 marqué validé (24) |
-
-*Vérifié ici* : `AdapterErrorBody` compilé avec le compilateur du JDK 21 et ses 7 cas rejoués dans un lanceur sans JUnit ; deux mutations (suppression de la garde de paire de substitution, suppression de la troncature) font échouer le lanceur. *Non vérifié ici* : la compilation et l'exécution des 10 tests d'adapters (ils exigent Maven, JUnit, Jackson et les modules du Kernel).
-
-Pour valider : `git fetch && git checkout fix/k8-messages-adapter-bornes && git pull && mvn verify`, puis `git push origin fix/k8-messages-adapter-bornes:main`. Pour continuer sinon : `git checkout main && git pull`.
+| [14](14-securite.md) | la promesse « jamais de secret en clair » est précisée (secrets **de service**) et l'exception du **K7** est écrite : les cinq identifiants que le Kernel lit au démarrage et garde en mémoire pendant toute la vie du processus |
+| [24](24-revue-de-securite-externe.md) | K7 marqué rédigé ; K3 examiné **dans le code** (extensions Quarkus embarquées, chemins `@Path`), avec la vérification à faire par l'opérateur sur un Kernel démarré |
+| 19 | ce point de situation |
 
 ### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
@@ -70,19 +64,19 @@ Pour valider : `git fetch && git checkout fix/k8-messages-adapter-bornes && git 
 
 L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas de Maven, pas de Quarkus, pas de Testcontainers. On y compile et teste avec `javac` et les JAR JUnit et Jackson installés par `apt` ; la validation complète se fait **chez Samuel** par `mvn verify`.
 
-- **Validé chez Samuel** : `mvn verify` complet, 18 modules, dont le test de niveau 3 contre un vrai cluster k3s, tous les tests Quarkus et les règles ArchUnit, le 6 novembre 2026 ; puis de nouveau le 9 novembre 2026 pour K10 (premier essai rouge sur un seul test, corrigé : la limite de 1 Mio n'était pas sur le classpath d'`egen-api`).
+- **Validé chez Samuel** : `mvn verify` complet, 18 modules, dont le test de niveau 3 contre un vrai cluster k3s, tous les tests Quarkus et les règles ArchUnit, le 6 novembre 2026 ; puis de nouveau le 9 novembre 2026 pour K10 (premier essai rouge sur un seul test, corrigé : la limite de 1 Mio n'était pas sur le classpath d'`egen-api`) et pour K8 (vert du premier coup).
 - **Vérifié en plus, ici** : test de mutation de la relance (sans l'appel, les 4 tests qui la vérifient échouent) et du chaos 6a.
 
 ### 4. Décisions attendues de Samuel, par priorité
 
-1. **Constats du document 24** : surtout **K6** (mot de passe PostgreSQL par défaut en production), **K9** (aucun `securityContext` sur les pods Kubernetes générés), **K4** (graphe et découverte sans filtre d'équipe : voulu ou lacune ?), **K2** (audience du jeton non vérifiée), **K1** (fin de la tolérance « service sans équipe »).
+1. **Constats du document 24** : **K4** (graphe et découverte sans filtre d'équipe : voulu ou lacune ?), **K2** (audience du jeton non vérifiée), **K1** (fin de la tolérance « service sans équipe »), **K5** (lecture des workflows ouverte à tout appelant authentifié : à confirmer), **K3** (règle « tout refuser hors de `/api/v1/` »). K6, K7, K8, K9 (en partie : point ouvert 6) et K10 sont traités.
 2. **Outil d'injection de pannes réseau** pour le niveau 6b du chaos.
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **K8** : écrit sur `fix/k8-messages-adapter-bornes`, **en attente de validation** (section 1).
-2. **K6, reste** : observer le refus de démarrage sur un vrai jar de production (lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD` ; le message « Démarrage refusé en production » doit apparaître).
-3. **Décisions du document 24 encore ouvertes** : K1, K2, K3, K4, K5, K7 (à décider ou à examiner par Samuel).
+1. **K6, reste** : observer le refus de démarrage sur un vrai jar de production (lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD` ; le message « Démarrage refusé en production » doit apparaître).
+2. **K3, vérification** sur ce même jar : `curl -i http://<kernel>/q/health`, `/q/openapi`, `/q/metrics`, `/q/dev-ui` doivent répondre `404` ([24](24-revue-de-securite-externe.md)).
+3. **Décisions du document 24 encore ouvertes** : K1, K2, K3 (règle « tout refuser hors de `/api/v1/` »), K4, K5 (à décider par Samuel). K7 et K8 sont réglés.
 4. **Chaos 6b** : après le choix de l'outil.
 5. **Revue externe** : choisir le relecteur et lui remettre le document 24.
 6. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
