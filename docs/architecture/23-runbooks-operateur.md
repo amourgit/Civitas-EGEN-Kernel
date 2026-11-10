@@ -178,3 +178,5 @@ nomad job status news-service
 De plus, si `EGEN_REGISTRY_DB_PASSWORD` vaut `egen` (la valeur de développement), le Kernel refuse de démarrer avec le message « Démarrage refusé en production : le mot de passe de la base du Registry est la valeur par défaut du développement ». Le code de sortie est `1` dans tous ces cas.
 
 *Non éprouvé* : le comportement des autres variables de production (`NOMAD_TOKEN`, `CONSUL_HTTP_TOKEN`, `VAULT_TOKEN`, `EGEN_KUBERNETES_TOKEN`, les adresses de Nomad, Consul, NATS et Vault) n'a pas encore été observé sur un Kernel de production complet.
+
+*Observé le 10 novembre 2026* (Kernel de production avec la seule base PostgreSQL, V2) : sans collecteur OpenTelemetry à l'adresse `http://localhost:4317`, le Kernel démarre normalement (profil `prod`, environ 1,4 seconde) et reste en vie. Environ une minute après le démarrage il écrit une erreur de niveau `SEVERE`, « Failed to export metrics », avec une trace complète : c'est l'exportateur de métriques qui échoue à se connecter. Le Kernel n'est pas arrêté. Le service est décrit dans `docker-compose.yml` (`otel-collector`).
