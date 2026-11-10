@@ -74,12 +74,10 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
-1. **K6, reste** : observer le refus de démarrage sur un vrai jar de production (lancer le jar produit par `mvn verify` en mode normal **sans** `EGEN_REGISTRY_DB_PASSWORD` ; le message « Démarrage refusé en production » doit apparaître).
-2. **K3, vérification** sur ce même jar : `curl -i http://<kernel>/q/health`, `/q/openapi`, `/q/metrics`, `/q/dev-ui` doivent répondre `404` ([24](24-revue-de-securite-externe.md)).
-3. **Décisions du document 24 encore ouvertes** : K1, K2, K3 (règle « tout refuser hors de `/api/v1/` »), K4, K5 (à décider par Samuel). K7 et K8 sont réglés.
-4. **Chaos 6b** : après le choix de l'outil.
-5. **Revue externe** : choisir le relecteur et lui remettre le document 24.
-6. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
+1. **Vérifications V1 à V8** : voir la section « Vérifications en attente » ci-dessous.
+2. **K4** (décidé le 9 novembre 2026) : contrat dans [13](13-api-et-contrats.md), puis le graphe de dépendances filtré par équipe, l'administrateur voyant tout, avec tests ; `discover` reste ouvert et cela est écrit.
+3. **K5** (décidé : confirmé) : l'écrire dans [14](14-securite.md). **K1** (décidé, **date et liste des services sans équipe à fournir**) : contrat, puis refus d'un `Declare` sans équipe après la date. **K2** (en attente de la réponse sur le fournisseur d'identité) et **K3** (règle « tout refuser hors de `/api/v1/` » : non décidée).
+4. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
 
 ### 6. Règles de travail à ne pas perdre
 
@@ -87,6 +85,7 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 - **La documentation d'abord** : le contrat normatif s'écrit avant le code. Tout fait externe est vérifié dans une source (code, dépôt officiel) ou marqué « à vérifier ».
 - **Des commits explicites** : un titre qui dit la fonctionnalité touchée, un corps qui liste modules, fichiers, tests et état de vérification. Des commits supplémentaires plutôt qu'une réécriture d'historique.
 - **Ne jamais écrire un jeton ou un mot de passe** dans un fichier, un commit ou une doc. Le jeton GitHub qui a servi à pousser a été exposé dans une conversation : **à révoquer**.
+- **Noter toute vérification non faite** : une vérification que Samuel n'a pas faite, ou dont personne n'a de résultat, s'écrit dans « Vérifications en attente » (début du document), avec qui peut la faire et le résultat attendu. Chaque réponse de fin de travail rappelle ce qui est **vérifié ici** et ce qui **ne l'est pas**.
 - **Vérifier avant de conclure** : relire le code plutôt que la seule doc, essayer plusieurs motifs de recherche avant d'affirmer qu'une chose « n'existe pas », et prouver qu'un test peut échouer (test de mutation).
 
 ### 7. Pièges déjà rencontrés
@@ -98,6 +97,23 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 - **Le moteur réapplique l'état désiré à chaque cycle** (`create()` rappelé toutes les ~10 s) : toute modification manuelle dans Nomad ou Kubernetes est annulée ; la sûreté repose sur l'idempotence de chaque appel.
 - **Un recensement par recherche textuelle peut rater une forme d'appel** : la durée de réconciliation était émise via `recordDuration(new MetricSample("egen_…"))`, que mon premier motif ne couvrait pas, et deux documents ont affirmé à tort qu'elle n'existait pas.
 - **Un script de modification qui échoue à mi-chemin** laisse des changements partiels : lire `git status` avant de commiter, et vérifier que le message de commit décrit bien ce qui est dedans.
+
+## Vérifications en attente — non faites, ou sans résultat
+
+**Règle (demandée par Samuel, 9 novembre 2026).** Toute vérification qui n'a pas été faite, ou dont personne n'a obtenu de résultat, est notée **ici**, et nulle part ailleurs sous forme de liste. Ce n'est pas un oubli : Samuel les fera plus tard. Une ligne n'est retirée que lorsqu'un **résultat daté** est écrit dans la colonne de droite ; elle passe alors dans « Faites ». Un document peut renvoyer à cette section, jamais la dupliquer.
+
+| N° | Vérification | Qui peut la faire | Résultat attendu | Où c'est mentionné |
+|---|---|---|---|---|
+| V1 | **K6, reste** : lancer le jar de production produit par `mvn verify`, en mode normal, **sans** `EGEN_REGISTRY_DB_PASSWORD` | Samuel (il faut le jar) | Le démarrage échoue avec le message « Démarrage refusé en production » | [24](24-revue-de-securite-externe.md), K6 |
+| V2 | **K3** : sur ce même jar, `curl -i http://<kernel>/q/health`, `/q/openapi`, `/q/metrics`, `/q/dev-ui` | Samuel | Chacun répond `404`. Toute autre réponse est un constat à ouvrir | [24](24-revue-de-securite-externe.md), K3 |
+| V3 | Aucun jeton ni mot de passe dans le journal : provoquer un échec d'adapter avec un jeton volontairement faux, puis chercher ce jeton dans le journal du Kernel | Samuel | Aucune occurrence. (Aujourd'hui seule une recherche textuelle dans le code l'indique : elle peut rater une forme d'appel) | [14](14-securite.md), exception K7 |
+| V4 | Valeur par défaut de `revisionHistoryLimit` d'un Deployment Kubernetes (10 supposé), et retour arrière de plus d'une version | Samuel (cluster k3s) ou le relecteur | La valeur confirmée ; un `rollback` vers une version plus ancienne que la limite échoue comme décrit. Le test de niveau 3 ne remonte aujourd'hui que d'une version | [07](07-ports-et-adapters.md), « Retour arrière » |
+| V5 | Texte exact d'un corps d'erreur Kubernetes (par exemple un `422`) : il dépend de la version de Kubernetes | Samuel (cluster k3s) | Un exemple réel, à mettre dans l'exemple de bout en bout du 07 | [07](07-ports-et-adapters.md), « Messages d'erreur des adapters HTTP » |
+| V6 | Relecture des runbooks par un opérateur | un opérateur | Les scénarios `FAILED`, `COMPENSATION_FAILED` et divergence prolongée se suivent sans aide | [23](23-runbooks-operateur.md) |
+| V7 | Chaos 6b : latence vers Consul, coupure de NATS, redémarrage brutal d'un vrai Kernel | Samuel, après le choix de l'outil d'injection de pannes | Le Kernel converge de nouveau sans intervention | [17](17-strategie-de-tests.md), niveau 6 |
+| V8 | Revue de sécurité externe ; le relecteur confirme aussi la configuration NATS (`egen.messaging.*`) | le relecteur, à choisir | Un rapport sur le document 24 | [24](24-revue-de-securite-externe.md) |
+
+**Faites** (avec leur résultat) : `mvn verify` complet, 18 modules, vert chez Samuel pour K9 (7 novembre 2026), K10 (9 novembre 2026, 22:26, après correction d'un test) et K8 (9 novembre 2026, 22:45).
 
 ## Phase 0 — Fondations et décisions structurantes
 
