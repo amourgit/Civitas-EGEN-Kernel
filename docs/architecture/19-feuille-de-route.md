@@ -11,7 +11,7 @@ Ce document est la **seule source de statut** des phases du Kernel, de la phase 
 
 Légende : `[x]` fait · `[~]` en cours · `[ ]` à faire · `[>]` reporté, avec un **déclencheur écrit** (on ne le fait que si le déclencheur se produit) · `[?]` proposé, à valider.
 
-Mise à jour : 9 novembre 2026. **Reprendre par la section « Reprise de session » ci-dessous.**
+Mise à jour : 10 novembre 2026. **Reprendre par la section « Reprise de session » ci-dessous.**
 
 | Élément | Statut | Reste à faire |
 |---|---|---|
@@ -23,33 +23,19 @@ Mise à jour : 9 novembre 2026. **Reprendre par la section « Reprise de session
 | Points ouverts du Kernel | **Ouverts** | 6 points, à décider par Samuel (le point 6 est le durcissement strict des pods, issu du constat K9) |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts non tranchés → points ouverts 3 à 5 |
 
-## Reprise de session — point de situation du 9 novembre 2026
+## Reprise de session — point de situation du 10 novembre 2026
 
 > **À lire en premier par quiconque reprend le développement.** Le reste du document dit *ce qui est prévu* ; cette section dit *où l'on en est exactement*, ce qui est validé, ce qui ne l'est pas, et dans quel ordre continuer.
 
 ### 1. Où est le code
 
 ```
-main (578772b)                        = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (9 novembre 2026, 22:45)
-   │
-   └── feat/autorisation-admin-seule  = main + docs K7/K3 + registre des vérifications + AUTORISATION ADMIN SEULE
-                                         (code et tests), EN ATTENTE DE `mvn verify` (rien n'est compilé ici)
+main (bc33d0a)   = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (10 novembre 2026, 22:41)
 ```
 
-`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6**, **K9**, **K10** et **K8** (voir le document 24), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées. La branche `docs/k7-k3-et-point-de-situation` est **contenue** dans `feat/autorisation-admin-seule` : ne pas la fusionner séparément.
+`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6**, **K8**, **K9**, **K10** (voir le document 24), **l'autorisation à deux niveaux** (lire : tout appelant authentifié ; modifier : rôle administrateur ; `metadata.team` purement informatif, décision de Samuel du 10 novembre 2026, option A, documents 13, 14 et 22), l'exception K7 et l'examen de K3 (document 14 et 24), le registre des vérifications en attente, le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`.
 
-**`feat/autorisation-admin-seule`** applique la décision de Samuel du 10 novembre 2026 : **`metadata.team` est purement informatif et n'est jamais pris en compte** ; option A pour l'autorisation (lire : tout appelant authentifié ; modifier : rôle administrateur).
-
-| Élément | Changement |
-|---|---|
-| Docs 14, 13, 22, 12, 23, 09, 08, 06, 05, 07, 24, glossaire, 19 | contrat « Lire / Modifier », exemple de bout en bout, table des routes dans 13 ; D14 modifiée ; K1 et K4 (décisions du 9 novembre) annulées ; K11 ajouté |
-| `EgenSecurityContext` | ne garde que `isAdmin()` et `assertAdmin()` ; plus de claim d'équipe, plus de `callerTeam`, `assertCanDeclare`, `assertOwnsOrAdmin`, `ownsOrAdmin` |
-| `ServiceResource`, `ServiceConfigurationResource`, `EventResource`, `PublishEventUseCase(Impl)` | modifier = `assertAdmin()` en premier ; lire = aucun contrôle d'équipe ; le use case de publication ne reçoit plus de prédicat d'équipe |
-| `egen.security.team-claim` | supprimée de `application.properties` et de la description OpenAPI |
-| `OwnerTeam` / `ownerTeam` | **conservés** : valeur informative stockée et restituée ; le nom est trompeur (un renommage est possible plus tard, non fait ici : risque sans compilateur) |
-| Tests | `ServiceResourceTeamOwnershipTest` et `ServiceConfigurationSecurityTest` remplacés par `ServiceResourceAdminOnlyTest` et `ServiceConfigurationAdminOnlyTest` ; `PublishEventUseCaseImplTest` et `EventResourceTest` adaptés |
-
-Pour valider : `git fetch && git checkout feat/autorisation-admin-seule && git pull && mvn verify`, puis `git push origin feat/autorisation-admin-seule:main`. Si c'est rouge, envoyer le log.
+Aucune branche n'est en attente de validation. Les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées (`git push origin --delete <branche>`).
 
 ### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
@@ -81,8 +67,7 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 ### 5. Prochaines étapes de développement, dans l'ordre
 
 1. **Vérifications V1 à V8** : voir la section « Vérifications en attente » ci-dessous.
-2. **Valider `feat/autorisation-admin-seule`** (section 1).
-3. **K2 et K3** : décisions de Samuel (voir 4).
+2. **K2 et K3** : décisions de Samuel (voir 4).
 4. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
 
 ### 6. Règles de travail à ne pas perdre
@@ -122,7 +107,7 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 | V10 | L'émetteur des jetons (fournisseur d'identité) ne donne le rôle administrateur (`egen-admin`) qu'à `platform-operator-service` et à la pipeline de déploiement | Samuel (configuration du fournisseur d'identité) | La liste des clients qui portent ce rôle ne contient que ces deux appelants | [24](24-revue-de-securite-externe.md), K11 |
 | V11 | Le dépôt `Civitas-EGEN-Business` et les clients du Kernel (SDK, console, passerelle) ne comptent pas sur l'autorisation par équipe (par exemple une lecture filtrée par équipe) | Samuel | Aucun appelant ne dépend d'un `403` fondé sur l'équipe ni d'une liste filtrée | [14](14-securite.md) |
 
-**Faites** (avec leur résultat) : `mvn verify` complet, 18 modules, vert chez Samuel pour K9 (7 novembre 2026), K10 (9 novembre 2026, 22:26, après correction d'un test) et K8 (9 novembre 2026, 22:45).
+**Faites** (avec leur résultat) : `mvn verify` complet, 18 modules, vert chez Samuel pour K9 (7 novembre 2026), K10 (9 novembre 2026, 22:26, après correction d'un test), K8 (9 novembre 2026, 22:45) et l'autorisation à deux niveaux (10 novembre 2026, 22:41, vert du premier coup ; ce passage valide aussi les 12 cas de `ServiceResourceAdminOnlyTest` et `ServiceConfigurationAdminOnlyTest`, et la suppression de la propriété `egen.security.team-claim`).
 
 ## Phase 0 — Fondations et décisions structurantes
 
