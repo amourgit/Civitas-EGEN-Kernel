@@ -162,3 +162,19 @@ kubectl -n <namespace> rollout status deployment/news-service
 ```
 nomad job status news-service
 ```
+
+## Démarrer le Kernel en production : variables obligatoires
+
+*À quoi sert cette section* : savoir pourquoi un Kernel de production ne démarre pas. *Ce qu'elle ne couvre pas* : la configuration complète d'un environnement.
+
+**Observé le 10 novembre 2026** (jar produit par `mvn verify`, lancé sans infrastructure) : le Kernel **ne démarre pas** si l'une de ces trois variables d'environnement manque ou est vide. Quarkus l'arrête avant le Kernel, avec le message `Failed to load config value of type class java.lang.String for: <propriété>` :
+
+| Variable d'environnement | Propriété nommée dans le message | Rôle |
+|---|---|---|
+| `EGEN_REGISTRY_DB_PASSWORD` | `quarkus.datasource.password` | mot de passe de la base PostgreSQL du Registry |
+| `EGEN_OIDC_ISSUER_URL` | `mp.jwt.verify.issuer` | émetteur des jetons OIDC |
+| `EGEN_OIDC_JWKS_URL` | `mp.jwt.verify.publickey.location` | adresse des clés publiques de l'émetteur |
+
+De plus, si `EGEN_REGISTRY_DB_PASSWORD` vaut `egen` (la valeur de développement), le Kernel refuse de démarrer avec le message « Démarrage refusé en production : le mot de passe de la base du Registry est la valeur par défaut du développement ». Le code de sortie est `1` dans tous ces cas.
+
+*Non éprouvé* : le comportement des autres variables de production (`NOMAD_TOKEN`, `CONSUL_HTTP_TOKEN`, `VAULT_TOKEN`, `EGEN_KUBERNETES_TOKEN`, les adresses de Nomad, Consul, NATS et Vault) n'a pas encore été observé sur un Kernel de production complet.

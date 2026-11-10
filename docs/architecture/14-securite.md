@@ -48,9 +48,13 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
 - Il ne rejoue jamais la réponse d'un appelant à un autre : la clé de cache
   d'idempotence inclut l'appelant ([13](13-api-et-contrats.md#sécurité-de-lapi)).
 - Il ne démarre jamais en production avec un mot de passe de base de données absent
-  ou égal à la valeur par défaut du développement : le démarrage échoue, avec un
-  message qui nomme la variable d'environnement à définir
-  ([24](24-revue-de-securite-externe.md), constat K6).
+  ou égal à la valeur par défaut du développement : le démarrage échoue
+  ([24](24-revue-de-securite-externe.md), constat K6). *Observé sur le jar de
+  production le 10 novembre 2026* : si `EGEN_REGISTRY_DB_PASSWORD` vaut `egen`, le
+  Kernel affiche « Démarrage refusé en production … Définir EGEN_REGISTRY_DB_PASSWORD
+  … » ; si elle est **absente**, c'est Quarkus qui refuse avant le Kernel, avec un
+  message générique qui nomme la propriété `quarkus.datasource.password` (« Failed to
+  load config value … ») et non la variable d'environnement.
 - Il ne lit jamais un document YAML venu de l'extérieur sans limites explicites de
   taille, d'imbrication, d'alias et de clés dupliquées, ni un corps de requête de
   plus de 1 Mio ([13](13-api-et-contrats.md), « Limites d'entrée » ; constat K10

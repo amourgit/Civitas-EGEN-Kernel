@@ -95,7 +95,6 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 | N° | Vérification | Qui peut la faire | Résultat attendu | Où c'est mentionné |
 |---|---|---|---|---|
-| V1 | **K6, reste** : lancer le jar de production produit par `mvn verify`, en mode normal, **sans** `EGEN_REGISTRY_DB_PASSWORD` | Samuel (il faut le jar) | Le démarrage échoue avec le message « Démarrage refusé en production » | [24](24-revue-de-securite-externe.md), K6 |
 | V2 | **K3** : sur ce même jar, `curl -i http://<kernel>/q/health`, `/q/openapi`, `/q/metrics`, `/q/dev-ui` | Samuel | Chacun répond `404`. Toute autre réponse est un constat à ouvrir | [24](24-revue-de-securite-externe.md), K3 |
 | V3 | Aucun jeton ni mot de passe dans le journal : provoquer un échec d'adapter avec un jeton volontairement faux, puis chercher ce jeton dans le journal du Kernel | Samuel | Aucune occurrence. (Aujourd'hui seule une recherche textuelle dans le code l'indique : elle peut rater une forme d'appel) | [14](14-securite.md), exception K7 |
 | V4 | Valeur par défaut de `revisionHistoryLimit` d'un Deployment Kubernetes (10 supposé), et retour arrière de plus d'une version | Samuel (cluster k3s) ou le relecteur | La valeur confirmée ; un `rollback` vers une version plus ancienne que la limite échoue comme décrit. Le test de niveau 3 ne remonte aujourd'hui que d'une version | [07](07-ports-et-adapters.md), « Retour arrière » |
@@ -107,7 +106,7 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 | V10 | L'émetteur des jetons (fournisseur d'identité) ne donne le rôle administrateur (`egen-admin`) qu'à `platform-operator-service` et à la pipeline de déploiement | Samuel (configuration du fournisseur d'identité) | La liste des clients qui portent ce rôle ne contient que ces deux appelants | [24](24-revue-de-securite-externe.md), K11 |
 | V11 | Le dépôt `Civitas-EGEN-Business` et les clients du Kernel (SDK, console, passerelle) ne comptent pas sur l'autorisation par équipe (par exemple une lecture filtrée par équipe) | Samuel | Aucun appelant ne dépend d'un `403` fondé sur l'équipe ni d'une liste filtrée | [14](14-securite.md) |
 
-**Faites** (avec leur résultat) : `mvn verify` complet, 18 modules, vert chez Samuel pour K9 (7 novembre 2026), K10 (9 novembre 2026, 22:26, après correction d'un test), K8 (9 novembre 2026, 22:45) et l'autorisation à deux niveaux (10 novembre 2026, 22:41, vert du premier coup ; ce passage valide aussi les 12 cas de `ServiceResourceAdminOnlyTest` et `ServiceConfigurationAdminOnlyTest`, et la suppression de la propriété `egen.security.team-claim`).
+**Faites** (avec leur résultat) : **V1 (10 novembre 2026, 23:01, jar de `bc33d0a`, lancé depuis un dossier vide)** : (a) sans `EGEN_REGISTRY_DB_PASSWORD`, démarrage refusé, code de sortie 1, mais par Quarkus avec un message générique « Failed to load config value … quarkus.datasource.password » (et non le message du Kernel ; la branche « absent » de `ProductionConfigurationRules` est donc inatteignable en pratique en production, elle reste une défense) ; (b) avec `egen`, démarrage refusé avec le message prévu, code de sortie 1 ; (c) avec une valeur propre, la garde ne refuse pas (l'échec suivant est la connexion à PostgreSQL, absent). **Constats** : sans `EGEN_OIDC_ISSUER_URL` et `EGEN_OIDC_JWKS_URL`, le Kernel ne démarre pas non plus en production ; ces trois variables sont obligatoires (ajoutées au runbook, [23](23-runbooks-operateur.md)).  `mvn verify` complet, 18 modules, vert chez Samuel pour K9 (7 novembre 2026), K10 (9 novembre 2026, 22:26, après correction d'un test), K8 (9 novembre 2026, 22:45) et l'autorisation à deux niveaux (10 novembre 2026, 22:41, vert du premier coup ; ce passage valide aussi les 12 cas de `ServiceResourceAdminOnlyTest` et `ServiceConfigurationAdminOnlyTest`, et la suppression de la propriété `egen.security.team-claim`).
 
 ## Phase 0 — Fondations et décisions structurantes
 
@@ -411,7 +410,7 @@ Livrables proposés : un `Dockerfile` et une image publiée ; un job Nomad du Ke
 Aucun n'est tranché dans cette documentation. Décideur : Samuel.
 
 **1. Amorçage circulaire.**
-- *Problème* : sans émetteur de jetons OIDC configuré (`EGEN_OIDC_ISSUER_URL`, `EGEN_OIDC_JWKS_URL`), le Kernel refuse toute opération qui modifie quelque chose ; or la Plateforme prévoit que le Kernel déploie Keycloak, l'émetteur de jetons.
+- *Problème* : sans émetteur de jetons OIDC configuré (`EGEN_OIDC_ISSUER_URL`, `EGEN_OIDC_JWKS_URL`), le Kernel **ne démarre pas du tout en production** (constaté le 10 novembre 2026, V1 : Quarkus traite ces valeurs vides comme absentes) ; or la Plateforme prévoit que le Kernel déploie Keycloak, l'émetteur de jetons.
 - *Options* : (a) lancer Keycloak par la pipeline de déploiement **avant** le Kernel ; (b) fournir au Kernel une clé publique statique temporaire pour émettre le premier jeton `egen-admin`.
 - *Impact* : détermine l'ordre de démarrage de toute installation neuve.
 - Ce point est aussi consigné dans la phase C de la Plateforme (`docs/plateforme/11-plan-par-phase.md`).
