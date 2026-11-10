@@ -6,11 +6,27 @@ import io.restassured.RestAssured;
 import io.restassured.config.EncoderConfig;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
+import africa.civitas.egen.application.port.RegistryStorePort;
+import africa.civitas.egen.domain.model.DeploymentSpec;
+import africa.civitas.egen.domain.model.DesiredState;
+import africa.civitas.egen.domain.model.EventSpec;
+import africa.civitas.egen.domain.model.HealthSpec;
+import africa.civitas.egen.domain.model.LifecyclePolicy;
+import africa.civitas.egen.domain.model.OwnerTeam;
+import africa.civitas.egen.domain.model.ReplicaRange;
+import africa.civitas.egen.domain.model.RuntimeType;
+import africa.civitas.egen.domain.model.ServiceId;
+import africa.civitas.egen.domain.model.ServiceManifest;
+import africa.civitas.egen.domain.model.ServiceRuntime;
+import africa.civitas.egen.domain.model.ServiceVersion;
+import africa.civitas.egen.domain.model.TargetEnvironment;
 import africa.civitas.egen.testkit.RecordingMessagingPort;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
@@ -29,6 +45,9 @@ class EventResourceTest {
 
     @Inject
     RecordingMessagingPort messaging;
+
+    @Inject
+    RegistryStorePort registry;
 
     @BeforeAll
     static void yamlEncoding() {
@@ -98,6 +117,37 @@ class EventResourceTest {
         assertEquals("corr-1", sent.event().correlationId());
         assertTrue(sent.event().data().contains("\"articleId\":\"42\""), sent.event().data());
         assertTrue(sent.event().data().contains("[1,2]"), sent.event().data());
+    }
+
+    /** Inscrit directement dans le Registry un service qui annonce {@code eventType} (equipe informative). */
+    private void saveAnnouncedPublisher(String name, String eventType) {
+        ServiceManifest manifest = new ServiceManifest(ServiceId.of(name), ServiceVersion.parse("1.0.0"),
+                new ServiceRuntime(RuntimeType.CONTAINER, "registry/" + name + ":1.0.0", "java"),
+                new DeploymentSpec("nomad", "registry/" + name + ":1.0.0", "500m", "512Mi", new ReplicaRange(1, 2)),
+                new HealthSpec("/health", Duration.ofSeconds(10), Duration.ofSeconds(2), 3),
+                new LifecyclePolicy(Duration.ofMillis(50)), List.of(), OwnerTeam.of("content-platform"), null,
+                new EventSpec(List.of(new EventSpec.Published(eventType, null)), List.of()), null, null);
+        registry.save(new DesiredState(manifest, 0L, TargetEnvironment.of("development")));
+    }
+
+    @Test
+    @TestSecurity(user = "dev", roles = "developer")
+    void aCallerWithoutTheAdministratorRoleIs403EvenForAnAnnouncedTypeAndNothingIsPublished() {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String announced = type("announced-" + suffix);
+        saveAnnouncedPublisher("it-evt-" + suffix, announced);
+
+        publish("{\"type\": \"" + announced + "\", \"source\": \"/x\", \"data\": {}}")
+                .when().post("/api/v1/events/publish").then().statusCode(403);
+        assertTrue(messaging.published().isEmpty());
+    }
+
+    @Test
+    @TestSecurity(user = "dev", roles = "developer")
+    void theAdministratorCheckComesBeforeTheBodyIsRead() {
+        // Corps illisible : un 403 (et non un 400) prouve que le droit passe AVANT la lecture du corps.
+        publish("pas du json").when().post("/api/v1/events/publish").then().statusCode(403);
+        assertTrue(messaging.published().isEmpty());
     }
 
     @Test

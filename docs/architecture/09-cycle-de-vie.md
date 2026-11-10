@@ -39,7 +39,7 @@ FAILED / STOPPED ──▶ DECLARED       (un nouveau Declare du même service l
 
 1. L'opérateur crée le namespace.
 2. Il envoie `POST /api/v1/services` avec le manifeste (le même, ou corrigé) et une **nouvelle** valeur d'`Idempotency-Key`. Avec une valeur déjà utilisée, l'API rejoue la réponse mémorisée **sans rien exécuter** ([13](13-api-et-contrats.md)).
-3. Le use case de déclaration valide la requête (adapter activé et inchangé, pas de cycle, propriétaire ou administrateur) et enregistre une nouvelle génération.
+3. Le use case de déclaration valide la requête (adapter activé et inchangé, pas de cycle, appelant administrateur) et enregistre une nouvelle génération.
 4. Il constate la phase `FAILED` et écrit le statut `DECLARED`, avec une liste de Conditions **vide** et l'`observedGeneration` de la nouvelle génération. Il met ensuite le service dans la file de travail.
 5. Le moteur de réconciliation prend le relais : `ManifestValid`, puis `ConfigResolved`, puis `DependenciesSatisfied` et `MessagingBindingsReady`, puis le déploiement. L'opérateur suit la progression par `GET /api/v1/services/news-service/status`.
 
@@ -55,7 +55,7 @@ FAILED / STOPPED ──▶ DECLARED       (un nouveau Declare du même service l
 
 **Pourquoi effacer les Conditions.** Sans cela, la Condition `DeploymentReady = False` (raison `AdapterFailureThresholdExceeded`) de l'ancien échec resterait lisible pendant que le service est de nouveau `DECLARED`, ce qui induirait l'opérateur en erreur. Chaque Condition est réécrite par le cycle qui la concerne.
 
-**Ce que la relance ne fait pas.** Un `Declare` **refusé** (adapter non activé, adapter changé, cycle, droits insuffisants) ne touche à rien : toutes les validations précèdent l'écriture. La relance n'ajoute aucun droit : seuls le propriétaire du service ou un administrateur peuvent déclarer un service existant ([14](14-securite.md)).
+**Ce que la relance ne fait pas.** Un `Declare` **refusé** (adapter non activé, adapter changé, cycle, droits insuffisants) ne touche à rien : toutes les validations précèdent l'écriture. La relance n'ajoute aucun droit : seul un administrateur peut déclarer (ou redéclarer) un service ([14](14-securite.md)).
 
 ## Conditions
 

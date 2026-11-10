@@ -15,7 +15,7 @@ kind: ServiceManifest
 metadata:
   name: news-service
   version: 2.4.0
-  team: content-platform
+  team: content-platform         # informatif : traçabilité seulement, jamais lu pour décider (14)
   labels:
     domain: actualite
     tier: backend

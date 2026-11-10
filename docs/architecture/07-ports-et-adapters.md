@@ -493,12 +493,12 @@ Elle fixe ce que contient le message d'une exception d'adapter quand le système
 
 L'Université X déclare son service `news`. Le Kernel génère un Deployment et l'envoie à Kubernetes.
 
-- **Cas 1, un refus précis.** Kubernetes répond `422` avec un corps de quelques dizaines de caractères qui nomme le champ refusé. L'adapter lève `DeploymentException("Kubernetes a rejete create(news) : HTTP 422 — {…le champ refusé…}")`. Le développeur de l'équipe lit la Condition, voit quel champ est en cause et corrige son manifeste, sans demander l'aide d'un opérateur. Le texte exact d'un corps Kubernetes dépend de la version de Kubernetes (à vérifier) : cet exemple montre le principe, pas un message garanti.
+- **Cas 1, un refus précis.** Kubernetes répond `422` avec un corps de quelques dizaines de caractères qui nomme le champ refusé. L'adapter lève `DeploymentException("Kubernetes a rejete create(news) : HTTP 422 — {…le champ refusé…}")`. Le développeur lit la Condition, voit quel champ est en cause et corrige son manifeste, sans demander l'aide d'un opérateur. Le texte exact d'un corps Kubernetes dépend de la version de Kubernetes (à vérifier) : cet exemple montre le principe, pas un message garanti.
 - **Cas 2, un corps énorme.** Un mandataire intermédiaire renvoie une page HTML de 20 000 caractères avec un `502`. La Condition et le journal ne contiennent que les 500 premiers caractères de cette page, suivis de ` [tronque]`. Le code `502` reste lisible au début du message.
 
 ### Ce que ce contrat ne protège pas
 
-Le corps conservé peut contenir des détails d'infrastructure (un nom de namespace, le nom du compte de service du Kernel, le droit qui manque). Le lecteur est un développeur authentifié de l'équipe propriétaire du service. **Ce risque est accepté** : retirer le corps priverait ce développeur de l'information qui lui permet de corriger son manifeste. Il n'y a pas de secret dans ces corps : les jetons des adapters ne sont jamais recopiés (test `apiRejectionBecomesADeploymentExceptionWithTheStatus`).
+Le corps conservé peut contenir des détails d'infrastructure (un nom de namespace, le nom du compte de service du Kernel, le droit qui manque). Le lecteur est **tout appelant authentifié** : depuis le 10 novembre 2026 la lecture est ouverte à tous ([14](14-securite.md), [24](24-revue-de-securite-externe.md), K11), ce qui élargit le cercle de ceux qui voient ces détails. **Ce risque est accepté** : retirer le corps priverait le développeur de l'information qui lui permet de corriger son manifeste. Il n'y a pas de secret dans ces corps : les jetons des adapters ne sont jamais recopiés (test `apiRejectionBecomesADeploymentExceptionWithTheStatus`).
 
 ### Tests
 

@@ -1,23 +1,20 @@
 package africa.civitas.egen.domain.model;
 
 /**
- * L'équipe propriétaire déclarée dans {@code metadata.team} du
- * {@link ServiceManifest} (voir docs/architecture/06-service-manifest.md,
- * schéma annoté — {@code team: content-platform}). Sert de base au RBAC
- * scoped par équipe de l'API de contrôle (voir
- * docs/architecture/13-api-et-contrats.md, "Sécurité de l'API" et
- * docs/architecture/14-securite.md, "RBAC de l'API de contrôle EGEN").
+ * L'équipe déclarée dans {@code metadata.team} du {@link ServiceManifest} (voir
+ * docs/architecture/06-service-manifest.md, schéma annoté — {@code team: content-platform}).
  *
- * <p>Champ additif et rétro-compatible (voir
- * docs/architecture/13-api-et-contrats.md, "Versionnage et
- * compatibilité") : un manifeste qui ne déclare pas d'équipe obtient
- * {@link #unassigned()} plutôt que de faire échouer la construction —
- * EGEN reste utilisable en développement sans IAM configuré (garde-fou
- * n4, docs/architecture/02-principes-fondamentaux.md, "Kernel vide").
- * {@link #isUnassigned()} permet à l'appelant (ici, l'autorisation côté
- * egen-api) de décider explicitement quoi faire d'un manifeste sans
- * équipe, plutôt que de le traiter silencieusement comme appartenant à
- * une équipe réelle nommée "unassigned".</p>
+ * <p><b>Valeur purement informative, pour la traçabilité</b> (décision de Samuel, 10 novembre 2026,
+ * docs/architecture/14-securite.md) : elle est stockée et restituée telle quelle et n'est JAMAIS lue pour
+ * décider — ni autorisation, ni filtre, ni propriété. Le nom {@code OwnerTeam} date de l'époque où elle servait au
+ * RBAC par équipe ; il est conservé pour ne pas multiplier les changements sans compilateur (un renommage reste
+ * possible).</p>
+ *
+ * <p>Champ additif et rétro-compatible (voir docs/architecture/13-api-et-contrats.md, "Versionnage et
+ * compatibilité") : un manifeste qui ne déclare pas d'équipe obtient {@link #unassigned()} plutôt que de faire
+ * échouer la construction — EGEN reste utilisable en développement sans IAM configuré (garde-fou n4,
+ * docs/architecture/02-principes-fondamentaux.md, "Kernel vide"). {@link #isUnassigned()} distingue « aucune équipe
+ * déclarée » d'une équipe réelle qui s'appellerait "unassigned".</p>
  */
 public record OwnerTeam(String value) {
 

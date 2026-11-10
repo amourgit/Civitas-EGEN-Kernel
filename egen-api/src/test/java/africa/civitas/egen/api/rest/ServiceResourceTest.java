@@ -47,10 +47,9 @@ import static org.hamcrest.Matchers.is;
  *
  * <p><b>{@link TestSecurity}</b> : depuis la Phase 4
  * (docs/architecture/14-securite.md), toute methode de {@link ServiceResource}
- * exige un appelant authentifie, et une mutation sans equipe declaree dans
- * le manifeste (le cas de {@code MANIFEST_YAML} ci-dessous, qui ne porte
- * pas {@code metadata.team}) exige un appelant administrateur (voir
- * {@code EgenSecurityContext.assertCanDeclare}). Le role {@code egen-admin}
+ * exige un appelant authentifie, et toute mutation exige un appelant
+ * administrateur (voir {@code EgenSecurityContext.assertAdmin} ;
+ * {@code metadata.team} est informatif). Le role {@code egen-admin}
  * simule ici cet appelant, sans avoir a configurer un IdP OIDC reel pour ce
  * test au niveau module (voir docs/architecture/17-strategie-de-tests.md,
  * les tests de niveau 2/3 restent decouples d'une infrastructure externe

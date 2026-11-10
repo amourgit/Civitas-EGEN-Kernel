@@ -5,13 +5,11 @@ import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.domain.event.TechnicalEvent;
 import africa.civitas.egen.domain.model.DesiredState;
 import africa.civitas.egen.domain.model.EventSpec;
-import africa.civitas.egen.domain.model.OwnerTeam;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 public final class PublishEventUseCaseImpl implements PublishEventUseCase {
 
@@ -24,18 +22,13 @@ public final class PublishEventUseCaseImpl implements PublishEventUseCase {
     }
 
     @Override
-    public TechnicalEvent publish(PublishEventCommand command, Predicate<OwnerTeam> callerMayActFor) {
+    public TechnicalEvent publish(PublishEventCommand command) {
         Objects.requireNonNull(command, "command");
-        Objects.requireNonNull(callerMayActFor, "callerMayActFor");
 
         List<DesiredState> publishers = publishersOf(command.type());
         if (publishers.isEmpty()) {
             throw new EventPublicationNotAllowedException(
                     "Aucun service declare ne publie le type d'evenement \"" + command.type() + "\"");
-        }
-        if (publishers.stream().noneMatch(p -> callerMayActFor.test(p.manifest().ownerTeam()))) {
-            throw new EventPublicationNotAllowedException(
-                    "L'appelant n'est autorise sur aucun service qui publie \"" + command.type() + "\"");
         }
 
         String correlationId = command.correlationId() == null || command.correlationId().isBlank()

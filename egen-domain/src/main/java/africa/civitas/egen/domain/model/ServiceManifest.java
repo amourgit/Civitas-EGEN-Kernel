@@ -20,7 +20,7 @@ import java.util.List;
  *
  * <p>{@code ownerTeam} (Phase 4, voir
  * docs/architecture/13-api-et-contrats.md et
- * docs/architecture/14-securite.md) a ete ajoute en derniere position, de
+ * docs/architecture/14-securite.md ; valeur INFORMATIVE, jamais lue pour decider) a ete ajoute en derniere position, de
  * facon strictement additive : les deux constructeurs de convenance
  * historiques (6 et 7 arguments) restent valides tels quels et delivrent
  * {@link OwnerTeam#unassigned()} — aucun site d'appel existant n'a besoin

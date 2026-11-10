@@ -18,7 +18,7 @@
 
 ## 0. Lire l'état avant d'agir
 
-Tous les appels sont sur l'API de contrôle. Tout appel exige un jeton valide. Lire l'état d'un service, ou agir sur lui (par exemple l'arrêter), est réservé à **son équipe propriétaire ou à un administrateur** (`egen.security.admin-role`, valeur `egen-admin` par défaut) ; un service sans équipe est ouvert à tout appelant authentifié. Les mutations de workflows sont réservées aux administrateurs ; leur lecture, et celle du graphe de dépendances, sont ouvertes à tout appelant authentifié (voir [13](13-api-et-contrats.md), [14](14-securite.md) et [24](24-revue-de-securite-externe.md)).
+Tous les appels sont sur l'API de contrôle. Tout appel exige un jeton valide. **Lire** (état, manifeste, configuration, découverte, graphe de dépendances, workflows) est ouvert à tout appelant authentifié. **Modifier** (déclarer, relancer, arrêter un service, publier une configuration ou un événement, conduire un workflow) est réservé aux **administrateurs** (`egen.security.admin-role`, valeur `egen-admin` par défaut) ; `metadata.team` est informatif et ne donne aucun droit (voir [13](13-api-et-contrats.md), [14](14-securite.md) et [24](24-revue-de-securite-externe.md)).
 
 | Question | Appel | Ce que vous lisez |
 |---|---|---|
@@ -86,7 +86,7 @@ Exemple : `news-service`, déclaré avec `adapter: kubernetes`.
 ### Ce que vous pouvez faire
 
 1. **Corrigez la cause** (tableau ci-dessus). Le moteur **ne réessaie pas** un service en `FAILED` : il l'ignore tant que sa phase est `FAILED`, `STOPPED` ou `REMOVED`. Corriger la cause ne relance donc rien tout seul.
-2. **Relancez le service** : envoyez de nouveau `POST /api/v1/services` avec son manifeste (le même, ou corrigé) **sous le même identifiant**, et une **nouvelle** valeur d'`Idempotency-Key`. Avec une valeur déjà utilisée, l'API rejoue l'ancienne réponse sans rien exécuter. Le service repart de `DECLARED` avec ses Conditions effacées, puis suit le chemin normal jusqu'à `RUNNING` ([09](09-cycle-de-vie.md#relance-par-declare)). Suivez-le par `GET /api/v1/services/{id}/status`. Seuls son équipe propriétaire ou un administrateur peuvent le faire.
+2. **Relancez le service** : envoyez de nouveau `POST /api/v1/services` avec son manifeste (le même, ou corrigé) **sous le même identifiant**, et une **nouvelle** valeur d'`Idempotency-Key`. Avec une valeur déjà utilisée, l'API rejoue l'ancienne réponse sans rien exécuter. Le service repart de `DECLARED` avec ses Conditions effacées, puis suit le chemin normal jusqu'à `RUNNING` ([09](09-cycle-de-vie.md#relance-par-declare)). Suivez-le par `GET /api/v1/services/{id}/status`. Seul un administrateur peut le faire.
 3. **Si vous préférez libérer les ressources** sans relancer : `POST /api/v1/services/news-service/actions/stop` (rôle administrateur). La machine à états autorise `FAILED → STOPPING → STOPPED`. Un service `STOPPED` se relance de la même façon, par un nouveau `Declare`.
 
 **Si le service retombe en `FAILED` après la relance**, la cause n'est pas corrigée : relisez la Condition `DeploymentReady`. Il faut de nouveau cinq échecs consécutifs d'adapter pour qu'il y retombe.

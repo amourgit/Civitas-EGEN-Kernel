@@ -75,14 +75,14 @@ Le Kernel transporte des paires clé/valeur typées par le manifeste ; il ne fus
 
 ## 22.6 — Les deux équipes Kernel de la Plateforme
 
-L'équipe d'un service est le champ `metadata.team` de son manifeste ([14](14-securite.md)). Deux valeurs sont réservées :
+L'équipe d'un service est le champ `metadata.team` de son manifeste. Ce champ est **informatif** (traçabilité) : le Kernel ne l'utilise dans aucune décision ([14](14-securite.md)). Deux valeurs sont réservées **par convention** :
 
 | Équipe | Services concernés | Qui les déclare |
 |---|---|---|
 | `platform` | Les services de la Plateforme : `cell-registry-service`, `catalog-service`, `platform-operator-service`, `config-service`, `domain-gateway`, connecteurs | La pipeline de déploiement |
 | `platform-operator` | **Toutes** les instances d'applications (Radicale, Nextcloud Calendar, …) | `platform-operator-service`, et lui seul |
 
-`platform-operator-service` est le **seul** service de la Plateforme à détenir un jeton de gestion du Kernel (décision D14, 22.8). Les équipes humaines ne voient pas les instances d'applications dans le Kernel : elles passent par le portail et le catalogue de la Plateforme.
+`platform-operator-service` est, avec la pipeline de déploiement de la Plateforme, le seul appelant à détenir un jeton portant le rôle administrateur du Kernel (décision D14, 22.8). Les équipes humaines ne voient pas les instances d'applications dans le Kernel : elles passent par le portail et le catalogue de la Plateforme.
 
 ## 22.7 — La règle d'architecture A4
 
@@ -95,7 +95,7 @@ L'équipe d'un service est le champ `metadata.team` de son manifeste ([14](14-se
 | N° | Décision |
 |---|---|
 | **D01** | Le Kernel ne contient aucun concept de cellule, organisation, tenant, catalogue, affectation, utilisateur ou domaine fonctionnel. |
-| **D14** | Seul `platform-operator-service` détient des identifiants de gestion du Kernel (équipe `platform-operator`). Le catalogue, le portail, la passerelle et les connecteurs n'en ont aucun. |
+| **D14** | Seuls `platform-operator-service` et la pipeline de déploiement de la Plateforme détiennent un jeton portant le rôle administrateur du Kernel (le rôle est exigé pour toute modification, [14](14-securite.md)). Le catalogue, le portail, la passerelle et les connecteurs n'en ont aucun. *Modifiée le 10 novembre 2026 : l'autorisation par équipe n'existe plus ; à aligner dans `Civitas-EGEN-Business`, `docs/plateforme/02-registre-des-decisions.md` (V9, [19](19-feuille-de-route.md)).* |
 | **D15** | Une instance d'application est soit **MANAGED** (déployée par le Kernel), soit **EXTERNAL** (déjà exploitée hors du Kernel ; le Kernel ne la gère pas en V1, voir 22.9). |
 | **D20** | Aucune évolution anticipée du Kernel : seules les évolutions de la phase A de la Plateforme (A2 à A5, suivies dans [19](19-feuille-de-route.md)) sont planifiées ; les autres ont un déclencheur écrit. |
 
@@ -107,10 +107,10 @@ Chaque constat a été vérifié dans le code du dépôt (branche `main`, 29 oct
 
 | Constat | Conséquence pour la Plateforme | Traitement |
 |---|---|---|
-| Les `labels` et `annotations` sont stockés et restitués, sans filtre de liste | Aucune : l'opérateur connaît ses `ServiceId` et filtre côté client la liste déjà restreinte à son équipe | Aucune évolution (D20) |
+| Les `labels` et `annotations` sont stockés et restitués, sans filtre de liste | Aucune : l'opérateur connaît ses `ServiceId` et filtre côté client la liste complète | Aucune évolution (D20) |
 | `runtime.type` (`container`, `binary`, `external`, `vm`) est conservé mais **non différencié** : tout déploiement passe par le Deployment Adapter | Une application déjà exploitée hors du Kernel n'est pas gérée par lui | D15 ; déclencheur **A-X1** ([19](19-feuille-de-route.md)) |
 | L'adapter Nomad **ne gère pas** les namespaces Nomad ; `TargetEnvironment` est un nom d'environnement, pas une frontière de tenant | Aucune isolation d'infrastructure par tenant via le Kernel | Isolation par les données ou par instance dédiée ; déclencheur **A-X2** |
-| Le RBAC de l'API est `metadata.team` (une chaîne) plus le rôle administrateur | Il ne peut pas représenter une hiérarchie de cellules | Volontaire : l'autorisation métier n'est pas dans le Kernel |
+| Le RBAC de l'API n'a que deux niveaux : lire (tout appelant authentifié) et modifier (rôle administrateur) ; `metadata.team` est informatif | Il ne représente ni équipe, ni hiérarchie de cellules ; le Kernel ne sépare pas une équipe d'une autre | Volontaire : l'autorisation métier n'est pas dans le Kernel |
 | La clé d'idempotence et les liens de traces sont gardés en mémoire du processus | Un seul exemplaire du Kernel | Voir la phase proposée P0 dans [19](19-feuille-de-route.md) |
 
 ## 22.10 — Où lire la suite

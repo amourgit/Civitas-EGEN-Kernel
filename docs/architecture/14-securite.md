@@ -20,31 +20,23 @@ adapters vers Nomad/Consul (tokens ACL scoped, jamais le token root).
   noms de service gérés par EGEN.
 - **Accès aux secrets (Vault)** : chaque service n'a accès qu'à son propre
   chemin (`secret/data/<service-name>/*`), jamais un accès transverse.
-- **RBAC de l'API de contrôle EGEN** : scoping par équipe/domaine (voir
-  [13](13-api-et-contrats.md)).
-- **Workflows : mutations réservées aux administrateurs.** Une
-  `WorkflowDefinition` orchestre des appels vers des services de
-  *plusieurs* équipes et ne porte aucune équipe propriétaire dans son modèle
-  ([05](05-modele-de-domaine.md)) : il n'y a donc rien à comparer au claim
-  d'équipe du jeton. Tant qu'un modèle de propriété n'existe pas, la seule
-  politique sûre par défaut est de refuser toute mutation (`POST` de
-  définition, démarrage, `pause`/`resume`/`terminate`) aux non-administrateurs ;
-  la lecture reste ouverte à tout appelant authentifié. À revoir si les
-  workflows reçoivent un jour un propriétaire explicite.
-- **Publication d'événements : un appelant ne publie que ce qu'un manifeste
-  annonce.** `POST /api/v1/events/publish` ([13](13-api-et-contrats.md))
-  exige que le `type` figure dans `events.publishes` d'au moins un service
-  déclaré, et que l'appelant soit administrateur ou porte l'équipe
-  propriétaire de l'un de ces services (même règle que pour toute action sur
-  un service déjà enregistré ; un service sans équipe assignée reste ouvert à
-  tout appelant authentifié, note de migration ci-dessus). Sinon `403`.
+- **RBAC de l'API de contrôle EGEN : une règle unique, volontairement pauvre** (décision de Samuel, 10 novembre 2026). Elle tient en quatre phrases :
+  1. Tout appel exige un jeton valide.
+  2. **Lire** est ouvert à tout appelant authentifié : l'état et le manifeste d'un service, la liste des services, la configuration, la découverte, le graphe de dépendances, les workflows.
+  3. **Modifier** est réservé au **rôle administrateur** (`egen.security.admin-role`, `egen-admin` par défaut) : déclarer ou redéclarer un service (y compris pour le relancer), l'arrêter, publier sa configuration, publier un événement, créer ou conduire un workflow. Un appelant sans ce rôle reçoit `403`.
+  4. **`metadata.team` est purement informatif** : le Kernel le conserve et le restitue pour la **traçabilité** (savoir qui est responsable d'un service) et ne le lit **jamais** pour décider. Aucun claim d'équipe du jeton n'est lu non plus : il n'y a ni autorisation par équipe, ni filtre par équipe, ni notion de propriété.
+
+  Le droit est vérifié **avant** toute lecture du corps de la requête et avant de chercher le service : un appelant non administrateur reçoit `403`, y compris pour un identifiant inconnu (jamais `404`, qui apprendrait à un appelant non autorisé quels services existent). **Ce que cette règle ne protège pas** : le Kernel ne sépare pas une équipe d'une autre. Tout appelant qui porte le rôle administrateur peut modifier n'importe quel service. Ces appelants doivent donc être des appelants de confiance (la pipeline de déploiement, l'opérateur de la Plateforme) ; les droits fins (qui, dans une organisation, peut demander quoi) relèvent d'un système **extérieur** au Kernel ([21](21-systeme-agents-et-gateway.md), 21.5, et SpiceDB pour la Plateforme).
+- **Workflows.** Une `WorkflowDefinition` orchestre des appels vers des services de *plusieurs* équipes et ne porte aucune équipe dans son modèle ([05](05-modele-de-domaine.md)) ; leur lecture est ouverte à tout appelant authentifié, leurs mutations suivent la règle ci-dessus (administrateur). À revoir si les workflows reçoivent un jour un propriétaire explicite.
+- **Publication d'événements : un appelant ne publie que ce qu'un manifeste annonce.** `POST /api/v1/events/publish` ([13](13-api-et-contrats.md)) exige que l'appelant soit administrateur **et** que le `type` figure dans `events.publishes` d'au moins un service déclaré. Sinon `403`.
 
 ## Utilisation par la Plateforme
 
-- Deux équipes `metadata.team` sont réservées à la Plateforme : `platform` (ses services, déclarés par la pipeline) et `platform-operator` (**toutes** les instances d'applications, déclarées par `platform-operator-service`). Voir [22](22-frontiere-avec-la-plateforme.md#226--les-deux-équipes-kernel-de-la-plateforme).
-- **Seul** `platform-operator-service` détient un jeton de gestion du Kernel (client *client credentials* d'un fournisseur d'identité OIDC, claim `team = platform-operator`) : moindre privilège, aucun rôle administrateur (décision D14, [22](22-frontiere-avec-la-plateforme.md#228--décisions-qui-touchent-le-kernel)). Le catalogue, le portail, la passerelle de domaine et les connecteurs n'en ont aucun.
+- Deux valeurs de `metadata.team` sont réservées à la Plateforme **par convention de traçabilité** : `platform` (ses services, déclarés par la pipeline) et `platform-operator` (**toutes** les instances d'applications, déclarées par `platform-operator-service`). Le Kernel les traite comme n'importe quelle autre valeur : il ne les lit pas pour décider. Voir [22](22-frontiere-avec-la-plateforme.md#226--les-deux-équipes-kernel-de-la-plateforme).
+- Comme **modifier** exige le rôle administrateur, `platform-operator-service` et la pipeline de déploiement de la Plateforme portent ce rôle (décision D14, [22](22-frontiere-avec-la-plateforme.md#228--décisions-qui-touchent-le-kernel)). Le catalogue, le portail, la passerelle de domaine et les connecteurs n'ont **aucun** jeton de gestion du Kernel. *Conséquence de la décision du 10 novembre 2026* : le Kernel ne distingue plus les droits de `platform-operator-service` de ceux d'un autre administrateur (le « moindre privilège » par équipe n'existe plus au niveau du Kernel) ; il revient à l'émetteur des jetons de n'en donner le rôle administrateur qu'à ces deux appelants.
 - Les équipes humaines **ne voient pas** les instances d'applications dans le Kernel : elles passent par la Plateforme.
-- Le RBAC du Kernel (équipe + administrateur) reste volontairement **grossier** : il n'exprime ni hiérarchie de cellules ni droits métier. Ceux-ci relèvent de **SpiceDB** (moteur de droits de la Plateforme) et du contrôle d'usage du catalogue, documentés dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/06-identite-et-droits.md`.
+- Le RBAC du Kernel (administrateur ou non) reste volontairement **grossier** : il n'exprime ni équipe, ni hiérarchie de cellules, ni droits métier. Ceux-ci relèvent de **SpiceDB** (moteur de droits de la Plateforme) et du contrôle d'usage du catalogue, documentés dans le dépôt `Civitas-EGEN-Business`, `docs/plateforme/06-identite-et-droits.md`.
+
 ## Ce que le Kernel ne fait jamais en matière de sécurité
 
 - Il ne stocke jamais un secret **de service** en clair (ni en base, ni en log, ni

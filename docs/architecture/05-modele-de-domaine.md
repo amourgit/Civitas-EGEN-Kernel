@@ -16,7 +16,7 @@ ServiceManifest (aggregate root)
 ├── HealthSpec            (VO — endpoint(s) de health check, seuils)
 ├── ConfigSpec            (VO — clés de configuration attendues, sans leurs valeurs)
 ├── LifecyclePolicy       (VO — stratégie de redémarrage, ordre d'arrêt, etc.)
-└── Metadata              (VO — labels, annotations, propriétaire, équipe)
+└── Metadata              (VO — labels, annotations, équipe ; informatifs, jamais lus pour décider)
 
 DesiredState
 ├── ServiceManifest

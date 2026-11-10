@@ -24,5 +24,5 @@
 | **Cellule** | Élément de la structure d'une organisation, défini par la Plateforme. Le Kernel ne connaît pas cette notion. |
 | **Connecteur** | Petit service séparé de la Plateforme qui parle à une application métier. À ne pas confondre avec un **adapter**, qui est un module du Kernel et qui parle à un outil d'infrastructure ([22](22-frontiere-avec-la-plateforme.md#223--adapter-du-kernel-et-connecteur-de-la-plateforme)). |
 | **Labels réservés** | Clés `platform.civitas.africa/*` posées par la Plateforme sur un manifeste ; le Kernel les conserve sans jamais les interpréter ([06](06-service-manifest.md#labels-réservés-posés-par-la-plateforme)). |
-| **Équipe `platform` / `platform-operator`** | Les deux valeurs de `metadata.team` réservées à la Plateforme ([22](22-frontiere-avec-la-plateforme.md#226--les-deux-équipes-kernel-de-la-plateforme)). |
+| **Équipe `platform` / `platform-operator`** | Les deux valeurs de `metadata.team` réservées à la Plateforme par convention de traçabilité (le champ est informatif) ([22](22-frontiere-avec-la-plateforme.md#226--les-deux-équipes-kernel-de-la-plateforme)). |
 | **Règle A4** | Règle d'architecture qui refuse tout concept métier dans le Kernel ([22](22-frontiere-avec-la-plateforme.md#227--la-règle-darchitecture-a4)). |

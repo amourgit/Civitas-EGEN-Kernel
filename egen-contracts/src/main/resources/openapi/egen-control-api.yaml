@@ -10,8 +10,8 @@ info:
     Regles communes :
     * toute mutation retourne `202 Accepted` — la reconciliation est asynchrone (04.5) — et exige l'en-tete
       `Idempotency-Key` ; sa repetition (fenetre de 10 minutes) rejoue la premiere reponse ;
-    * authentification obligatoire (jeton OIDC/JWT) sauf `/api/v1/health` ; les droits sont verifies par equipe
-      proprietaire ou role administrateur (14) ;
+    * authentification obligatoire (jeton OIDC/JWT) sauf `/api/v1/health` ; lire est ouvert a tout appelant
+      authentifie, modifier exige le role administrateur (14) ; `metadata.team` est informatif ;
     * les erreurs portent le statut HTTP et un message ; jamais une valeur secrete.
 servers:
   - url: /
@@ -91,7 +91,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ServiceManifestResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/services/{id}/status:
@@ -109,7 +108,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ServiceStatus' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/services/{id}/actions/stop:
@@ -179,7 +177,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ServiceConfiguration' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { description: "Store de configuration indisponible." }
 
@@ -221,7 +218,7 @@ paths:
       summary: Publie un evenement technique (CloudEvents) via le Messaging Port
       description: |
         Le `type` doit figurer dans `events.publishes` d'au moins un service declare, et l'appelant doit etre
-        administrateur ou porter l'equipe proprietaire de l'un d'eux (14). `data` est opaque : relaye sans etre lu.
+        administrateur (14). `data` est opaque : relaye sans etre lu.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/Traceparent'
@@ -410,7 +407,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: "Jeton OIDC ; le claim d'equipe (`egen.security.team-claim`) et le role administrateur fondent l'autorisation (14)."
+      description: "Jeton OIDC ; lire est ouvert a tout appelant authentifie, modifier exige le role administrateur (`egen.security.admin-role`). `metadata.team` est informatif et n'intervient dans aucune decision (14)."
 
   parameters:
     IdempotencyKey:
@@ -450,7 +447,7 @@ components:
   responses:
     BadRequest: { description: "Corps illisible, contenu invalide ou identifiant mal forme." }
     Unauthorized: { description: "Authentification absente ou invalide." }
-    Forbidden: { description: "Appelant non autorise (ni equipe proprietaire, ni administrateur)." }
+    Forbidden: { description: "Modification reservee au role administrateur (14)." }
     NotFound: { description: "Ressource inconnue." }
     Conflict: { description: "Transition d'etat impossible." }
 

@@ -34,7 +34,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Niveau 2 (docs/architecture/17) : « un appelant ne publie que ce qu'un manifeste annonce » (docs/12, 13). */
+/**
+ * Niveau 2 (docs/architecture/17) : « un appelant ne publie que ce qu'un manifeste annonce » (docs/12, 13). Le droit
+ * d'appeler (administrateur) est verifie par l'API, pas ici : ce use case ne connait ni equipe ni role.
+ */
 class PublishEventUseCaseImplTest {
 
     private static final String TYPE = "africa.civitas.news.article.created.v1";
@@ -71,7 +74,7 @@ class PublishEventUseCaseImplTest {
     void relaysAnAnnouncedTypeToItsSubjectWithoutTouchingData() {
         declare("news-service", OwnerTeam.unassigned(), publishing(TYPE));
 
-        TechnicalEvent event = useCase.publish(command(TYPE), team -> true);
+        TechnicalEvent event = useCase.publish(command(TYPE));
 
         assertEquals(1, messaging.published.size());
         Published sent = messaging.published.get(0);
@@ -86,9 +89,9 @@ class PublishEventUseCaseImplTest {
     void generatesACorrelationIdWhenAbsentAndKeepsTheOneGiven() {
         declare("news-service", OwnerTeam.unassigned(), publishing(TYPE));
 
-        TechnicalEvent generated = useCase.publish(command(TYPE), team -> true);
+        TechnicalEvent generated = useCase.publish(command(TYPE));
         TechnicalEvent given = useCase.publish(
-                new PublishEventCommand(TYPE, "/s", "corr-4471", "corr-4470", "{}"), team -> true);
+                new PublishEventCommand(TYPE, "/s", "corr-4471", "corr-4470", "{}"));
 
         assertNotNull(generated.correlationId());
         assertNull(generated.causationId());
@@ -101,7 +104,7 @@ class PublishEventUseCaseImplTest {
         declare("news-service", OwnerTeam.unassigned(), publishing(TYPE));
 
         assertThrows(EventPublicationNotAllowedException.class,
-                () -> useCase.publish(command("africa.civitas.other.thing.v1"), team -> true));
+                () -> useCase.publish(command("africa.civitas.other.thing.v1")));
         assertTrue(messaging.published.isEmpty());
     }
 
@@ -110,25 +113,27 @@ class PublishEventUseCaseImplTest {
         declare("notif-service", OwnerTeam.unassigned(),
                 new EventSpec(List.of(), List.of(new EventSpec.Consumed(TYPE, "g", null))));
 
-        assertThrows(EventPublicationNotAllowedException.class, () -> useCase.publish(command(TYPE), team -> true));
+        assertThrows(EventPublicationNotAllowedException.class, () -> useCase.publish(command(TYPE)));
         assertTrue(messaging.published.isEmpty());
     }
 
     @Test
-    void refusesACallerAuthorisedOnNoPublisher() {
+    void theTeamOfThePublisherIsInformativeAndNeverChangesTheOutcome() {
+        // metadata.team ne decide de rien (docs/architecture/14-securite.md) : un type annonce est relaye quelle que
+        // soit l'equipe ecrite dans le manifeste du service qui l'annonce.
         declare("news-service", new OwnerTeam("content-platform"), publishing(TYPE));
 
-        assertThrows(EventPublicationNotAllowedException.class,
-                () -> useCase.publish(command(TYPE), team -> "billing".equals(team.value())));
-        assertTrue(messaging.published.isEmpty());
+        useCase.publish(command(TYPE));
+
+        assertEquals(1, messaging.published.size());
     }
 
     @Test
-    void acceptsACallerAuthorisedOnOneOfSeveralPublishers() {
+    void aTypeAnnouncedByServicesOfSeveralTeamsIsRelayedOnce() {
         declare("news-service", new OwnerTeam("content-platform"), publishing(TYPE));
         declare("blog-service", new OwnerTeam("blog"), publishing(TYPE));
 
-        useCase.publish(command(TYPE), team -> "blog".equals(team.value()));
+        useCase.publish(command(TYPE));
 
         assertEquals(1, messaging.published.size());
     }
@@ -138,7 +143,7 @@ class PublishEventUseCaseImplTest {
         declare("news-service", OwnerTeam.unassigned(), publishing(TYPE));
         messaging.failing = true;
 
-        assertThrows(MessagingException.class, () -> useCase.publish(command(TYPE), team -> true));
+        assertThrows(MessagingException.class, () -> useCase.publish(command(TYPE)));
         assertTrue(messaging.published.isEmpty());
     }
 

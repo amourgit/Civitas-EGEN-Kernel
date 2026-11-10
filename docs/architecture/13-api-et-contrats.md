@@ -50,9 +50,10 @@ Le CRUD de `/api/v1/services` ([ci-dessus](#ressources-de-premier-niveau-de-lapi
   [21](21-systeme-agents-et-gateway.md), 21.3) parvient à la couche agentique.
 - `GET /api/v1/services` renvoie la liste de ces objets, par identifiant
   croissant.
-- **Autorisation** : comme `…/status`, le manifeste d'un service est lisible par
-  son équipe propriétaire ou par un administrateur ; la liste ne contient que
-  les services que l'appelant a le droit de lire. Un service inconnu est un `404`.
+- **Autorisation** : la lecture est ouverte à tout appelant authentifié, comme
+  `…/status` ; la liste contient tous les services. Un service inconnu est un
+  `404`. `metadata.team` est restitué tel quel et n'intervient dans aucune
+  décision ([14](14-securite.md)).
 
 ### Découverte — `GET /api/v1/discover/{serviceName}`
 
@@ -118,8 +119,8 @@ publie un événement technique ([12](12-communication-fabric.md#flux-dévéneme
   sa répétition rejoue la première réponse sans republier.
 - **Autorisation** : un appelant ne publie que ce qu'un manifeste annonce. Le
   `type` doit figurer dans `events.publishes` d'au moins un service déclaré,
-  **et** l'appelant doit être administrateur ou porter l'équipe propriétaire de
-  l'un de ces services ([14](14-securite.md)) ; sinon `403`.
+  **et** l'appelant doit être administrateur ([14](14-securite.md)) ; sinon
+  `403`. Le droit d'administrateur est vérifié avant la lecture du corps.
 - **Codes d'erreur** : corps illisible, champ obligatoire absent, `specversion`
   non supportée ou champ inconnu → `400` ; type non annoncé ou appelant non
   autorisé → `403` ; messagerie indisponible → `503` (rien n'a été publié).
@@ -149,7 +150,7 @@ Cette API expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#confi
 
 - `200 { serviceId, environment, version, values }`. Une configuration jamais publiée est vide, version `0`. `404` seulement si le service n'est pas déclaré. Une configuration ne contient **jamais** de secret.
 
-**Sécurité** : même règle que les autres opérations sur un service : l'équipe propriétaire ou un administrateur ([14](14-securite.md)). Le droit est vérifié **avant** toute lecture du corps de la requête.
+**Sécurité** : la publication (`PUT`) est une modification, réservée aux administrateurs ; la lecture (`GET`) est ouverte à tout appelant authentifié ([14](14-securite.md)). Le droit est vérifié **avant** toute lecture du corps de la requête et avant de chercher le service : un non-administrateur reçoit `403` en publication, y compris pour un service inconnu.
 
 **Environnement** : `environment` absent = environnement par défaut du Kernel (`egen.environment`).
 
@@ -195,8 +196,19 @@ Cette API expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#confi
 ## Sécurité de l'API
 
 Authentification obligatoire (mTLS pour machine-à-machine, ou jeton OIDC
-pour les humains via la console), et autorisation par **RBAC** scoped par
-équipe/domaine (`content-platform` ne doit pas pouvoir modifier le
-manifeste de `billing-service` sans droit explicite) — l'API elle-même est
+pour les humains via la console), et autorisation par **RBAC** à deux niveaux seulement : lire (tout appelant
+authentifié) et modifier (rôle administrateur) ; `metadata.team` reste
+informatif et n'intervient jamais — l'API elle-même est
 un citoyen de première classe du modèle de sécurité, jamais un point
 d'accès de confiance implicite. Détail complet : [14 — Sécurité](14-securite.md).
+
+### Qui peut appeler quoi
+
+Tout appel exige un jeton valide (`401` sinon). Ensuite, deux niveaux seulement ([14](14-securite.md)) :
+
+| Niveau | Routes | Qui |
+|---|---|---|
+| **Lire** | `GET /api/v1/services`, `GET /api/v1/services/{id}`, `GET /api/v1/services/{id}/status`, `GET /api/v1/services/{id}/configuration`, `GET /api/v1/discover/{nom}`, `GET /api/v1/dependencies/graph`, les lectures de workflows | tout appelant authentifié |
+| **Modifier** | `POST /api/v1/services` (déclarer, redéclarer, relancer), `POST /api/v1/services/{id}/actions/stop`, `PUT /api/v1/services/{id}/configuration`, `POST /api/v1/events/publish`, les mutations de workflows | rôle administrateur (`egen.security.admin-role`) ; sinon `403`, vérifié avant la lecture du corps |
+
+*Exemple de bout en bout.* L'équipe `content-platform` (valeur de `metadata.team`, informative) passe par la pipeline de déploiement, qui porte le rôle administrateur : `POST /api/v1/services` pour `news-service` répond `202`. Un développeur dont le jeton n'a pas ce rôle appelle `POST /api/v1/services/news-service/actions/stop` : `403`, quelle que soit l'équipe écrite dans son jeton ou dans le manifeste ; le même développeur peut lire `GET /api/v1/services/news-service/status`.

@@ -9,7 +9,6 @@ import africa.civitas.egen.api.mapper.YamlMappers;
 import africa.civitas.egen.api.security.EgenSecurityContext;
 import africa.civitas.egen.api.security.IdempotencyRequired;
 import africa.civitas.egen.application.port.ObservabilityPort;
-import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.TraceContext;
 import africa.civitas.egen.application.port.TraceSpan;
 import africa.civitas.egen.application.usecase.DeclareResult;
@@ -21,7 +20,6 @@ import africa.civitas.egen.application.usecase.ServiceNotFoundException;
 import africa.civitas.egen.application.usecase.StopServiceUseCase;
 import africa.civitas.egen.application.usecase.UnknownDeploymentAdapterException;
 import africa.civitas.egen.domain.model.DesiredState;
-import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceManifest;
 import africa.civitas.egen.domain.model.TargetEnvironment;
@@ -68,7 +66,6 @@ public class ServiceResource {
     private final GetServiceStatusUseCase getServiceStatusUseCase;
     private final ReadServiceManifestUseCase readServiceManifestUseCase;
     private final StopServiceUseCase stopServiceUseCase;
-    private final RegistryStorePort registryStorePort;
     private final ObservabilityPort observabilityPort;
     private final EgenSecurityContext securityContext;
     private final String defaultEnvironment;
@@ -78,7 +75,6 @@ public class ServiceResource {
                             GetServiceStatusUseCase getServiceStatusUseCase,
                             ReadServiceManifestUseCase readServiceManifestUseCase,
                             StopServiceUseCase stopServiceUseCase,
-                            RegistryStorePort registryStorePort,
                             ObservabilityPort observabilityPort,
                             EgenSecurityContext securityContext,
                             @ConfigProperty(name = "egen.environment", defaultValue = "development")
@@ -87,7 +83,6 @@ public class ServiceResource {
         this.getServiceStatusUseCase = getServiceStatusUseCase;
         this.readServiceManifestUseCase = readServiceManifestUseCase;
         this.stopServiceUseCase = stopServiceUseCase;
-        this.registryStorePort = registryStorePort;
         this.observabilityPort = observabilityPort;
         this.securityContext = securityContext;
         this.defaultEnvironment = defaultEnvironment;
@@ -101,17 +96,16 @@ public class ServiceResource {
                              @HeaderParam("traceparent") String traceparent) {
         try (TraceSpan span = startHttpSpan("http.declare", traceparent)) {
             try {
+                // Modifier = administrateur (docs/architecture/14-securite.md), verifie AVANT toute lecture du
+                // corps : un non-administrateur recoit 403 sans que le YAML soit meme analyse.
+                securityContext.assertAdmin();
+
                 ServiceManifestDto dto;
                 try {
                     dto = YamlMappers.read(manifestYaml, ServiceManifestDto.class);
                 } catch (IOException e) {
                     throw new BadRequestException("Manifeste YAML illisible : " + e.getMessage());
                 }
-
-                // RBAC avant toute construction/persistance (voir
-                // docs/architecture/14-securite.md) : on verifie l'equipe
-                // declaree dans le YAML brut, pas encore le domaine complet.
-                securityContext.assertCanDeclare(ServiceManifestMapper.teamOf(dto));
 
                 ServiceManifest manifest;
                 try {
@@ -120,13 +114,6 @@ public class ServiceResource {
                     throw new BadRequestException(e.getMessage());
                 }
                 span.setAttribute("service.id", manifest.id().value());
-
-                // Redéclarer un service qui existe déjà exige d'en être propriétaire (ou administrateur). Le contrôle
-                // précédent (assertCanDeclare) ne compare le jeton qu'à l'équipe écrite dans le NOUVEAU manifeste :
-                // sans celui-ci, l'équipe B pouvait réécrire le service de l'équipe A en déclarant « team: B »
-                // (voir docs/architecture/14-securite.md, « refus par défaut »). Un service sans équipe reste
-                // ouvert, comme pour toute action (note de migration du document 14).
-                assertOwnsOrAdminIfKnown(manifest.id());
 
                 TargetEnvironment targetEnvironment = TargetEnvironment.of(
                         environment != null && !environment.isBlank() ? environment : defaultEnvironment);
@@ -167,7 +154,6 @@ public class ServiceResource {
             span.setAttribute("service.id", id);
             try {
                 ServiceId serviceId = ServiceId.of(id);
-                assertOwnsOrAdminIfKnown(serviceId);
                 return ServiceManifestMapper.toDto(getServiceStatusUseCase.getStatus(serviceId));
             } catch (ServiceNotFoundException e) {
                 throw new NotFoundException(e.getMessage());
@@ -194,8 +180,9 @@ public class ServiceResource {
         try (TraceSpan span = startHttpSpan("http.stop", traceparent)) {
             span.setAttribute("service.id", id);
             try {
+                // Modifier = administrateur, verifie avant de chercher le service : 403 meme pour un id inconnu.
+                securityContext.assertAdmin();
                 ServiceId serviceId = ServiceId.of(id);
-                assertOwnsOrAdminIfKnown(serviceId);
                 stopServiceUseCase.stop(serviceId, span.context());
                 return Response.accepted().build();
             } catch (ServiceNotFoundException e) {
@@ -210,15 +197,8 @@ public class ServiceResource {
     }
 
     /**
-     * Verifie la propriete uniquement si le service existe deja dans le
-     * Registry — un identifiant inconnu doit remonter 404 depuis le use
-     * case, pas 403 depuis cette methode (voir EgenSecurityContext,
-     * "Autorisation d'un Declare" pour le raisonnement inverse au moment
-     * de la creation).
-     */
-    /**
-     * Lecture du manifeste declare (docs/architecture/13, CRUD sur {@code /api/v1/services}) : celui du
-     * proprietaire ou d'un administrateur, comme {@code status}.
+     * Lecture du manifeste declare (docs/architecture/13, CRUD sur {@code /api/v1/services}) : ouverte a tout
+     * appelant authentifie, comme {@code status} ; {@code metadata.team} est restitue tel quel.
      */
     @GET
     @Path("/{id}")
@@ -229,7 +209,6 @@ public class ServiceResource {
             try {
                 ServiceId serviceId = ServiceId.of(id);
                 DesiredState desired = readServiceManifestUseCase.get(serviceId);
-                securityContext.assertOwnsOrAdmin(desired.manifest().ownerTeam());
                 return toResponse(desired);
             } catch (ServiceNotFoundException e) {
                 throw new NotFoundException(e.getMessage());
@@ -242,14 +221,13 @@ public class ServiceResource {
         }
     }
 
-    /** Les manifestes que l'appelant a le droit de lire : tous pour un administrateur, ceux de son equipe sinon. */
+    /** Tous les manifestes declares : la lecture est ouverte a tout appelant authentifie (aucun filtre d'equipe). */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public List<ServiceManifestResponseDto> list(@HeaderParam("traceparent") String traceparent) {
         try (TraceSpan span = startHttpSpan("http.listManifests", traceparent)) {
             try {
                 return readServiceManifestUseCase.list().stream()
-                        .filter(desired -> securityContext.ownsOrAdmin(desired.manifest().ownerTeam()))
                         .map(ServiceResource::toResponse)
                         .toList();
             } catch (RuntimeException e) {
@@ -262,13 +240,6 @@ public class ServiceResource {
     private static ServiceManifestResponseDto toResponse(DesiredState desired) {
         return new ServiceManifestResponseDto(desired.manifest().id().value(), desired.generation(),
                 ServiceManifestMapper.toDto(desired.manifest()));
-    }
-
-    private void assertOwnsOrAdminIfKnown(ServiceId id) {
-        registryStorePort.findById(id).ifPresent(desired -> {
-            OwnerTeam ownerTeam = desired.manifest().ownerTeam();
-            securityContext.assertOwnsOrAdmin(ownerTeam);
-        });
     }
 
     /**

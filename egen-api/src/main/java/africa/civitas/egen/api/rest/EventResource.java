@@ -32,9 +32,9 @@ import java.io.IOException;
  * Point d'entree generique de publication d'un evenement technique (voir docs/architecture/13-api-et-contrats.md
  * et 12-communication-fabric.md). Le Kernel relaie vers le Messaging Port sans jamais lire {@code data}.
  *
- * <p><b>Autorisation</b> : un appelant ne publie que ce qu'un manifeste annonce ({@code events.publishes}) ;
- * {@code 403} si aucun service declare ne publie ce type, ou si l'appelant n'est autorise (equipe proprietaire,
- * ou administrateur) sur aucun de ses publieurs — meme regle que {@code Declare} (docs/architecture/14-securite.md).
+ * <p><b>Autorisation</b> : la publication est une modification, reservee aux administrateurs (verifie avant la
+ * lecture du corps) ; et un appelant ne publie que ce qu'un manifeste annonce ({@code events.publishes}) :
+ * {@code 403} si aucun service declare ne publie ce type (docs/architecture/14-securite.md).
  * <b>Erreurs</b> : corps illisible ou incomplet &rarr; 400 ; broker indisponible &rarr; 503 (rien n'a ete publie).</p>
  */
 @Path("/api/v1/events")
@@ -63,9 +63,11 @@ public class EventResource {
     public Response publish(String body, @HeaderParam("traceparent") String traceparent) {
         try (TraceSpan span = startHttpSpan("http.publishEvent", traceparent)) {
             try {
+                // Modifier = administrateur (docs/architecture/14-securite.md), verifie AVANT de lire le corps.
+                securityContext.assertAdmin();
                 PublishEventCommand command = toCommand(body);
                 span.setAttribute("event.type", command.type());
-                TechnicalEvent event = publishEventUseCase.publish(command, securityContext::ownsOrAdmin);
+                TechnicalEvent event = publishEventUseCase.publish(command);
                 return Response.accepted(
                         new PublishEventResponseDto(event.id(), event.type(), event.correlationId())).build();
             } catch (EventPublicationNotAllowedException e) {

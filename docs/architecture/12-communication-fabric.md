@@ -249,7 +249,7 @@ contrat a été livré dans cet ordre :
    `202 Accepted` ; le type doit être **publié par un service déclaré**
    (`events.publishes`) sans quoi `403` — un appelant ne publie que ce qu'un
    manifeste annonce ; mutation donc `Idempotency-Key` obligatoire et
-   autorisation par équipe comme `Declare` ([14](14-securite.md)).
+   réservée aux administrateurs ([14](14-securite.md)).
    Le Kernel relaie vers le Messaging Port sans lire `data`.
 2. **SDK Java et Python — livré** : sémantique de résilience fixée
    [plus haut](#résilience-de-la-publication-dévénements--sémantique-normative)

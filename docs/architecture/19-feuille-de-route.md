@@ -30,20 +30,26 @@ Mise à jour : 9 novembre 2026. **Reprendre par la section « Reprise de session
 ### 1. Où est le code
 
 ```
-main (578772b)                         = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (9 novembre 2026, 22:45)
+main (578772b)                        = TOUT est dessus, VALIDÉ par un `mvn verify` complet chez Samuel (9 novembre 2026, 22:45)
    │
-   └── docs/k7-k3-et-point-de-situation = main + documentation seulement (aucun code), EN ATTENTE DE MERGE
+   └── feat/autorisation-admin-seule  = main + docs K7/K3 + registre des vérifications + AUTORISATION ADMIN SEULE
+                                         (code et tests), EN ATTENTE DE `mvn verify` (rien n'est compilé ici)
 ```
 
-`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6** (plus de mot de passe de base par défaut en production), **K9** (valeurs sûres sur les pods), **K10** (limites d'entrée : une seule classe `YamlMappers` avec 256 Ki caractères, 32 niveaux, 10 alias, clés dupliquées refusées ; corps de requête limité à 1 Mio, `413` au-delà) et **K8** (le corps d'erreur d'un adapter HTTP est conservé mais borné à 500 caractères, classe `AdapterErrorBody`, contrat dans [07](07-ports-et-adapters.md#messages-derreur-des-adapters-http)), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées.
+`main` contient : l'adapter Kubernetes et son test de niveau 3, le routage du Deployment Adapter par service, les correctifs de sécurité C1, C2, **K6**, **K9**, **K10** et **K8** (voir le document 24), le chaos 6a, les runbooks, le dossier de revue de sécurité (documents 23 et 24) et la relance par `Declare`. Les autres branches du dépôt distant sont contenues dans `main` : elles peuvent être supprimées. La branche `docs/k7-k3-et-point-de-situation` est **contenue** dans `feat/autorisation-admin-seule` : ne pas la fusionner séparément.
 
-**`docs/k7-k3-et-point-de-situation`** ne contient que de la documentation, donc aucun `mvn verify` n'est nécessaire pour la fusionner :
+**`feat/autorisation-admin-seule`** applique la décision de Samuel du 10 novembre 2026 : **`metadata.team` est purement informatif et n'est jamais pris en compte** ; option A pour l'autorisation (lire : tout appelant authentifié ; modifier : rôle administrateur).
 
-| Fichier | Changement |
+| Élément | Changement |
 |---|---|
-| [14](14-securite.md) | la promesse « jamais de secret en clair » est précisée (secrets **de service**) et l'exception du **K7** est écrite : les cinq identifiants que le Kernel lit au démarrage et garde en mémoire pendant toute la vie du processus |
-| [24](24-revue-de-securite-externe.md) | K7 marqué rédigé ; K3 examiné **dans le code** (extensions Quarkus embarquées, chemins `@Path`), avec la vérification à faire par l'opérateur sur un Kernel démarré |
-| 19 | ce point de situation |
+| Docs 14, 13, 22, 12, 23, 09, 08, 06, 05, 07, 24, glossaire, 19 | contrat « Lire / Modifier », exemple de bout en bout, table des routes dans 13 ; D14 modifiée ; K1 et K4 (décisions du 9 novembre) annulées ; K11 ajouté |
+| `EgenSecurityContext` | ne garde que `isAdmin()` et `assertAdmin()` ; plus de claim d'équipe, plus de `callerTeam`, `assertCanDeclare`, `assertOwnsOrAdmin`, `ownsOrAdmin` |
+| `ServiceResource`, `ServiceConfigurationResource`, `EventResource`, `PublishEventUseCase(Impl)` | modifier = `assertAdmin()` en premier ; lire = aucun contrôle d'équipe ; le use case de publication ne reçoit plus de prédicat d'équipe |
+| `egen.security.team-claim` | supprimée de `application.properties` et de la description OpenAPI |
+| `OwnerTeam` / `ownerTeam` | **conservés** : valeur informative stockée et restituée ; le nom est trompeur (un renommage est possible plus tard, non fait ici : risque sans compilateur) |
+| Tests | `ServiceResourceTeamOwnershipTest` et `ServiceConfigurationSecurityTest` remplacés par `ServiceResourceAdminOnlyTest` et `ServiceConfigurationAdminOnlyTest` ; `PublishEventUseCaseImplTest` et `EventResourceTest` adaptés |
+
+Pour valider : `git fetch && git checkout feat/autorisation-admin-seule && git pull && mvn verify`, puis `git push origin feat/autorisation-admin-seule:main`. Si c'est rouge, envoyer le log.
 
 ### 2. Dernière fonctionnalité livrée : la relance par `Declare`
 
@@ -69,14 +75,14 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 
 ### 4. Décisions attendues de Samuel, par priorité
 
-1. **Constats du document 24** : **K4** (graphe et découverte sans filtre d'équipe : voulu ou lacune ?), **K2** (audience du jeton non vérifiée), **K1** (fin de la tolérance « service sans équipe »), **K5** (lecture des workflows ouverte à tout appelant authentifié : à confirmer), **K3** (règle « tout refuser hors de `/api/v1/` »). K6, K7, K8, K9 (en partie : point ouvert 6) et K10 sont traités.
+1. **Constats du document 24** : **K2** (audience du jeton : attend la réponse sur le fournisseur d'identité) et **K3** (règle « tout refuser hors de `/api/v1/` » : non décidée). K1 et K4 sont **sans objet / décidés** (10 novembre 2026), K5 confirmé, K6, K7, K8, K10 traités, K11 accepté.
 2. **Outil d'injection de pannes réseau** pour le niveau 6b du chaos.
 
 ### 5. Prochaines étapes de développement, dans l'ordre
 
 1. **Vérifications V1 à V8** : voir la section « Vérifications en attente » ci-dessous.
-2. **K4** (décidé le 9 novembre 2026) : contrat dans [13](13-api-et-contrats.md), puis le graphe de dépendances filtré par équipe, l'administrateur voyant tout, avec tests ; `discover` reste ouvert et cela est écrit.
-3. **K5** (décidé : confirmé) : l'écrire dans [14](14-securite.md). **K1** (décidé, **date et liste des services sans équipe à fournir**) : contrat, puis refus d'un `Declare` sans équipe après la date. **K2** (en attente de la réponse sur le fournisseur d'identité) et **K3** (règle « tout refuser hors de `/api/v1/` » : non décidée).
+2. **Valider `feat/autorisation-admin-seule`** (section 1).
+3. **K2 et K3** : décisions de Samuel (voir 4).
 4. Écarts relevés, non traités : `egen_services_total` est un compteur par cycle et non une jauge ; `actions/restart`, `actions/rollback`, `/history` et `/adapters` (doc 13) ne sont pas livrés ; la liste « critères de fin » de la fin de ce document contient des cases encore ouvertes.
 
 ### 6. Règles de travail à ne pas perdre
@@ -112,6 +118,9 @@ L'environnement où ce code a été écrit **n'atteint pas Maven Central** : pas
 | V6 | Relecture des runbooks par un opérateur | un opérateur | Les scénarios `FAILED`, `COMPENSATION_FAILED` et divergence prolongée se suivent sans aide | [23](23-runbooks-operateur.md) |
 | V7 | Chaos 6b : latence vers Consul, coupure de NATS, redémarrage brutal d'un vrai Kernel | Samuel, après le choix de l'outil d'injection de pannes | Le Kernel converge de nouveau sans intervention | [17](17-strategie-de-tests.md), niveau 6 |
 | V8 | Revue de sécurité externe ; le relecteur confirme aussi la configuration NATS (`egen.messaging.*`) | le relecteur, à choisir | Un rapport sur le document 24 | [24](24-revue-de-securite-externe.md) |
+| V9 | Aligner la décision **D14** dans le dépôt `Civitas-EGEN-Business` (`docs/plateforme/02-registre-des-decisions.md`) : plus d'équipe `platform-operator` pour l'autorisation ; `platform-operator-service` et la pipeline portent le rôle administrateur | Samuel (autre dépôt) | Le registre de la Plateforme dit la même chose que le doc 22 | [22](22-frontiere-avec-la-plateforme.md), D14 |
+| V10 | L'émetteur des jetons (fournisseur d'identité) ne donne le rôle administrateur (`egen-admin`) qu'à `platform-operator-service` et à la pipeline de déploiement | Samuel (configuration du fournisseur d'identité) | La liste des clients qui portent ce rôle ne contient que ces deux appelants | [24](24-revue-de-securite-externe.md), K11 |
+| V11 | Le dépôt `Civitas-EGEN-Business` et les clients du Kernel (SDK, console, passerelle) ne comptent pas sur l'autorisation par équipe (par exemple une lecture filtrée par équipe) | Samuel | Aucun appelant ne dépend d'un `403` fondé sur l'équipe ni d'une liste filtrée | [14](14-securite.md) |
 
 **Faites** (avec leur résultat) : `mvn verify` complet, 18 modules, vert chez Samuel pour K9 (7 novembre 2026), K10 (9 novembre 2026, 22:26, après correction d'un test) et K8 (9 novembre 2026, 22:45).
 
@@ -184,7 +193,7 @@ Observe → Reconcile de bout en bout sur **un seul** port.
 
 **Complément lié à la Plateforme** :
 
-- [x] **Décision D20 : pas de filtre de liste par label** (`GET /api/v1/services`). Le filtrage se fait côté client sur la liste déjà restreinte à l'équipe ([08](08-registry.md)). Aucune évolution.
+- [x] **Décision D20 : pas de filtre de liste par label** (`GET /api/v1/services`). Le filtrage se fait côté client sur la liste complète ([08](08-registry.md)). Aucune évolution.
 
 ## Phase 3 — Dépendances, ordonnancement, Messaging (NATS)
 
@@ -220,7 +229,10 @@ Observe → Reconcile de bout en bout sur **un seul** port.
 - [x] Sécurité de base de l'API de contrôle : authentification (jeton
       MicroProfile JWT — voir [14](14-securite.md)) + RBAC scoped par
       équipe (`metadata.team` du manifeste, comparé au claim du jeton —
-      voir `egen-api/security/EgenSecurityContext.java`), politique HTTP
+      voir `egen-api/security/EgenSecurityContext.java`) **[remplacé le 10
+      novembre 2026 : plus d'autorisation par équipe, lire = tout appelant
+      authentifié, modifier = rôle administrateur ; `metadata.team` est
+      informatif — voir [14](14-securite.md)]**, politique HTTP
       par défaut refusant tout sauf `/api/v1/health`. `Idempotency-Key`
       obligatoire sur les mutations, également livré à cette étape (voir
       [13](13-api-et-contrats.md)) bien que documenté hors de la liste
@@ -251,7 +263,7 @@ Observe → Reconcile de bout en bout sur **un seul** port.
 
 - [x] **A3 — API de publication de configuration** `PUT` et `GET /api/v1/services/{id}/configuration` (expose `ConfigurationPort.publish`) : contrat normatif en [13](13-api-et-contrats.md#publication-de-configuration--put-apiv1servicesidconfiguration). Nécessaire à la configuration des instances d'applications par la Plateforme. **Livré le 3 novembre 2026**, testé aux niveaux 1 (`ConfigurationSpec.validatePublication`), 2 (cas d'usage), 3 (adapter Consul contre un vrai agent : remplacement complet, version monotone), 4 (règle A4, contrat OpenAPI) et 5 (scénario A5).
 - [>] **A-X2 — Namespaces Nomad par tenant** : l'adapter ne gère pas les namespaces ([07](07-ports-et-adapters.md)). *Déclencheur* : une organisation exige une isolation d'**infrastructure** (et non de données) ; sinon isolation par données ou par instance dédiée.
-- [x] Limite documentée : le RBAC (équipe + administrateur) reste grossier **par choix** ; l'autorisation métier n'est pas dans le Kernel ([14](14-securite.md), D14).
+- [x] Limite documentée : le RBAC (à l'origine équipe + administrateur ; depuis le 10 novembre 2026 lire / modifier) reste grossier **par choix** ; l'autorisation métier n'est pas dans le Kernel ([14](14-securite.md), D14).
 
 ## Chantier parallèle — Système d'agents & Edge Gateway (hors de ce dépôt)
 

@@ -53,8 +53,9 @@ import java.util.TreeMap;
  * Publication et lecture de la configuration technique d'un service — evolution <b>A3</b> ; le contrat complet
  * est la source unique de docs/architecture/13-api-et-contrats.md (« Publication de configuration »).
  *
- * <p>Le droit (equipe proprietaire ou administrateur, docs 14) est verifie <b>avant toute lecture du corps</b> :
- * le corps est donc recu comme flux brut et n'est consomme qu'apres. Le Kernel transporte des paires cle/valeur
+ * <p>Publier ({@code PUT}) est une modification, reservee aux administrateurs ; lire ({@code GET}) est ouvert a
+ * tout appelant authentifie (docs 14). Le droit est verifie <b>avant toute lecture du corps</b> et avant de
+ * chercher le service : le corps est donc recu comme flux brut et n'est consomme qu'apres. Le Kernel transporte des paires cle/valeur
  * typees par le manifeste ; il ne leur donne aucun sens metier (docs 22.5).</p>
  */
 @Path("/api/v1/services/{id}/configuration")
@@ -100,8 +101,11 @@ public class ServiceConfigurationResource {
         try (TraceSpan span = startHttpSpan("http.publishConfiguration", traceparent)) {
             span.setAttribute("service.id", id);
             try {
+                // Modifier = administrateur (docs/architecture/14-securite.md), verifie AVANT toute lecture du corps
+                // et avant de chercher le service : un non-administrateur recoit 403, meme pour un id inconnu.
+                securityContext.assertAdmin();
                 ServiceId serviceId = ServiceId.of(id);
-                authorize(serviceId); // AVANT toute lecture du corps
+                requireDeclared(serviceId); // 404 si inconnu, avant de lire le corps
                 TargetEnvironment target = environmentOf(environment);
 
                 Map<String, String> values;
@@ -144,8 +148,9 @@ public class ServiceConfigurationResource {
         try (TraceSpan span = startHttpSpan("http.getConfiguration", traceparent)) {
             span.setAttribute("service.id", id);
             try {
+                // Lire = tout appelant authentifie (docs/architecture/14-securite.md) : seul le 404 s'applique.
                 ServiceId serviceId = ServiceId.of(id);
-                authorize(serviceId);
+                requireDeclared(serviceId);
                 ServiceConfiguration configuration = readUseCase.read(serviceId, environmentOf(environment));
                 return new ServiceConfigurationDto(configuration.serviceId().value(), configuration.environment().name(),
                         configuration.version(), new TreeMap<>(configuration.values()));
@@ -165,11 +170,10 @@ public class ServiceConfigurationResource {
 
     // ------------------------------------------------------------------ details
 
-    /** 404 si le service n'est pas declare ; 403 si l'appelant n'est ni l'equipe proprietaire ni administrateur. */
-    private void authorize(ServiceId id) {
-        DesiredState desired = registryStorePort.findById(id)
+    /** 404 si le service n'est pas declare. */
+    private void requireDeclared(ServiceId id) {
+        registryStorePort.findById(id)
                 .orElseThrow(() -> new NotFoundException("Service inconnu : " + id.value()));
-        securityContext.assertOwnsOrAdmin(desired.manifest().ownerTeam());
     }
 
     private TargetEnvironment environmentOf(String environment) {
