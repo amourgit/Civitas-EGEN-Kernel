@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # V10 : monte un Keycloak de test (realm "egen", fichier egen-realm-test.json) et une base PostgreSQL, et ecrit news.yaml.
 set -euo pipefail
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)   # dossier du script, calcule AVANT tout cd
 D=${V10_DIR:-/tmp/v10}; mkdir -p "$D"; cd "$D"
 
-HERE=$(cd "$(dirname "$0")" && pwd)
 cp "$HERE/egen-realm-test.json" "$D/egen-realm.json"
 
 cat > news.yaml <<'EOF1'
