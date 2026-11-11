@@ -180,3 +180,23 @@ De plus, si `EGEN_REGISTRY_DB_PASSWORD` vaut `egen` (la valeur de développement
 *Non éprouvé* : le comportement des autres variables de production (`NOMAD_TOKEN`, `CONSUL_HTTP_TOKEN`, `VAULT_TOKEN`, `EGEN_KUBERNETES_TOKEN`, les adresses de Nomad, Consul, NATS et Vault) n'a pas encore été observé sur un Kernel de production complet.
 
 *Observé le 10 novembre 2026* (Kernel de production avec la seule base PostgreSQL, V2) : sans collecteur OpenTelemetry à l'adresse `http://localhost:4317`, le Kernel démarre normalement (profil `prod`, environ 1,4 seconde) et reste en vie. Environ une minute après le démarrage il écrit une erreur de niveau `SEVERE`, « Failed to export metrics », avec une trace complète : c'est l'exportateur de métriques qui échoue à se connecter. Le Kernel n'est pas arrêté. L'erreur se **répète environ toutes les 60 secondes** (relevé sur 5 minutes), avec une trace d'environ 35 lignes à chaque fois : le journal grossit d'environ 2 000 lignes par heure tant que le collecteur est absent. Une erreur analogue, « Failed to export spans », apparaît pour les traces. Le service est décrit dans `docker-compose.yml` (`otel-collector`).
+
+## Vérifier qui porte le rôle egen-admin (Keycloak)
+
+*À quoi sert cette section* : s'assurer que seuls `platform-operator-service` et la pipeline de déploiement peuvent modifier des services ([14](14-securite.md), [24](24-revue-de-securite-externe.md), K11). *Ce qu'elle ne couvre pas* : les droits que ces appelants ont dans les autres systèmes.
+
+Remplacer `KC` (adresse de Keycloak) et `REALM` (nom du realm), puis saisir le mot de passe d'un compte administrateur de Keycloak quand il est demandé (il n'est pas affiché) :
+```
+KC=http://localhost:8180; REALM=egen
+read -s -p "mot de passe admin Keycloak : " PW; echo
+ADM=$(curl -s -d grant_type=password -d client_id=admin-cli -d username=admin --data-urlencode password="$PW" \
+  $KC/realms/master/protocol/openid-connect/token | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+A="Authorization: Bearer $ADM"
+curl -s -H "$A" $KC/admin/realms/$REALM/roles/egen-admin/users   | python3 -c "import sys,json;print(sorted(u['username'] for u in json.load(sys.stdin)))"
+curl -s -H "$A" $KC/admin/realms/$REALM/roles/egen-admin/groups  | python3 -c "import sys,json;print([g['name'] for g in json.load(sys.stdin)])"
+curl -s -H "$A" $KC/admin/realms/$REALM/roles/default-roles-$REALM/composites | python3 -c "import sys,json;print(sorted(r['name'] for r in json.load(sys.stdin)))"
+```
+- **Attendu** : la première liste ne contient que `service-account-platform-operator-service` et le compte de service de la pipeline ; la deuxième est vide (ou ne contient que des groupes dont chaque membre est un appelant de confiance) ; la troisième ne contient **pas** `egen-admin` (sinon tous les utilisateurs du realm seraient administrateurs).
+- **Limite** : la première liste montre les attributions directes. Un rôle qui contient `egen-admin` (rôle composite) ou un groupe qui le porte donne le droit à tous ses membres : vérifier aussi les groupes de la deuxième liste et les rôles composites du realm dans la console d'administration.
+- *Observé le 11 novembre 2026* sur le realm d'essai (Keycloak 26.8.2, bac à sable de Claude) : première liste `service-account-deploy-pipeline`, `service-account-platform-operator-service` (et `service-account-sans-mapper`, client temporaire de l'essai) ; deuxième liste vide ; rôles par défaut `manage-account`, `offline_access`, `uma_authorization`, `view-profile`.
+

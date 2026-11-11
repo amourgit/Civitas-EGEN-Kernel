@@ -1,0 +1,122 @@
+{
+  "realm": "egen",
+  "enabled": true,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      {
+        "name": "egen-admin",
+        "description": "Modifier des services dans le Kernel EGEN (docs/architecture/14)"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "platform-operator-service",
+      "name": "platform-operator-service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "secret-operator-test",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "realm-roles-as-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "deploy-pipeline",
+      "name": "deploy-pipeline",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "secret-pipeline-test",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "realm-roles-as-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "catalog-service",
+      "name": "catalog-service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "secret-catalog-test",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "realm-roles-as-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-platform-operator-service",
+      "enabled": true,
+      "serviceAccountClientId": "platform-operator-service",
+      "realmRoles": [
+        "egen-admin"
+      ]
+    },
+    {
+      "username": "service-account-deploy-pipeline",
+      "enabled": true,
+      "serviceAccountClientId": "deploy-pipeline",
+      "realmRoles": [
+        "egen-admin"
+      ]
+    },
+    {
+      "username": "service-account-catalog-service",
+      "enabled": true,
+      "serviceAccountClientId": "catalog-service"
+    }
+  ]
+}

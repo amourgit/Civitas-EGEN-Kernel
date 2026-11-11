@@ -91,3 +91,27 @@ Ce qui limite le risque, vérifié dans le code :
 - En production, le mot de passe PostgreSQL n'a pas de valeur par défaut et le démarrage échoue s'il manque ([24](24-revue-de-securite-externe.md), constat K6).
 
 Ce qui **n'est pas** couvert : un identifiant n'est pas relu après le démarrage. Changer un jeton (rotation) exige donc de **redémarrer** le Kernel. Un accès à la mémoire du processus (par exemple une copie de la mémoire) révèle ces cinq identifiants. Leur portée dépend des droits que l'opérateur a donnés à chacun côté Nomad, Kubernetes, Consul, Vault et PostgreSQL : le Kernel ne la vérifie pas ([24](24-revue-de-securite-externe.md), tableau 3).
+
+## Jetons attendus par le Kernel (Keycloak)
+
+*À quoi sert cette section* : dire ce que le Kernel lit dans un jeton, et comment Keycloak doit être configuré pour que le rôle `egen-admin` soit reconnu. *Ce qu'elle ne couvre pas* : la création d'un realm de production (utilisateurs, politique de mots de passe, durée de vie des jetons).
+
+**Ce que le Kernel vérifie** à chaque appel : la signature (algorithme RS256) avec les clés publiées à l'adresse `EGEN_OIDC_JWKS_URL` ; que l'émetteur `iss` est exactement la valeur de `EGEN_OIDC_ISSUER_URL` ; que le jeton n'est pas expiré (`exp`). Il **ne vérifie pas l'audience** `aud` ([24](24-revue-de-securite-externe.md), constat K2).
+
+**Où il lit le rôle** : dans la claim **`groups`**, une liste de textes (valeur par défaut de MicroProfile JWT ; `egen-bootstrap` n'en définit pas d'autre). Un appelant est administrateur si cette liste contient la valeur de `egen.security.admin-role` (`egen-admin` par défaut).
+
+**Ce que Keycloak met par défaut** : le rôle d'un realm figure dans `realm_access.roles`, **pas** dans `groups`. Sans réglage, un client qui porte le rôle `egen-admin` serait vu par le Kernel comme un simple appelant : `403` sur toute modification. Il faut donc, sur chaque client qui appelle le Kernel (ou dans un *client scope* partagé), un *mapper* de type **User Realm Role** (`oidc-usermodel-realm-role-mapper`) avec : *Token Claim Name* = `groups`, *Multivalued* = activé, *Add to access token* = activé, *Claim JSON Type* = `String`.
+
+**Observé le 11 novembre 2026** (Keycloak 26.8.2 lancé dans le bac à sable de Claude, **pas contre le Kernel** : le jar n'y existe pas) :
+
+| Client (compte de service) | Rôle `egen-admin` | `groups` dans le jeton | `realm_access.roles` |
+|---|---|---|---|
+| `platform-operator-service`, avec le mapper | oui | `['egen-admin']` | `['egen-admin']` |
+| `deploy-pipeline`, avec le mapper | oui | `['egen-admin']` | `['egen-admin']` |
+| `catalog-service`, avec le mapper | non | absente | absente |
+| client sans le mapper | oui | **absente** | `['default-roles-egen', 'offline_access', 'egen-admin', 'uma_authorization']` |
+
+Le jeton porte aussi `iss`, `azp`, `sub`, `jti`, `iat`, `exp`, `preferred_username`, `typ` et `scope` ; il ne porte **pas** `aud` (conséquence pour K2 : une vérification d'audience exigerait un autre mapper). Les clés publiées contiennent une clé de signature RS256 et une clé de chiffrement RSA-OAEP ; seule la première signe les jetons. Le fichier [`deploy/keycloak/egen-realm-test.json`](../../deploy/keycloak/egen-realm-test.json) crée ce realm d'essai (secrets de test : jamais en production).
+
+**Qui porte le rôle** se vérifie dans Keycloak : voir [23](23-runbooks-operateur.md), « Vérifier qui porte le rôle egen-admin ».
+
