@@ -22,4 +22,4 @@ Variables du Kernel : `EGEN_OIDC_ISSUER_URL=http://localhost:8180/realms/egen` e
 - `v10-setup.sh` : lance Keycloak (realm d'essai) et une base PostgreSQL dans Docker, écrit `/tmp/v10/news.yaml`.
 - `v10-claims.sh CLIENT SECRET` : affiche les claims utiles du jeton d'un client (jamais le jeton lui-même).
 - `v10-run.sh` : avec le Kernel démarré, affiche pour chaque client les codes HTTP obtenus en lecture et en déclaration, et la liste des porteurs du rôle.
-
+- `v3c-run.sh` : avec le Kernel de V10 démarré, vérifie qu'un corps de réponse de 1200 caractères est coupé à 500 caractères (suffixe ` [tronque]`) dans le journal et dans la Condition (contrat K8).
