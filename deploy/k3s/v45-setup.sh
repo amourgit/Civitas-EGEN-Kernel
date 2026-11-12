@@ -85,9 +85,10 @@ $KC config view --raw --minify -o 'jsonpath={.clusters[0].cluster.certificate-au
 echo "jeton : $(wc -c < "$D/k8s-token.txt") caracteres ; certificat : $(grep -c 'BEGIN CERTIFICATE' "$D/k3s-ca.pem") certificat(s)"
 
 # 5) Contrôle : l'API repond-elle avec ce jeton et ce certificat ?
-printf "API Kubernetes avec le jeton du Kernel (attendu : 200) : "
+# (le role du Kernel n'a pas le droit « list » sur les deployments : on teste donc la liste des pods, qu'il a le droit de lire)
+printf "API Kubernetes avec le jeton du Kernel, liste des pods (attendu : 200) : "
 curl -s -o /dev/null -w "%{http_code}\n" --cacert "$D/k3s-ca.pem" -H "Authorization: Bearer $(cat "$D/k8s-token.txt")" \
-  https://localhost:6443/apis/apps/v1/namespaces/egen/deployments
+  https://localhost:6443/api/v1/namespaces/egen/pods
 
 # 6) Variables du Kernel
 cat > "$D/env.sh" <<ENV
