@@ -81,6 +81,8 @@ Exemple : `news-service`, déclaré avec `adapter: kubernetes`.
 
 **Adapter Nomad.** Le message est celui de l'API Nomad. Vérifiez `egen.nomad.address` et `egen.nomad.token`. Le job Nomad d'un service porte l'identifiant du service.
 
+**Adapter Consul (santé des instances).** Le Kernel interroge Consul pour savoir si les instances d'un service sont saines : un Consul injoignable fait donc échouer le service, **même si les pods ou les jobs sont prêts**. *Observé le 12 novembre 2026* : `Appel Consul impossible (GET http://localhost:8500/v1/health/service/<id>?passing=true) : null` (Consul absent : connexion refusée ; le texte après les deux-points est vide, écart I11), cinq tentatives (2, 4, 8 et 16 secondes), puis `FAILED` avec la Condition `DeploymentReady = False`, `AdapterFailureThresholdExceeded`. *Que faire* : vérifier que Consul tourne et l'adresse `egen.consul.address` depuis la machine du Kernel ; un `Consul a rejete … : HTTP 403` signale un jeton Consul (`egen.consul.token`) sans droit.
+
 3. Pour comprendre **quand** les échecs ont commencé : la métrique `egen_reconcile_failures_total{service="news-service"}`, ventilée par `reason`.
 
 ### Ce que vous pouvez faire

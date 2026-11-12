@@ -30,7 +30,7 @@ import sys,json
 d=json.load(sys.stdin)
 def walk(x):
     if isinstance(x,dict):
-        if x.get('type')=='DeploymentReady' or x.get('reason')=='AdapterFailureThresholdExceeded': print('  ',{k:(str(v)[:300]) for k,v in x.items()})
+        if x.get('type')=='DeploymentReady' or x.get('reason')=='AdapterFailureThresholdExceeded': print('  ',{k:(str(v)) for k,v in x.items()})
         for v in x.values(): walk(v)
     elif isinstance(x,list):
         for v in x: walk(v)
