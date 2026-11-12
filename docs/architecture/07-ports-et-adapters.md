@@ -507,3 +507,5 @@ Le corps conservé peut contenir des détails d'infrastructure (un nom de namesp
 | 1 | `AdapterErrorBodyTest` (`egen-application`) | corps court inchangé ; exactement 500 inchangé ; 501 coupé et marqué ; corps nul vide ; pas de coupure d'une paire de substitution |
 | 2 | `KubernetesDeploymentAdapterTest` (faux serveur) | corps conservé (`422`) ; corps de 20 000 caractères borné |
 | 2 | `NomadErrorMessageTest`, `ConsulErrorMessageTest` (deux adapters), `VaultErrorMessageTest` (faux serveur du JDK) | pour chaque adapter : corps conservé, corps de 20 000 caractères borné |
+
+*Observé le 12 novembre 2026 sur un Kernel de production* (faux Nomad renvoyant `500` et un corps de 1 200 caractères) : le message d'adapter du journal et celui de la Condition `DeploymentReady` contiennent chacun exactement 500 caractères du corps, suivis de ` [tronque]`. Observé aussi : quand l'appel échoue avant toute réponse (connexion refusée), le message se termine par `: null` (texte d'exception vide), voir [19](19-feuille-de-route.md), écart I11.
