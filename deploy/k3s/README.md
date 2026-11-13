@@ -9,3 +9,5 @@ configuration de `KubernetesDeploymentAdapterIT` (k3s `rancher/k3s:v1.31.2-k3s1`
 - `v5b-run.sh` : avec le cluster et le Kernel démarrés, retire ses droits au Kernel et lit le message d'erreur Kubernetes dans le journal et dans la Condition (chemin d'erreur par le Kernel, V5b).
 
 **Limite connue** : pour qu'un service atteigne `RUNNING`, il faut Consul et une instance qui s'y enregistre ; sans eux le service passe `FAILED` même si les pods sont prêts (écart I14).
+- `v6-run.sh` : essai du runbook « Un service est en `FAILED` » ([doc 23](../../docs/architecture/23-runbooks-operateur.md), scénario 1) : casse, constate `FAILED`, répare, relance par `Declare` (clé d'idempotence rejouée puis nouvelle), arrête le service. Chaque étape annonce ce que le runbook promet.
+
