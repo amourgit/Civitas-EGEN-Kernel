@@ -24,12 +24,12 @@ docker rm -f egen-k3s >/dev/null 2>&1 || true
 docker run -d --name egen-k3s --privileged --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
   --tmpfs /run --tmpfs /var/run -p 6443:6443 rancher/k3s:v1.31.2-k3s1 \
   server --disable=traefik --tls-san=localhost >/dev/null
-echo "attente du cluster k3s (jusqu'a 3 minutes)..."
+echo "attente du cluster k3s (jusqu'a 3 minutes) : le noeud doit etre Ready..."
+READY=0
 for i in $(seq 1 45); do
-  docker logs egen-k3s 2>&1 | grep -q "Node controller sync successful" && break; sleep 4
+  if $KC get nodes --no-headers 2>/dev/null | grep -qw Ready; then READY=1; break; fi; sleep 4
 done
-docker logs egen-k3s 2>&1 | grep -q "Node controller sync successful" || { echo "ECHEC : le cluster n'a pas demarre. Fin des journaux :"; docker logs egen-k3s 2>&1 | tail -15; exit 1; }
-for i in $(seq 1 30); do $KC get nodes >/dev/null 2>&1 && break; sleep 2; done
+[ "$READY" = 1 ] || { echo "ECHEC : le noeud k3s n'est pas Ready apres 3 minutes. Fin des journaux :"; docker logs egen-k3s 2>&1 | tail -15; exit 1; }
 $KC get nodes
 
 # 3) Namespace egen, compte de service egen-kernel et droits minimaux (documents 07 et 14)
