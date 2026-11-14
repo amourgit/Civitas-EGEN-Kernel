@@ -80,8 +80,9 @@ roleRef:
 RBAC
 
 # 4) Jeton du compte de service (2 heures) et certificat de l'autorite de l'API
-$KC -n egen create token egen-kernel --duration=2h > "$D/k8s-token.txt"
+$KC -n egen create token egen-kernel --duration=${V45_TOKEN_DURATION:-8h} > "$D/k8s-token.txt"
 $KC config view --raw --minify -o 'jsonpath={.clusters[0].cluster.certificate-authority-data}' | base64 -d > "$D/k3s-ca.pem"
+echo "jeton valable ${V45_TOKEN_DURATION:-8h} a partir de maintenant (apres, Kubernetes repond 401 au Kernel : relancer ce script et redemarrer le Kernel) ;"
 echo "jeton : $(wc -c < "$D/k8s-token.txt") caracteres ; certificat : $(grep -c 'BEGIN CERTIFICATE' "$D/k3s-ca.pem") certificat(s)"
 
 # 5) Contrôle : l'API repond-elle avec ce jeton et ce certificat ?
