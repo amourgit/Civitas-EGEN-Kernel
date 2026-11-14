@@ -1,5 +1,6 @@
 package africa.civitas.egen.api.rest;
 
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.api.dto.ServiceConfigurationDto;
 import africa.civitas.egen.api.dto.ConfigurationPublishedDto;
 import africa.civitas.egen.api.dto.ConfigurationRejectedDto;
@@ -40,6 +41,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.lang.System.Logger.Level;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -61,6 +64,8 @@ import java.util.TreeMap;
 @Path("/api/v1/services/{id}/configuration")
 @Authenticated
 public class ServiceConfigurationResource {
+
+    private static final System.Logger LOG = System.getLogger(ServiceConfigurationResource.class.getName());
 
     /** Une configuration technique tient en quelques ko ; au-dela, le corps est refuse sans etre lu en entier. */
     static final int MAX_BODY_BYTES = 1024 * 1024;
@@ -131,6 +136,9 @@ public class ServiceConfigurationResource {
                 throw new NotFoundException(e.getMessage());
             } catch (ConfigurationStoreUnavailableException e) {
                 span.recordError(e);
+                // La cause (code HTTP et corps de Consul, ou nom de l'exception reseau) va au journal (ecart E2).
+                LOG.log(Level.WARNING, "Publication de configuration refusee (503) pour {0} : {1}", id,
+                        ErrorText.of(e.getCause() != null ? e.getCause() : e));
                 throw new ServiceUnavailableException("Store de configuration indisponible : rien n'a ete publie");
             } catch (IllegalArgumentException e) {
                 throw new BadRequestException(e.getMessage());

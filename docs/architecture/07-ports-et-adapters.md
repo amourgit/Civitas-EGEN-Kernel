@@ -473,7 +473,7 @@ public interface ServiceInvocationPort {
 
 ### À quoi sert cette section
 
-Elle fixe ce que contient le message d'une exception d'adapter quand le système externe qu'il appelle répond par une erreur. Elle ne couvre pas les erreurs réseau (connexion refusée, délai dépassé) : leur message ne contient aucun corps de réponse.
+Elle fixe ce que contient le message d'une exception d'adapter quand le système externe qu'il appelle répond par une erreur. Elle ne couvre pas les erreurs réseau (connexion refusée, délai dépassé) : leur message ne contient aucun corps de réponse. Ces erreurs ont leur propre règle, dans « Erreurs réseau : jamais de « null » » plus bas.
 
 ### Les termes
 
@@ -488,6 +488,22 @@ Elle fixe ce que contient le message d'une exception d'adapter quand le système
 3. **Le corps est borné à 500 caractères Java** (`String.length()`, c'est-à-dire des unités UTF-16). Au-delà, le message contient les 500 premiers caractères suivis de ` [tronque]`. Un caractère hors du plan de base, qui occupe deux unités, n'est jamais coupé en deux : la coupure recule alors d'une unité.
 4. Un corps absent est traité comme un corps vide : le mot « null » n'apparaît jamais dans un message.
 5. La borne est appliquée par **une seule classe**, `AdapterErrorBody` (`egen-application`, paquet `port`), que les quatre adapters utilisent. Aucun adapter ne dépend d'un autre.
+
+### Erreurs réseau : jamais de « null »
+
+*Écart I11 du [document 19](19-feuille-de-route.md). Décidé par Samuel le 14 novembre 2026 (avis de Claude retenu).*
+
+**Le problème.** Quand le système externe est injoignable (Nomad, Consul, Kubernetes ou Vault arrêté), Java lève une exception réseau, par exemple `java.net.ConnectException`. Cette exception n'a souvent **pas de texte** : sa méthode `getMessage()` renvoie `null`. Le message de l'adapter se terminait alors par « : null » (exemple relevé : `Appel Nomad impossible (PUT http://localhost:4646/v1/jobs) : null`) et ne disait pas pourquoi l'appel avait échoué.
+
+**Le contrat.**
+
+1. Un message d'adapter n'écrit jamais le mot « null » à la place de la cause d'une exception.
+2. Si l'exception a un texte (non vide, pas seulement des espaces), le message l'écrit tel quel.
+3. Sinon, le message écrit le **nom complet de la classe** de l'exception (par exemple `java.net.ConnectException`). Si l'exception a une cause, le message ajoute ` (cause : …)` avec la même règle, **sur trois niveaux au plus**.
+4. Une exception absente donne le texte fixe `cause inconnue`.
+5. La règle est appliquée par **une seule classe**, `ErrorText` (`egen-application`, paquet `port`), avec la méthode `ErrorText.of(Throwable)`. Elle est utilisée aux six endroits où un adapter écrit « Appel … impossible » : `NomadDeploymentAdapter`, `KubernetesDeploymentAdapter` (appel et lecture du certificat), `ConsulDiscoveryAdapter`, `ConsulConfigurationAdapter`, `VaultSecretsAdapter`.
+
+**Exemple de bout en bout.** Nomad est arrêté. Le Kernel appelle `PUT http://localhost:4646/v1/jobs`. Java lève `ConnectException` sans texte. L'adapter écrit `Appel Nomad impossible (PUT http://localhost:4646/v1/jobs) : java.net.ConnectException`. Ce message est copié par le Moteur de Réconciliation dans la Condition du service et dans le journal : l'opérateur lit « ConnectException » et comprend que Nomad ne répond pas, au lieu de lire « null ».
 
 ### Exemple de bout en bout
 

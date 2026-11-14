@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.vault;
 
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.SecretRef;
 import africa.civitas.egen.application.port.SecretReference;
@@ -97,7 +98,7 @@ public final class VaultSecretsAdapter implements SecretsPort {
         try {
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
-            throw new SecretsException("Appel Vault impossible (" + request.uri() + ") : " + e.getMessage(), e);
+            throw new SecretsException("Appel Vault impossible (" + request.uri() + ") : " + ErrorText.of(e), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new SecretsException("Appel Vault interrompu (" + request.uri() + ")", e);
