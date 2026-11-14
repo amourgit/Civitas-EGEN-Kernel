@@ -10,4 +10,4 @@ configuration de `KubernetesDeploymentAdapterIT` (k3s `rancher/k3s:v1.31.2-k3s1`
 
 **Limite connue** : pour qu'un service atteigne `RUNNING`, il faut Consul et une instance qui s'y enregistre ; sans eux le service passe `FAILED` même si les pods sont prêts (écart I14).
 - `v6-run.sh` : essai du runbook « Un service est en `FAILED` » ([doc 23](../../docs/architecture/23-runbooks-operateur.md), scénario 1) : casse, constate `FAILED`, répare, relance par `Declare` (clé d'idempotence rejouée puis nouvelle), arrête le service. Chaque étape annonce ce que le runbook promet.
-
+- `v6c-run.sh` : suite de V6 : lance Consul et surveille pendant 2 min 30 si un arrêt bloqué (`STOPPING`) se termine (`STOPPED`, Deployment supprimé).
