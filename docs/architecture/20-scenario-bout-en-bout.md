@@ -69,7 +69,7 @@ La partie 1 montre le Kernel *maintenir un état désiré*. Cette partie montre
 le Moteur de Workflow *orchestrer plusieurs services à travers un échec*
 ([11](11-moteur-de-workflow.md)). Le workflow est celui de référence,
 `publish-article-workflow`, déclaré **tel quel** en YAML (voir le doc 11).
-`news-service` et `notification-service` sont supposés `RUNNING` (partie 1).
+`news-service` et `notification-service` sont dans la phase `RUNNING` au début de ce scénario (état atteint à la partie 1).
 
 ```
 9. DEFINE
