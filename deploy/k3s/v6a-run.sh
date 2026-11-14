@@ -10,13 +10,23 @@ kc() { docker exec egen-k3s kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml "$@";
 token() { curl -s -m 10 -d grant_type=client_credentials -d client_id=platform-operator-service -d client_secret=secret-operator-test \
   http://localhost:8180/realms/egen/protocol/openid-connect/token | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])" 2>/dev/null; }
 OP=$(token); [ -n "$OP" ] || { echo "ECHEC : pas de jeton Keycloak (Keycloak arrete ?) ; verifier : docker ps"; exit 1; }
-status() { curl -s -m 10 $K/api/v1/services/v6-news/status -H "Authorization: Bearer $OP" | python3 -c "
+status() { curl -s -m 10 $K/api/v1/services/v6-news/status -H "Authorization: Bearer $(token)" | python3 -c "
 import sys,json
 try: d=json.load(sys.stdin)
-except Exception: print('(reponse illisible : Kernel arrete ?)'); sys.exit()
+except Exception: print('(reponse illisible : Kernel arrete, ou jeton Keycloak refuse ?)'); sys.exit()
 cs={c.get('type'):c for c in (d.get('conditions') or [])}
 c=cs.get('DiscoveryDeregistered')
 print('phase =',d.get('phase'),'|', ('DiscoveryDeregistered = %s / %s / %s' % (c.get('status'),c.get('reason'),(c.get('message') or '')[:130])) if c else 'DiscoveryDeregistered : absente')"; }
+phase_only() { curl -s -m 10 $K/api/v1/services/v6-news/status -H "Authorization: Bearer $(token)" | python3 -c "
+import sys,json
+try: print(json.load(sys.stdin).get('phase'))
+except Exception: print('?')"; }
+echo "=== 0b. controles de depart"
+KCODE=$(curl -s -m 10 -o /dev/null -w '%{http_code}' --cacert "$D/k3s-ca.pem" -H "Authorization: Bearer $(cat "$D/k8s-token.txt")" https://localhost:6443/api/v1/namespaces/egen/pods)
+echo "  jeton Kubernetes du Kernel, liste des pods : HTTP $KCODE (attendu : 200)"
+[ "$KCODE" = 200 ] || { echo "ECHEC : Kubernetes refuse le jeton du Kernel (il expire ; 8 h par defaut). Relancer bash deploy/k3s/v45-setup.sh, puis redemarrer le Kernel (T1)."; exit 1; }
+P0=$(phase_only); echo "  phase du service v6-news avant l'essai : $P0 (attendu : ? , STOPPED ou FAILED ; sinon etat d'un essai precedent)"
+case "$P0" in STOPPING|DEPLOYING|REGISTERED|CONFIGURED|DECLARED|RUNNING|DEGRADED) echo "ECHEC : v6-news n'est pas dans un etat vierge. Relancer bash deploy/k3s/v45-setup.sh (Registry vide), puis redemarrer le Kernel (T1)."; exit 1;; esac
 dereg_lines() { grep -c "Echec de deregistrement pour v6-news" "$LOG"; }
 
 echo "=== 0. mode : $MODE"
@@ -51,14 +61,15 @@ health:
     failuresBeforeUnhealthy: 3
 EOY
 echo "=== 2. declarer v6-news et attendre qu'un pod tourne (jusqu'a 150 s)"
-curl -s -m 15 -w ' [HTTP %{http_code}]\n' -X POST $K/api/v1/services -H "Authorization: Bearer $OP" -H "Content-Type: application/yaml" \
+curl -s -m 15 -w ' [HTTP %{http_code}]\n' -X POST $K/api/v1/services -H "Authorization: Bearer $(token)" -H "Content-Type: application/yaml" \
   -H "Idempotency-Key: v6a-decl-$RANDOM" --data-binary @"$D/v6-news.yaml"
 for i in $(seq 1 30); do
-  kc -n egen get pods --no-headers 2>/dev/null | grep -q Running && break; sleep 5
+  kc -n egen get pods --no-headers 2>/dev/null | grep -q Running && break
+  case "$(phase_only)" in FAILED) break;; esac; sleep 5
 done
 kc -n egen get pods --no-headers 2>&1 | head -3
 echo "  etat avant l'arret :"; printf "  "; status
-phase_only() { curl -s -m 10 $K/api/v1/services/v6-news/status -H "Authorization: Bearer $OP" | python3 -c "
+phase_only() { curl -s -m 10 $K/api/v1/services/v6-news/status -H "Authorization: Bearer $(token)" | python3 -c "
 import sys,json
 try: print(json.load(sys.stdin).get('phase'))
 except Exception: print('?')"; }
@@ -71,7 +82,7 @@ echo "  phase au moment de l'arret : $P"
 A=$(dereg_lines)
 echo "=== 3. demande d'arret (POST actions/stop), puis surveillance toutes les 5 s pendant 110 s"
 curl -s -m 15 -w ' [HTTP %{http_code}] (attendu : 202)\n' -X POST $K/api/v1/services/v6-news/actions/stop \
-  -H "Authorization: Bearer $OP" -H "Idempotency-Key: v6a-stop-$RANDOM"
+  -H "Authorization: Bearer $(token)" -H "Idempotency-Key: v6a-stop-$RANDOM"
 T0=$(date +%s); RETURNED=0
 for i in $(seq 1 22); do
   sleep 5; NOW=$(( $(date +%s) - T0 ))
