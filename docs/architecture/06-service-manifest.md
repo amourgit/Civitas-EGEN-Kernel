@@ -180,7 +180,7 @@ de façon déterministe à partir du type
 ([12](12-communication-fabric.md#flux-dévénements)) : l'ordre de déclaration
 entre publieur et consommateur n'a ainsi aucune importance. `schemaRef`,
 `subscriptionGroup` et `deadLetter` sont conservés tels quels ;
-`deadLetter` n'est **pas encore appliqué** par le Kernel (il décrit la
+`deadLetter` n'est **pas appliqué** par le Kernel (il décrit la
 consommation, que le service réalise via son SDK).
 
 **`configuration`.** Aucune valeur n'y figure jamais, et EGEN ne stocke jamais

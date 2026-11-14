@@ -93,7 +93,7 @@ valeurs par défaut. C'est ce que consomment les SDK et le sidecar
 - **Autorisation** : lecture pour tout appelant authentifié ; **toute
   mutation est réservée au rôle administrateur** (`egen.security.admin-role`),
   voir [14](14-securite.md).
-- **Pas encore livré** : liste des définitions (`GET /api/v1/workflows`) et
+- **Non livré en V1** : liste des définitions (`GET /api/v1/workflows`) et
   liste des exécutions d'un workflow — `WorkflowStorePort` n'expose pas de
   requête de listing ; elle sera ajoutée avec le premier besoin réel (console
   d'exploitation), pas par anticipation.

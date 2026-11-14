@@ -57,6 +57,17 @@ FAILED / STOPPED ──▶ DECLARED       (un nouveau Declare du même service l
 
 **Ce que la relance ne fait pas.** Un `Declare` **refusé** (adapter non activé, adapter changé, cycle, droits insuffisants) ne touche à rien : toutes les validations précèdent l'écriture. La relance n'ajoute aucun droit : seul un administrateur peut déclarer (ou redéclarer) un service ([14](14-securite.md)).
 
+### Comptage des échecs d'adapter
+
+*Écart I12 du [document 19](19-feuille-de-route.md), documenté d'après les observations du 12 au 14 novembre 2026 (V6, V10).*
+
+Le Moteur de Réconciliation compte les échecs consécutifs d'un adapter (Nomad, Kubernetes, Consul, Vault) **par service**, et non par génération. Concrètement :
+1. Tant qu'un service réessaie, deux `Declare` successifs ne remettent pas le compteur à zéro : `(1/5)` pour la génération 1, puis `(2/5)` pour la génération 2 (observé en V10).
+2. Quand le compteur atteint 5, le service passe `FAILED` (sauf pendant un arrêt, voir plus bas).
+3. Relancer un service `FAILED` par un nouveau `Declare` **remet le compteur à zéro** : la tentative suivante s'écrit `(1/5)` (observé en V6).
+4. Un passage de réconciliation qui réussit remet aussi le compteur à zéro.
+5. Le dé-enregistrement d'un arrêt a son propre compteur (voir « Quand le dé-enregistrement échoue »).
+
 ## Conditions
 
 En complément de la phase (état macro), chaque `ServiceStatus` porte une
@@ -116,19 +127,34 @@ compte :
 
 **Si le Kernel meurt pendant l'arrêt.** Le marqueur « désinscrit à tel instant » que le moteur utilise pour compter le délai de grâce est gardé **en mémoire**, pas persisté. Un Kernel redémarré le retrouve vide : il refait la désinscription (idempotente), puis attend de nouveau tout le délai de grâce avant d'arrêter. L'arrêt est donc plus long que prévu, jamais incomplet ; c'est vérifié par le test de chaos de niveau 6a ([17](17-strategie-de-tests.md#niveau-6a--mort-brutale-du-processus-simulée-de-façon-déterministe-livré)).
 
+### Quand une demande d'arrêt est acceptée
+
+*Écart I20 du [document 19](19-feuille-de-route.md), documenté d'après le code (`StopServiceUseCaseImpl`, `LifecycleStateMachine`) et l'essai V6a du 14 novembre 2026.*
+
+`POST /api/v1/services/{id}/actions/stop` répond selon la phase du service au moment de la demande :
+
+| Phase du service | Réponse | Effet |
+|---|---|---|
+| `RUNNING`, `DEGRADED`, `FAILED` | `202` | le service passe `STOPPING` |
+| `STOPPING`, `STOPPED` | `202` | aucun : la demande est idempotente, rien ne change |
+| toute autre phase (`DECLARED`, `REGISTERED`, `CONFIGURED`, `DEPLOYING`, `UPDATING`, `ROLLED_BACK`, `REMOVING`) | `400` | refusée : la machine à états n'a pas de transition vers `STOPPING` depuis ces phases |
+| service inconnu | `404` | — |
+
+**Conséquence pratique.** Un service en `DEPLOYING` ne peut pas être arrêté. Il le peut dès qu'il quitte cette phase : `RUNNING` s'il converge, ou `FAILED` après ses cinq échecs (de 30 à 50 secondes environ, observé en V6a). Autoriser l'arrêt depuis `DEPLOYING` serait un changement de la machine à états, non décidé à ce jour.
+
 ### Quand le dé-enregistrement échoue (Consul injoignable)
 
 *Écart E4 du [document 19](19-feuille-de-route.md). Décidé par Samuel le 14 novembre 2026 (avis de Claude retenu).*
 
 **Les termes.** *Dé-enregistrer* : retirer du Discovery (Consul) chaque instance du service, pour que les clients cessent de lui envoyer du trafic (étape 1 ci-dessus). *Au mieux* : on essaie, et si cela échoue de façon répétée, on continue quand même l'arrêt au lieu de le bloquer.
 
-**Le problème.** Avant cette règle, si Consul ne répondait pas au moment d'un `actions/stop`, le service restait `STOPPING` sans fin : le dé-enregistrement était retenté toutes les 30 à 60 secondes sans plafond, le Deployment n'était jamais supprimé, et aucune Condition n'expliquait le blocage (la cause n'était que dans le journal).
+**Le problème.** Avant cette règle, si Consul ne répondait pas au moment d'un `actions/stop`, le service restait `STOPPING` sans fin : le dé-enregistrement était retenté toutes les 30 à 60 secondes sans plafond, l'arrêt n'était jamais exécuté dans le moteur de déploiement (le Deployment gardait ses réplicas), et aucune Condition n'expliquait le blocage (la cause n'était que dans le journal).
 
 **Le contrat.**
 
 1. Chaque échec du dé-enregistrement est compté, **à part** du compteur d'échecs de déploiement. Un échec écrit une ligne `WARN` (`Echec de deregistrement pour <id> (n/5) : <cause>`).
 2. Aux échecs 1 à 4, le service **reste `STOPPING`**. La Condition `DiscoveryDeregistered = False`, `reason = DeregistrationRetrying`, dit `tentative n/5 : <cause>`. La nouvelle tentative a lieu après **2, 4, 8 puis 16 secondes**.
-3. Au **cinquième échec**, l'arrêt **continue** : la Condition devient `DeregistrationIncomplete` (« après 5 échecs, l'arrêt continue ; des entrées Discovery peuvent rester jusqu'à l'expiration de leurs contrôles de santé »), puis le délai de grâce s'applique comme d'habitude, puis le Deployment est supprimé, et le service passe `STOPPED`. La Condition est conservée dans le statut `STOPPED`.
+3. Au **cinquième échec**, l'arrêt **continue** : la Condition devient `DeregistrationIncomplete` (« après 5 échecs, l'arrêt continue ; des entrées Discovery peuvent rester jusqu'à l'expiration de leurs contrôles de santé »), puis le délai de grâce s'applique comme d'habitude, puis l'arrêt est exécuté dans le moteur de déploiement (`DeploymentPort.stop()` : Kubernetes met le Deployment à 0 réplica et le conserve, Nomad arrête le job sans le purger, document [07](07-ports-et-adapters.md)), et le service passe `STOPPED`. La Condition est conservée dans le statut `STOPPED`.
 4. Si une tentative réussit avant le cinquième échec, la Condition devient `Deregistered` (`True`) et le message dit après combien d'échecs. Le compteur repart de zéro.
 5. Le service ne passe **jamais** `FAILED` à cause du dé-enregistrement : `STOPPING → FAILED` reste interdit par la machine à états.
 
@@ -136,7 +162,7 @@ compte :
 
 **Ce que cette règle ne couvre pas.** Un échec de `DeploymentPort.stop()` (Nomad ou Kubernetes refuse la suppression) n'est pas concerné : il suit toujours le chemin d'échec d'adapter existant.
 
-**Exemple de bout en bout.** L'opérateur demande l'arrêt de `news`. Consul est arrêté. T+0 : échec 1, Condition `tentative 1/5 : …`, nouvelle tentative dans 2 s. T+2 s, T+6 s, T+14 s : échecs 2, 3, 4. T+30 s : échec 5, la Condition passe à `DeregistrationIncomplete`. Après le délai de grâce du manifeste, le Deployment est supprimé et `news` est `STOPPED`. L'opérateur lit `GET …/status` : phase `STOPPED`, Condition `DiscoveryDeregistered = False` avec la cause, et sait qu'il reste peut-être une entrée dans Consul.
+**Exemple de bout en bout.** L'opérateur demande l'arrêt de `news`. Consul est arrêté. T+0 : échec 1, Condition `tentative 1/5 : …`, nouvelle tentative dans 2 s. T+2 s, T+6 s, T+14 s : échecs 2, 3, 4. T+30 s : échec 5, la Condition passe à `DeregistrationIncomplete`. Après le délai de grâce du manifeste, l'arrêt est exécuté dans le moteur de déploiement et `news` est `STOPPED`. L'opérateur lit `GET …/status` : phase `STOPPED`, Condition `DiscoveryDeregistered = False` avec la cause, et sait qu'une entrée de `news` peut rester dans Consul.
 
 Inverser cet ordre (arrêter Nomad avant de désenregistrer Consul) provoque
 des erreurs 502/connexions refusées côté clients pendant la fenêtre de

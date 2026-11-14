@@ -188,7 +188,7 @@ Kubernetes n'expose **pas** de point d'accès de retour arrière : `kubectl roll
 3. aucun trouvé → `DeploymentException` (« aucune version … ne correspond ») ;
 4. remplacer `/spec/template` du Deployment par ce modèle, **sans** l'étiquette `pod-template-hash`.
 
-Le nombre de versions retenues est celui de `revisionHistoryLimit` du Deployment (10 par défaut dans `apps/v1`, *à vérifier*) : un retour vers une version plus ancienne échoue.
+Le nombre de versions retenues est celui de `revisionHistoryLimit` du Deployment (10 par défaut dans `apps/v1`, d'après la référence de l'API Kubernetes) : un retour vers une version plus ancienne échoue.
 
 #### Faits externes et leur état de vérification
 
@@ -198,7 +198,7 @@ Le nombre de versions retenues est celui de `revisionHistoryLimit` du Deployment
 | Sous-ressource `deployments/{name}/scale` (GET, PATCH, PUT) | Vérifié (référence de l'API `autoscaling/v1`) |
 | Retour arrière réalisé côté client | Vérifié sur `rollback.go` v1.15, et confirmé sur un vrai cluster k3s v1.31.2 (test de niveau 3, 5 novembre 2026) |
 | Annotation `restartedAt` remplace le pod | Vérifié sur un vrai cluster k3s v1.31.2 (test de niveau 3, 5 novembre 2026) |
-| Valeur par défaut de `revisionHistoryLimit` (10) | **À vérifier** (le test de niveau 3 ne remonte qu'une version en arrière) |
+| Valeur par défaut de `revisionHistoryLimit` (10) | **Non couverte par un test** : le test de niveau 3 ne remonte qu'une version en arrière ; la valeur 10 vient de la référence de l'API Kubernetes |
 
 #### Tests
 
