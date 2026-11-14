@@ -62,4 +62,4 @@ printf "  Deployment dans le cluster : "; kc -n egen get deployment v6-news -o '
 echo "attente de 45 secondes (sans Consul, le service retombera FAILED : ecart I14 connu)..."; sleep 45; echo "  apres 49 s :"; status
 echo "=== 9. RUNBOOK : « FAILED -> STOPPING -> STOPPED » par actions/stop (cle $K3)"
 post $K/api/v1/services/v6-news/actions/stop $K3; sleep 12; status
-printf "  Deployment dans le cluster apres l'arret (attendu : present, a 0 replica, 0/0 : `stop` garde le Deployment, doc 07) : "; kc -n egen get deployment v6-news 2>&1 | head -1
+printf "  Deployment dans le cluster apres l'arret (attendu : present, a 0 replica, 0/0 : stop garde le Deployment, doc 07) : "; kc -n egen get deployment v6-news 2>&1 | head -1
