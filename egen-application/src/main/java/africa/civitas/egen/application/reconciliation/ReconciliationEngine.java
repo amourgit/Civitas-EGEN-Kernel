@@ -3,6 +3,7 @@ package africa.civitas.egen.application.reconciliation;
 import africa.civitas.egen.application.port.AllocationInfo;
 import africa.civitas.egen.application.port.DeploymentPort;
 import africa.civitas.egen.application.port.DiscoveryPort;
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.application.port.MetricSample;
 import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.ReconciliationEvent;
@@ -84,6 +85,14 @@ public final class ReconciliationEngine implements AutoCloseable {
     // gracieux en cours (voir handleStopping) — bookkeeping transitoire de
     // l'orchestration, jamais persiste comme etat desire/observe.
     private final ConcurrentHashMap<ServiceId, Instant> stoppingDeregisteredAt =
+            new ConcurrentHashMap<>();
+    // Ecart E3 (docs/architecture/09) : refus consecutifs de resolution de configuration/secrets par service,
+    // pour espacer les tentatives (delai croissant). Bookkeeping transitoire, jamais persiste.
+    private final ConcurrentHashMap<ServiceId, AtomicInteger> configurationRefusals =
+            new ConcurrentHashMap<>();
+    // Ecart E4 (docs/architecture/09) : echecs consecutifs du deregistrement Discovery d'un arret en cours.
+    // Compteur a part : consecutiveFailures est remis a zero a chaque passage de reconciliation sans exception.
+    private final ConcurrentHashMap<ServiceId, AtomicInteger> deregistrationFailures =
             new ConcurrentHashMap<>();
 
     private final PendingDeclareTraces pendingDeclareTraces;
@@ -281,6 +290,7 @@ public final class ReconciliationEngine implements AutoCloseable {
      * rend lisible dans le statut, au meme titre que les autres (docs/architecture/09).
      */
     private void handleDeclared(ServiceId id, ServiceStatus current, DesiredState desired) {
+        configurationRefusals.remove(id); // nouveau Declare : les tentatives de resolution repartent de zero
         Condition condition = new Condition("ManifestValid", ConditionStatus.TRUE, "Valid",
                 "Le manifeste a ete valide et persiste", Instant.now());
         reportCondition(id, condition);
@@ -304,10 +314,15 @@ public final class ReconciliationEngine implements AutoCloseable {
         reportCondition(id, condition);
         List<Condition> conditions = mergeConditions(current.conditions(), condition);
         if (!outcome.ok()) {
+            int refusals = configurationRefusals.computeIfAbsent(id, ignored -> new AtomicInteger(0))
+                    .incrementAndGet();
             saveStatus(id, Phase.REGISTERED, conditions, desired.generation());
-            workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
+            // Ecart E3 : delai croissant (2, 4, 8, 16, 32 s, puis 60 s au plus), et non plus toutes les 3 s sans fin.
+            // Une publication de configuration par l'API enfile le service tout de suite (aucune attente).
+            workQueue.requeueAfter(id, growingDelay(refusals));
             return;
         }
+        configurationRefusals.remove(id);
         advanceTo(id, current, Phase.CONFIGURED, desired.generation(), conditions);
     }
 
@@ -521,11 +536,54 @@ public final class ReconciliationEngine implements AutoCloseable {
         Duration gracePeriod = desired.manifest().lifecycle().shutdownGracePeriod();
 
         if (deregisteredAt == null) {
-            withChildSpan(parent, "discovery.deregister", () -> {
-                for (AllocationInfo allocation : deploymentPort.listAllocations(id)) {
-                    discoveryPort.deregister(id, allocation.allocationId());
+            try {
+                withChildSpan(parent, "discovery.deregister", () -> {
+                    for (AllocationInfo allocation : deploymentPort.listAllocations(id)) {
+                        discoveryPort.deregister(id, allocation.allocationId());
+                    }
+                });
+                AtomicInteger earlier = deregistrationFailures.remove(id);
+                if (earlier != null) {
+                    Condition done = new Condition("DiscoveryDeregistered", ConditionStatus.TRUE, "Deregistered",
+                            "Deregistrement reussi apres " + earlier.get() + " echec(s)", Instant.now());
+                    reportCondition(id, done);
+                    saveStatus(id, Phase.STOPPING, mergeConditions(current.conditions(), done),
+                            desired.generation());
                 }
-            });
+            } catch (RuntimeException failure) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw failure; // arret du Kernel : meme traitement que handleAdapterFailure
+                }
+                // Ecart E4 : le deregistrement est fait « au mieux » (docs/architecture/09, § arret gracieux).
+                int failures = deregistrationFailures.computeIfAbsent(id, ignored -> new AtomicInteger(0))
+                        .incrementAndGet();
+                String cause = ErrorText.of(failure);
+                LOG.log(Level.WARNING, "Echec de deregistrement pour {0} ({1}/{2}) : {3}",
+                        id, failures, MAX_CONSECUTIVE_FAILURES, cause);
+                observabilityPort.incrementCounter("egen_reconcile_failures_total",
+                        Map.of("service", id.value(), "reason", failure.getClass().getSimpleName()));
+                if (failures < MAX_CONSECUTIVE_FAILURES) {
+                    Condition retrying = new Condition("DiscoveryDeregistered", ConditionStatus.FALSE,
+                            "DeregistrationRetrying",
+                            "tentative " + failures + "/" + MAX_CONSECUTIVE_FAILURES + " : " + cause, Instant.now());
+                    reportCondition(id, retrying);
+                    saveStatus(id, Phase.STOPPING, mergeConditions(current.conditions(), retrying),
+                            desired.generation());
+                    workQueue.requeueAfter(id, growingDelay(failures));
+                    return;
+                }
+                // Cinquieme echec : l'arret continue (le Deployment sera supprime) ; la Condition dit que des
+                // entrees Discovery peuvent rester jusqu'a l'expiration de leurs controles de sante.
+                deregistrationFailures.remove(id);
+                Condition incomplete = new Condition("DiscoveryDeregistered", ConditionStatus.FALSE,
+                        "DeregistrationIncomplete",
+                        "apres " + MAX_CONSECUTIVE_FAILURES + " echecs, l'arret continue ; des entrees Discovery "
+                                + "peuvent rester jusqu'a l'expiration de leurs controles de sante : " + cause,
+                        Instant.now());
+                reportCondition(id, incomplete);
+                saveStatus(id, Phase.STOPPING, mergeConditions(current.conditions(), incomplete),
+                        desired.generation());
+            }
             // Premier appel reseau reel de ce Stop : voir le meme
             // raisonnement que dans handleConfigured.
             pendingDeclareTraces.clear(id);
@@ -598,6 +656,11 @@ public final class ReconciliationEngine implements AutoCloseable {
             byType.put(condition.type(), condition);
         }
         return List.copyOf(byType.values());
+    }
+
+    /** Delai croissant entre deux tentatives : 2, 4, 8, 16, 32 secondes, puis 60 secondes au plus. */
+    static Duration growingDelay(int attempts) {
+        return Duration.ofSeconds(Math.min(60L, 1L << Math.min(Math.max(attempts, 1), 6)));
     }
 
     private void handleAdapterFailure(ServiceId id, ServiceStatus current, DesiredState desired,
