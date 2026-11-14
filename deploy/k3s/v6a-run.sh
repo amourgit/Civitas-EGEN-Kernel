@@ -58,6 +58,16 @@ for i in $(seq 1 30); do
 done
 kc -n egen get pods --no-headers 2>&1 | head -3
 echo "  etat avant l'arret :"; printf "  "; status
+phase_only() { curl -s -m 10 $K/api/v1/services/v6-news/status -H "Authorization: Bearer $OP" | python3 -c "
+import sys,json
+try: print(json.load(sys.stdin).get('phase'))
+except Exception: print('?')"; }
+echo "=== 2b. attendre une phase d'ou l'arret est permis : RUNNING, DEGRADED ou FAILED (jusqu'a 150 s)"
+echo "      (sans Consul, le service finit FAILED apres ses 5 echecs de verification de sante, ecart I14 ; depuis DEPLOYING l'arret est refuse en 400)"
+for i in $(seq 1 30); do
+  P=$(phase_only); case "$P" in RUNNING|DEGRADED|FAILED) break;; esac; sleep 5
+done
+echo "  phase au moment de l'arret : $P"
 A=$(dereg_lines)
 echo "=== 3. demande d'arret (POST actions/stop), puis surveillance toutes les 5 s pendant 110 s"
 curl -s -m 15 -w ' [HTTP %{http_code}] (attendu : 202)\n' -X POST $K/api/v1/services/v6-news/actions/stop \
