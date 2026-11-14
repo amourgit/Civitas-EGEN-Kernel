@@ -98,6 +98,6 @@ done
 echo "=== 4. controles"
 echo "  lignes de journal « Echec de deregistrement » pour cet arret : $(( $(dereg_lines) - A ))  (mode absent : 5 attendues ; mode retour : 1 a 4 si l'arret reussit apres le retour de Consul)"
 grep "Echec de deregistrement pour v6-news" "$LOG" | tail -6 | sed 's/^/    /'
-printf "  Deployment v6-news (attendu apres STOPPED : present, a 0 replica, 0/0 ; `stop` garde le Deployment, doc 07) : "; kc -n egen get deployment v6-news 2>&1 | tail -1
+printf "  Deployment v6-news (attendu apres STOPPED : present, a 0 replica, 0/0 ; stop garde le Deployment, doc 07) : "; kc -n egen get deployment v6-news 2>&1 | tail -1
 echo "  statut final :"; printf "  "; status
 echo "Nettoyage : docker rm -f egen-consul (si lance) ; puis bash deploy/k3s/v45-clean.sh quand tu as fini."
