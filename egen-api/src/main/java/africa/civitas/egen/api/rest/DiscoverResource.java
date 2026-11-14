@@ -3,6 +3,8 @@ package africa.civitas.egen.api.rest;
 import africa.civitas.egen.api.dto.DiscoverResponseDto;
 import africa.civitas.egen.api.dto.ResolvedInstanceDto;
 import africa.civitas.egen.api.mapper.ResiliencyMapper;
+import africa.civitas.egen.application.port.DiscoveryException;
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.application.port.ResolvedInstance;
 import africa.civitas.egen.application.usecase.ResolveServiceUseCase;
 import africa.civitas.egen.application.usecase.ServiceResolution;
@@ -13,7 +15,10 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.ServiceUnavailableException;
 import jakarta.ws.rs.core.MediaType;
+
+import java.lang.System.Logger.Level;
 
 /**
  * Proxy pratique en lecture seule vers {@code DiscoveryPort.resolve} (voir
@@ -23,6 +28,8 @@ import jakarta.ws.rs.core.MediaType;
  */
 @Path("/api/v1/discover")
 public class DiscoverResource {
+
+    private static final System.Logger LOG = System.getLogger(DiscoverResource.class.getName());
 
     private final ResolveServiceUseCase resolveServiceUseCase;
 
@@ -41,7 +48,14 @@ public class DiscoverResource {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e.getMessage());
         }
-        ServiceResolution resolution = resolveServiceUseCase.resolve(id);
+        ServiceResolution resolution;
+        try {
+            resolution = resolveServiceUseCase.resolve(id);
+        } catch (DiscoveryException e) {
+            // Decouverte indisponible : 503 sans corps, la cause est dans le journal (docs/architecture/13, ecart E1).
+            LOG.log(Level.WARNING, "Decouverte indisponible (503) pour {0} : {1}", id.value(), ErrorText.of(e));
+            throw new ServiceUnavailableException("Decouverte indisponible");
+        }
         var instances = resolution.instances().instances().stream()
                 .map(DiscoverResource::toDto)
                 .toList();

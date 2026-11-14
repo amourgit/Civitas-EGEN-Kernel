@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.nomad;
 
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.AllocationInfo;
 import africa.civitas.egen.application.port.DeploymentException;
@@ -377,7 +378,7 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new DeploymentException("Appel Nomad impossible (" + request.method() + " "
-                    + request.uri() + ") : " + e.getMessage(), e);
+                    + request.uri() + ") : " + ErrorText.of(e), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new DeploymentException("Appel Nomad interrompu (" + request.method() + " "

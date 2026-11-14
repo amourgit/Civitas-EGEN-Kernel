@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.consul;
 
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.ConfigChangeHandler;
 import africa.civitas.egen.application.port.ConfigSet;
@@ -234,7 +235,7 @@ public final class ConsulConfigurationAdapter implements ConfigurationPort {
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new ConfigurationException("Appel Consul KV impossible (" + request.method() + " "
-                    + request.uri() + ") : " + e.getMessage(), e);
+                    + request.uri() + ") : " + ErrorText.of(e), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ConfigurationException("Appel Consul KV interrompu (" + request.method() + " "

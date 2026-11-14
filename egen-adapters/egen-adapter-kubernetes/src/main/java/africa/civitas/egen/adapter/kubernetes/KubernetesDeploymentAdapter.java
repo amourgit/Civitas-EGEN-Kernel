@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.kubernetes;
 
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.AllocationInfo;
 import africa.civitas.egen.application.port.DeploymentException;
@@ -421,7 +422,7 @@ public final class KubernetesDeploymentAdapter implements DeploymentPort {
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new DeploymentException("Appel Kubernetes impossible (" + request.method() + " "
-                    + request.uri() + ") : " + e.getMessage(), e);
+                    + request.uri() + ") : " + ErrorText.of(e), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new DeploymentException("Appel Kubernetes interrompu (" + request.method() + " "
@@ -483,7 +484,7 @@ public final class KubernetesDeploymentAdapter implements DeploymentPort {
             return context;
         } catch (IOException | GeneralSecurityException e) {
             throw new DeploymentException("Certificat d'autorite Kubernetes illisible ("
-                    + config.caCertPath() + ") : " + e.getMessage(), e);
+                    + config.caCertPath() + ") : " + ErrorText.of(e), e);
         }
     }
 }

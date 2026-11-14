@@ -1,5 +1,6 @@
 package africa.civitas.egen.adapter.consul;
 
+import africa.civitas.egen.application.port.ErrorText;
 import africa.civitas.egen.application.port.AdapterErrorBody;
 import africa.civitas.egen.application.port.DiscoveryException;
 import africa.civitas.egen.application.port.DiscoveryPort;
@@ -137,7 +138,7 @@ public final class ConsulDiscoveryAdapter implements DiscoveryPort {
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new DiscoveryException("Appel Consul impossible (" + request.method() + " "
-                    + request.uri() + ") : " + e.getMessage(), e);
+                    + request.uri() + ") : " + ErrorText.of(e), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new DiscoveryException("Appel Consul interrompu (" + request.method() + " "

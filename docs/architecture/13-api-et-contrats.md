@@ -69,6 +69,8 @@ appliqués — voir [06](06-service-manifest.md#résilience-déclarée-par-la-ci
                   "circuitBreaker": { "failureThreshold": 5, "openDurationMillis": 30000 } } }
 ```
 
+**Découverte indisponible** (Consul refuse l'appel ou ne répond pas) : `503`, sans corps, comme les autres routes dont le store est indisponible (configuration, événements). La cause (code HTTP et corps de Consul, ou nom de l'exception réseau, voir [07](07-ports-et-adapters.md#erreurs-réseau--jamais-de--null-)) n'est pas dans la réponse : elle est écrite dans le journal du Kernel, au niveau `WARN`, sur une ligne `Decouverte indisponible (503) pour <nom> : <cause>`. *(Écart E1 du [document 19](19-feuille-de-route.md), décidé le 14 novembre 2026. Avant : `500` générique sans détail.)*
+
 Un service inconnu du Registry (mais présent dans le Discovery) reçoit les
 valeurs par défaut. C'est ce que consomment les SDK et le sidecar
 ([12](12-communication-fabric.md)).
@@ -144,7 +146,7 @@ Cette API expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#confi
   5. toute clé **sans valeur par défaut** est présente (sinon `400` qui liste les clés manquantes).
 - **Réponse** : `202 Accepted`, en-tête `Location` vers la lecture, corps `{ serviceId, environment, version, configurationUrl }`.
 - **Effet** : si le service n'est ni arrêté ni en retrait, il est enfilé dans la work queue ; la réconciliation relit tout (level-triggered) et met à jour la `Condition` `ConfigResolved` ([09](09-cycle-de-vie.md)). Un service arrêté garde sa configuration, qui s'appliquera à un redéploiement.
-- **Store indisponible** : `503`, rien n'est publié.
+- **Store indisponible** : `503`, rien n'est publié. La cause (code HTTP et corps de Consul, ou nom de l'exception réseau) est écrite dans le journal du Kernel, au niveau `WARN`, sur une ligne `Publication de configuration refusee (503) pour <id> : <cause>` ; la réponse reste sans corps. *(Écart E2 du [document 19](19-feuille-de-route.md), décidé le 14 novembre 2026. La lecture, `GET …/configuration`, garde son `503` actuel sans ligne de journal : non décidé.)*
 
 **Lecture — `GET /api/v1/services/{id}/configuration?environment=<env>`**
 
