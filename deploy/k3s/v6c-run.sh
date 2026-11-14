@@ -22,5 +22,5 @@ for i in $(seq 1 15); do
   sleep 10; P=$(phase); echo "  +$((i*10)) s : phase = $P"
   [ "$P" = "STOPPED" ] && break
 done
-printf "Deployment v6-news dans le cluster (attendu apres un arret reussi : NotFound) : "
+printf "Deployment v6-news dans le cluster (attendu apres un arret reussi : present, a 0 replica, 0/0, doc 07) : "
 kc -n egen get deployment v6-news 2>&1 | tail -1

@@ -60,6 +60,7 @@ health:
     timeout: 2s
     failuresBeforeUnhealthy: 3
 EOY
+B0=$(grep -c "HTTP 401" "$LOG" 2>/dev/null || true)
 echo "=== 2. declarer v6-news et attendre qu'un pod tourne (jusqu'a 150 s)"
 curl -s -m 15 -w ' [HTTP %{http_code}]\n' -X POST $K/api/v1/services -H "Authorization: Bearer $(token)" -H "Content-Type: application/yaml" \
   -H "Idempotency-Key: v6a-decl-$RANDOM" --data-binary @"$D/v6-news.yaml"
@@ -68,6 +69,8 @@ for i in $(seq 1 30); do
   case "$(phase_only)" in FAILED) break;; esac; sleep 5
 done
 kc -n egen get pods --no-headers 2>&1 | head -3
+B1=$(grep -c "HTTP 401" "$LOG" 2>/dev/null || true)
+if [ "${B1:-0}" -gt "${B0:-0}" ]; then echo "ECHEC : Kubernetes refuse (HTTP 401) le jeton que le KERNEL EN MARCHE a charge a son demarrage (ancien cluster ?). Redemarrer le Kernel dans T1 apres v45-setup.sh (source /tmp/v45/env.sh puis java -jar), puis relancer ce script."; exit 1; fi
 echo "  etat avant l'arret :"; printf "  "; status
 phase_only() { curl -s -m 10 $K/api/v1/services/v6-news/status -H "Authorization: Bearer $(token)" | python3 -c "
 import sys,json
@@ -95,6 +98,6 @@ done
 echo "=== 4. controles"
 echo "  lignes de journal « Echec de deregistrement » pour cet arret : $(( $(dereg_lines) - A ))  (mode absent : 5 attendues ; mode retour : 1 a 4 si l'arret reussit apres le retour de Consul)"
 grep "Echec de deregistrement pour v6-news" "$LOG" | tail -6 | sed 's/^/    /'
-printf "  Deployment v6-news (attendu apres STOPPED : NotFound) : "; kc -n egen get deployment v6-news 2>&1 | tail -1
+printf "  Deployment v6-news (attendu apres STOPPED : present, a 0 replica, 0/0 ; `stop` garde le Deployment, doc 07) : "; kc -n egen get deployment v6-news 2>&1 | tail -1
 echo "  statut final :"; printf "  "; status
 echo "Nettoyage : docker rm -f egen-consul (si lance) ; puis bash deploy/k3s/v45-clean.sh quand tu as fini."
