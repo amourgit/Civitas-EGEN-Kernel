@@ -21,6 +21,11 @@ final class FakeDiscoveryPort implements DiscoveryPort {
 
     private final Map<ServiceId, Map<String, ResolvedInstance>> registered = new ConcurrentHashMap<>();
     private boolean alwaysThrowOnRegister = false;
+    private boolean alwaysThrowOnDeregister = false;
+
+    void setAlwaysThrowOnDeregister(boolean value) {
+        this.alwaysThrowOnDeregister = value;
+    }
 
     void setAlwaysThrowOnRegister(boolean value) {
         this.alwaysThrowOnRegister = value;
@@ -43,6 +48,10 @@ final class FakeDiscoveryPort implements DiscoveryPort {
 
     @Override
     public void deregister(ServiceId id, String instanceId) {
+        if (alwaysThrowOnDeregister) {
+            throw new africa.civitas.egen.application.port.DiscoveryException(
+                    "panne simulee du deregistrement (Consul injoignable)");
+        }
         Map<String, ResolvedInstance> instances = registered.get(id);
         if (instances != null) {
             instances.remove(instanceId);

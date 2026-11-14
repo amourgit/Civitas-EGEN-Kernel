@@ -146,6 +146,7 @@ Exemple : le workflow `publish-article` réserve un créneau (`reserve-notificat
 | `CONFIGURED` | `MessagingBindingsReady = False` (`MessagingUnavailable`, `PortNotConfigured`) | Les flux d'événements ne sont pas garantis : le service n'est **pas déployé** tant qu'ils ne le sont pas. | Rétablir le courtier NATS ; les flux sont re-garantis à chaque cycle. |
 | `DEPLOYING` depuis longtemps | `DeploymentReady` | L'adapter a créé le déploiement mais les instances ne deviennent pas saines. | Voir ci-dessous « côté moteur ». |
 | `DEGRADED` | `DeploymentReady` | Une partie seulement des instances est saine. | Voir ci-dessous « côté moteur ». |
+| `STOPPING` depuis plus d'une minute | `DiscoveryDeregistered` | `DeregistrationRetrying` : Consul ne répond pas au dé-enregistrement, le moteur réessaie (2, 4, 8, 16 s). `DeregistrationIncomplete` : cinq échecs, l'arrêt continue ; le service passera `STOPPED`, mais Consul peut garder une entrée. | Rétablir Consul. Si le service est `STOPPED` avec `DeregistrationIncomplete`, vérifier dans Consul qu'il ne reste pas d'instance de ce service ([09](09-cycle-de-vie.md#quand-le-dé-enregistrement-échoue-consul-injoignable)). |
 
 **`DEGRADED` ne devient jamais `FAILED` tout seul.** Le document 09 prévoit « un délai configurable » ; aucun délai n'est appliqué (point ouvert 4 de [19](19-feuille-de-route.md)). Un service peut donc rester `DEGRADED` indéfiniment : c'est à l'alerte et à l'opérateur d'agir. Il repasse en `RUNNING` tout seul dès que les instances redeviennent saines.
 

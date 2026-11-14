@@ -90,7 +90,8 @@ d'événements — jamais une valeur de configuration ni de secret.
 | Condition | Évaluée | `True` | `False` — et ce que cela provoque |
 | --- | --- | --- | --- |
 | `ManifestValid` | à `DECLARED` → `REGISTERED` | `Valid` | jamais `False` en pratique : un manifeste invalide est refusé en `400` avant toute persistance |
-| `ConfigResolved` | à `REGISTERED`, avant `CONFIGURED` | `NothingToResolve` (aucune configuration ni secret déclarés), `Resolved` | le service **reste `REGISTERED`** et la résolution est retentée à chaque cycle — ce n'est pas un échec du service : un secret ou une clé manquants peuvent être fournis plus tard sans toucher au manifeste. `reason` : `SecretUnresolved`, `RequiredKeyMissing`, `InvalidConfigurationValue`, `ConfigurationUnavailable`, `PortNotConfigured` |
+| `ConfigResolved` | à `REGISTERED`, avant `CONFIGURED` | `NothingToResolve` (aucune configuration ni secret déclarés), `Resolved` | le service **reste `REGISTERED`** et la résolution est retentée — avec un **délai croissant** (2, 4, 8, 16, 32 secondes, puis 60 secondes au plus entre deux tentatives ; écart E3, décidé le 14 novembre 2026) — ce n'est pas un échec du service : un secret ou une clé manquants peuvent être fournis plus tard sans toucher au manifeste. `reason` : `SecretUnresolved`, `RequiredKeyMissing`, `InvalidConfigurationValue`, `ConfigurationUnavailable`, `PortNotConfigured` |
+| `DiscoveryDeregistered` | à `STOPPING`, au dé-enregistrement | `Deregistered` (réussi ; le message dit après combien d'échecs s'il y en a eu) | `DeregistrationRetrying` (nouvelle tentative prévue, le message donne `tentative n/5` et la cause), `DeregistrationIncomplete` (cinq échecs : l'arrêt continue, voir « Quand le dé-enregistrement échoue ») |
 | `DependenciesSatisfied` | à `CONFIGURED` | `AllSatisfied`, `OptionalDependencyUnavailable` | le service reste `CONFIGURED` (voir [10](10-gestion-des-dependances.md)) |
 | `MessagingBindingsReady` | à `CONFIGURED` avant le déploiement, puis à **chaque cycle** | `NoEventsDeclared`, `StreamsEnsured` | à `CONFIGURED` : le service **n'est pas déployé** tant que ses flux ne sont pas garantis (publier dans un flux inexistant perdrait les premiers événements). Une fois `RUNNING` : la Condition passe à `False` mais **le service n'est jamais dégradé** pour autant. `reason` : `MessagingUnavailable`, `PortNotConfigured` |
 | `DeploymentReady`, `DiscoveryReady` | de `DEPLOYING` à `RUNNING`/`DEGRADED` | convergence atteinte | voir ci-dessus |
@@ -114,6 +115,28 @@ compte :
    processus/conteneur via Nomad.
 
 **Si le Kernel meurt pendant l'arrêt.** Le marqueur « désinscrit à tel instant » que le moteur utilise pour compter le délai de grâce est gardé **en mémoire**, pas persisté. Un Kernel redémarré le retrouve vide : il refait la désinscription (idempotente), puis attend de nouveau tout le délai de grâce avant d'arrêter. L'arrêt est donc plus long que prévu, jamais incomplet ; c'est vérifié par le test de chaos de niveau 6a ([17](17-strategie-de-tests.md#niveau-6a--mort-brutale-du-processus-simulée-de-façon-déterministe-livré)).
+
+### Quand le dé-enregistrement échoue (Consul injoignable)
+
+*Écart E4 du [document 19](19-feuille-de-route.md). Décidé par Samuel le 14 novembre 2026 (avis de Claude retenu).*
+
+**Les termes.** *Dé-enregistrer* : retirer du Discovery (Consul) chaque instance du service, pour que les clients cessent de lui envoyer du trafic (étape 1 ci-dessus). *Au mieux* : on essaie, et si cela échoue de façon répétée, on continue quand même l'arrêt au lieu de le bloquer.
+
+**Le problème.** Avant cette règle, si Consul ne répondait pas au moment d'un `actions/stop`, le service restait `STOPPING` sans fin : le dé-enregistrement était retenté toutes les 30 à 60 secondes sans plafond, le Deployment n'était jamais supprimé, et aucune Condition n'expliquait le blocage (la cause n'était que dans le journal).
+
+**Le contrat.**
+
+1. Chaque échec du dé-enregistrement est compté, **à part** du compteur d'échecs de déploiement. Un échec écrit une ligne `WARN` (`Echec de deregistrement pour <id> (n/5) : <cause>`).
+2. Aux échecs 1 à 4, le service **reste `STOPPING`**. La Condition `DiscoveryDeregistered = False`, `reason = DeregistrationRetrying`, dit `tentative n/5 : <cause>`. La nouvelle tentative a lieu après **2, 4, 8 puis 16 secondes**.
+3. Au **cinquième échec**, l'arrêt **continue** : la Condition devient `DeregistrationIncomplete` (« après 5 échecs, l'arrêt continue ; des entrées Discovery peuvent rester jusqu'à l'expiration de leurs contrôles de santé »), puis le délai de grâce s'applique comme d'habitude, puis le Deployment est supprimé, et le service passe `STOPPED`. La Condition est conservée dans le statut `STOPPED`.
+4. Si une tentative réussit avant le cinquième échec, la Condition devient `Deregistered` (`True`) et le message dit après combien d'échecs. Le compteur repart de zéro.
+5. Le service ne passe **jamais** `FAILED` à cause du dé-enregistrement : `STOPPING → FAILED` reste interdit par la machine à états.
+
+**Pourquoi « au mieux ».** Un arrêt qui ne s'exécute pas pendant un incident est plus grave qu'une entrée Consul périmée : ses contrôles de santé la retirent d'eux-mêmes. Le prix : pendant ce délai, des clients peuvent encore recevoir l'adresse d'une instance en cours d'arrêt.
+
+**Ce que cette règle ne couvre pas.** Un échec de `DeploymentPort.stop()` (Nomad ou Kubernetes refuse la suppression) n'est pas concerné : il suit toujours le chemin d'échec d'adapter existant.
+
+**Exemple de bout en bout.** L'opérateur demande l'arrêt de `news`. Consul est arrêté. T+0 : échec 1, Condition `tentative 1/5 : …`, nouvelle tentative dans 2 s. T+2 s, T+6 s, T+14 s : échecs 2, 3, 4. T+30 s : échec 5, la Condition passe à `DeregistrationIncomplete`. Après le délai de grâce du manifeste, le Deployment est supprimé et `news` est `STOPPED`. L'opérateur lit `GET …/status` : phase `STOPPED`, Condition `DiscoveryDeregistered = False` avec la cause, et sait qu'il reste peut-être une entrée dans Consul.
 
 Inverser cet ordre (arrêter Nomad avant de désenregistrer Consul) provoque
 des erreurs 502/connexions refusées côté clients pendant la fenêtre de
