@@ -4,6 +4,7 @@ import africa.civitas.egen.api.dto.ConditionDto;
 import africa.civitas.egen.api.dto.ConfigurationDto;
 import africa.civitas.egen.api.dto.DependenciesDto;
 import africa.civitas.egen.api.dto.DeploymentDto;
+import africa.civitas.egen.api.dto.SecurityDto;
 import africa.civitas.egen.api.dto.EventsDto;
 import africa.civitas.egen.api.dto.HealthDto;
 import africa.civitas.egen.api.dto.HttpCheckDto;
@@ -29,6 +30,7 @@ import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.ManifestMetadata;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ReplicaRange;
+import africa.civitas.egen.domain.model.SecuritySpec;
 import africa.civitas.egen.domain.model.ResourceReference;
 import africa.civitas.egen.domain.model.RuntimeType;
 import africa.civitas.egen.domain.model.ServiceId;
@@ -78,7 +80,8 @@ public final class ServiceManifestMapper {
                 dto.deployment.image,
                 dto.deployment.resources.cpu,
                 dto.deployment.resources.memory,
-                new ReplicaRange(dto.deployment.replicas.min, dto.deployment.replicas.max));
+                new ReplicaRange(dto.deployment.replicas.min, dto.deployment.replicas.max),
+                securityFrom(dto.deployment.security));
 
         if (dto.health == null || dto.health.http == null) {
             throw new IllegalArgumentException("ServiceManifest.health.http est obligatoire");
@@ -151,6 +154,7 @@ public final class ServiceManifestMapper {
         dto.deployment.replicas = new ReplicasDto();
         dto.deployment.replicas.min = manifest.deployment().replicas().min();
         dto.deployment.replicas.max = manifest.deployment().replicas().max();
+        dto.deployment.security = securityToDto(manifest.deployment().security());
 
         dto.health = new HealthDto();
         dto.health.http = new HttpCheckDto();
@@ -314,6 +318,27 @@ public final class ServiceManifestMapper {
     }
 
     /** Une entree de liste YAML vide (« - ») deserialise en null : message explicite plutot qu'un NPE. */
+    /** Bloc deployment.security : facultatif ; un bloc vide equivaut a son absence (docs/architecture/06). */
+    private static SecuritySpec securityFrom(SecurityDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        return new SecuritySpec(dto.runAsNonRoot, dto.runAsUser, dto.readOnlyRootFilesystem,
+                dto.dropAllCapabilities);
+    }
+
+    private static SecurityDto securityToDto(SecuritySpec spec) {
+        if (spec == null) {
+            return null;
+        }
+        SecurityDto dto = new SecurityDto();
+        dto.runAsNonRoot = spec.runAsNonRoot();
+        dto.runAsUser = spec.runAsUser();
+        dto.readOnlyRootFilesystem = spec.readOnlyRootFilesystem();
+        dto.dropAllCapabilities = spec.dropAllCapabilities();
+        return dto;
+    }
+
     private static void requireEntry(Object entry, String field) {
         if (entry == null) {
             throw new IllegalArgumentException(field + " : entree vide");

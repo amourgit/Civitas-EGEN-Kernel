@@ -5,4 +5,5 @@ public class DeploymentDto {
     public String image;
     public ResourcesDto resources;
     public ReplicasDto replicas;
+    public SecurityDto security;
 }

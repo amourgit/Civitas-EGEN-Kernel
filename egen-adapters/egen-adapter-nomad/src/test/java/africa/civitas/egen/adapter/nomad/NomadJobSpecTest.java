@@ -96,4 +96,24 @@ class NomadJobSpecTest {
         assertTrue(group.path("Tasks").get(0).path("Resources").path("MemoryMB").asInt() > 0);
         assertFalse(group.path("Tasks").get(0).path("Config").path("image").asText().isBlank());
     }
+
+    /** docs/architecture/06, « deployment.security », regle 5 : jamais ignore en silence. */
+    @Test
+    void aManifestWithASecurityBlockIsRefusedNamingTheRequestedFieldsAndNoJobIsSubmitted() {
+        NomadDeploymentAdapter adapter = new NomadDeploymentAdapter(
+                URI.create("http://127.0.0.1:" + nomad.getAddress().getPort()), null);
+        DeploymentSpec spec = new DeploymentSpec("nomad", "registry.civitas.africa/news-service:2.4.0", "500m",
+                "512Mi", new ReplicaRange(2, 6),
+                new africa.civitas.egen.domain.model.SecuritySpec(true, null, null, true));
+
+        africa.civitas.egen.application.port.DeploymentException error = org.junit.jupiter.api.Assertions.assertThrows(
+                africa.civitas.egen.application.port.DeploymentException.class,
+                () -> adapter.create(ServiceId.of("news-service"), spec));
+
+        assertTrue(error.getMessage().contains("nomad"), error.getMessage());
+        assertTrue(error.getMessage().contains("runAsNonRoot"), error.getMessage());
+        assertTrue(error.getMessage().contains("dropAllCapabilities"), error.getMessage());
+        assertFalse(error.getMessage().contains("runAsUser"), error.getMessage());
+        assertEquals(0, submitted.size());
+    }
 }

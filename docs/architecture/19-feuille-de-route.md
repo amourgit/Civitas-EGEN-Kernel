@@ -21,7 +21,7 @@ Mise à jour : 10 novembre 2026. **Reprendre par la section « Reprise de sessio
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
 | Phase P0 « production du Kernel » | **Validée, à faire** | Validée par Samuel le 14 novembre 2026 ; 6 étapes P0-1 à P0-6, non commencées |
 | Points ouverts du Kernel | **Tous tranchés** | Réponses de Samuel du 14 novembre 2026 ; voir la section « Points ouverts du Kernel — tranchés » |
-| Durcissement des pods Kubernetes (K9) | **Décidé, à faire** | Option (a) ; 4 étapes K9-1 à K9-4, non commencées |
+| Durcissement des pods Kubernetes (K9) | **En cours** | Option (a) ; K9-1 à K9-3 faites (code à valider par `mvn verify`), test de niveau 3 non écrit, K9-4 à faire |
 | Phase G « surface gRPC » | **Décidée, à faire** | Décidée par Samuel le 14 novembre 2026 ; 6 étapes G1 à G6, non commencées |
 | **Ordre de réalisation** | K9, puis P0, puis G | K9 est le plus court ; G suit P0 (une image et un job Nomad existent avant d'exposer une seconde porte) |
 | Nettoyage du code non conforme (N1) | **Fait** | Audit complet du 3 novembre 2026 ; 3 écarts, tranchés le 14 novembre 2026 (points ouverts 3 à 5) |
@@ -610,11 +610,11 @@ La Plateforme (voir [22](22-frontiere-avec-la-plateforme.md)) se construit au-de
 deployment:
   security:
     runAsNonRoot: true            # défaut : non posé
-    runAsUser: 10001              # facultatif ; entier supérieur ou égal à 1 ; obligatoire si l'image n'a pas d'utilisateur non-root
+    runAsUser: 10001              # facultatif ; entier de 1 à 2147483647
     readOnlyRootFilesystem: true  # défaut : non posé
     dropAllCapabilities: true     # défaut : non posé
 ```
-Sans ce bloc, l'adapter pose le socle actuel (rien de plus strict). Avec ce bloc, il pose exactement ce que le propriétaire demande. Chaque champ absent n'est pas posé. **Règles de validation** (refus du `Declare`, `400`) : `runAsUser` doit être supérieur ou égal à 1 ; `runAsNonRoot: true` avec `runAsUser: 0` est contradictoire. **Adapter qui ne sait pas appliquer un champ** (Nomad) : le `Declare` est refusé avec un message qui nomme le champ et l'adapter (jamais ignoré en silence).
+Sans ce bloc, l'adapter pose le socle actuel (rien de plus strict). Avec ce bloc, il pose exactement ce que le propriétaire demande. Chaque champ absent n'est pas posé. **Règles de validation** (refus du `Declare`, `400`) : `runAsUser` doit être compris entre 1 et 2147483647 ; un champ inconnu ou d'un mauvais type est refusé ; le Kernel n'ajoute aucun volume. **Adapter qui ne sait pas appliquer un champ** (Nomad) : il refuse à la création ou à la mise à jour du service, avec un message qui nomme le champ et l'adapter, jamais en l'ignorant en silence ; le service suit le chemin d'échec d'adapter habituel et la Condition `DeploymentReady` porte ce message.
 
 **Exemple de bout en bout.** L'équipe `content-platform` déclare `news-service` avec une image dont le programme tourne sous l'utilisateur 10001 et écrit seulement dans `/tmp` : elle ajoute `runAsNonRoot: true`, `readOnlyRootFilesystem: true`, `dropAllCapabilities: true`. Kubernetes lance le pod durci. Une autre équipe garde l'image `nginx` d'origine sans bloc `security` : son pod continue de démarrer comme avant.
 
@@ -622,10 +622,10 @@ Sans ce bloc, l'adapter pose le socle actuel (rien de plus strict). Avec ce bloc
 |---|---|---|
 | **K9-1 — Contrat** | section « `deployment.security` » du doc 06 (champs, défauts, validation, exemple) ; doc 07 (adapter Kubernetes : correspondance des champs ; adapter Nomad : champs non supportés) | relecture : aucun champ sans défaut ni règle de validation |
 | **K9-2 — Domaine et lecture du manifeste** | type `SecuritySpec` facultatif dans `DeploymentSpec` ; lecture du YAML et du JSON ; validation | niveau 1 : toutes les règles de validation, un test par règle ; aller-retour YAML ↔ objet ↔ réponse `GET /api/v1/services/{id}` sans perte |
-| **K9-3 — Adapter Kubernetes** | le `securityContext` du pod et du conteneur reflète `deployment.security` ; l'adapter Nomad refuse les champs qu'il ne supporte pas | niveau 2 (faux serveur Kubernetes) : le JSON envoyé contient exactement les champs demandés, et le socle actuel quand le bloc est absent ; niveau 3 (k3s réel) : une image non-root avec `runAsNonRoot` démarre ; l'image `nginx` d'origine avec `runAsNonRoot` échoue avec un message lisible dans la Condition |
+| **K9-3 — Adapter Kubernetes** | le `securityContext` du pod et du conteneur reflète `deployment.security` ; l'adapter Nomad refuse (à la création ou à la mise à jour) un manifeste qui porte `deployment.security` | niveau 2 (faux serveur Kubernetes) : le JSON envoyé contient exactement les champs demandés, et le socle actuel quand le bloc est absent ; niveau 3 (k3s réel) : une image non-root avec `runAsNonRoot` démarre ; l'image `nginx` d'origine avec `runAsNonRoot` échoue avec un message lisible dans la Condition |
 | **K9-4 — Clôture du constat K9** | doc 24 mis à jour | `mvn verify` vert |
 
-Statut : `[ ]` K9-1 à K9-4, non commencées.
+Statut : **K9-1 `[x]`** (contrat écrit dans les docs 06 et 07) ; **K9-2 `[x]`** et **K9-3 `[x]`** pour le code et les tests de niveaux 1 et 2 (domaine `SecuritySpec`, lecture et écriture du manifeste, stockage PostgreSQL, adapter Kubernetes, refus par l'adapter Nomad), **à valider par `mvn verify`** ; **le test de niveau 3 sur un vrai k3s (image non-root qui démarre, image `nginx` avec `runAsNonRoot` qui échoue) n'est pas écrit** ; K9-4 `[ ]` (clôture du constat K9 dans le doc 24, après la validation).
 
 
 ## Phase 6 (continue) — Extensibilité prouvée et durcissement
