@@ -48,7 +48,7 @@ egen-kernel/                              (repo racine — build multi-module Ma
 ├── egen-api/                             # Adapters PRIMAIRES : contrôleurs REST + services gRPC
 │   └── src/main/java/africa/civitas/egen/api/
 │       ├── rest/                         # contrôleurs REST, DTOs de transport (JAMAIS les entités de domaine directement)
-│       ├── grpc/                         # implémentations des services Protobuf
+│       ├── grpc/                         # implémentations des services Protobuf (phase G, [19](19-feuille-de-route.md) ; non livrées au 14 novembre 2026)
 │       └── mapper/                       # DTO <-> Domain (aucune fuite de type de domaine dans les DTO ni l'inverse)
 │
 ├── egen-contracts/                       # schémas partagés : JSON Schema du ServiceManifest, .proto, OpenAPI

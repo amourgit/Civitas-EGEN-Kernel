@@ -10,7 +10,63 @@
 - **gRPC/Protobuf** : pour les intégrations machine-à-machine à fort
   volume ou basse latence (ex. un système CI qui déclenche des milliers de
   déploiements), et pour le mode « streaming de statut » (`watch` en flux
-  continu plutôt qu'en polling REST).
+  continu plutôt qu'en polling REST). Contrat écrit, serveur en cours de
+  construction : voir « Surface gRPC (phase G) » ci-dessous.
+
+### Surface gRPC (phase G)
+
+*Statut au 14 novembre 2026 : le **contrat** (étape G1 de la [phase G](19-feuille-de-route.md)) est écrit et compile avec `protoc` ; le **serveur n'est pas livré** (étapes G2 à G6).*
+
+**Les termes.** *gRPC* : protocole d'appel à distance sur HTTP/2 dont les messages sont décrits dans un fichier `.proto`. *Flux serveur* : le client envoie une demande, le serveur répond par une suite de messages sur la même connexion. *Métadonnées* : les en-têtes d'un appel gRPC (l'équivalent des en-têtes HTTP).
+
+**Le contrat.** Le fichier `egen-contracts/src/main/resources/proto/egen_control.proto` est la **seule source**. Son paquet est `africa.civitas.egen.control.v1`, et le service s'appelle `ServiceControl`. Il est livré aux clients dans le jar `egen-contracts` (et peut être copié depuis le dépôt). Le serveur est servi sur **le même port que le REST** (8080), avec **la même authentification** : le jeton Keycloak passe dans la métadonnée `authorization: Bearer <jeton>`.
+
+| Méthode | Équivalent REST | Rôle exigé | Demande → réponse |
+|---|---|---|---|
+| `Declare` | `POST /api/v1/services` | `egen-admin` | `DeclareRequest{manifest_yaml, environment}` → `DeclareResponse{service_id, generation}` |
+| `Get` | `GET /api/v1/services/{id}` | tout appelant authentifié | `GetRequest{service_id}` → `ServiceManifest{service_id, manifest_yaml}` |
+| `List` | `GET /api/v1/services` | tout appelant authentifié | `ListRequest{}` → `ListResponse{services[]}` |
+| `Stop` | `POST /api/v1/services/{id}/actions/stop` | `egen-admin` | `StopRequest{service_id}` → `StopResponse{}` |
+| `Resolve` | `GET /api/v1/discover/{nom}` | tout appelant authentifié | `ResolveRequest{service_name}` → `ResolveResponse{service_id, instances[], resiliency}` |
+| `WatchStatus` | `GET /api/v1/services/{id}/status`, en flux | tout appelant authentifié | `WatchStatusRequest{service_id}` → **flux** de `ServiceStatus{service_id, phase, observed_generation, conditions[]}` |
+
+**Pourquoi le manifeste passe en texte YAML.** `Declare` et `Get` portent le manifeste comme le **même document YAML qu'en REST**. Ainsi un seul lecteur et un seul jeu de règles de validation (doc [06](06-service-manifest.md)) existent, et un champ ajouté au manifeste n'oblige pas à modifier le contrat gRPC.
+
+**Métadonnées d'appel.**
+
+| Métadonnée | Usage |
+|---|---|
+| `authorization` | `Bearer <jeton Keycloak>` : obligatoire sur chaque méthode |
+| `idempotency-key` | clé d'idempotence de `Declare` et `Stop`, même règle qu'en REST (13, « Idempotence ») |
+| `traceparent` | contexte de trace W3C, comme en REST |
+
+**Correspondance des erreurs** (même sens qu'en REST) :
+
+| REST | Code gRPC |
+|---|---|
+| `400` | `INVALID_ARGUMENT` |
+| `401` | `UNAUTHENTICATED` |
+| `403` | `PERMISSION_DENIED` |
+| `404` | `NOT_FOUND` |
+| `409` (par exemple `Declare` pendant `STOPPING`, adapter immuable) | `FAILED_PRECONDITION` |
+| `422` (clé d'idempotence rejouée avec un autre corps) | `ALREADY_EXISTS` |
+| `503` | `UNAVAILABLE` |
+
+**Le flux `WatchStatus`.** Le serveur envoie un message au début, puis un message **à chaque changement** de phase, de Condition ou de génération, en lisant le statut chaque seconde. Il termine le flux après le dernier message quand le service atteint `STOPPED`, `FAILED` ou `REMOVED`, et le client peut l'annuler à tout moment. Un service inconnu donne `NOT_FOUND`. Le nombre de flux simultanés par appelant et la durée maximale d'un flux sont bornés (`RESOURCE_EXHAUSTED` au-delà).
+
+**Compatibilité.** On peut ajouter un message, un champ (avec un **nouveau numéro**) ou une méthode. On ne supprime ni ne renomme jamais un élément existant, et on ne change jamais le numéro, le type ou la cardinalité (`repeated`) d'un champ : une évolution incompatible crée le paquet `africa.civitas.egen.control.v2` à côté de `v1`. Le descripteur de référence `egen-contracts/baseline/egen_control.v1.descriptor` fige la version `v1` ; la commande suivante vérifie la compatibilité (prérequis : `pip install grpcio-tools`) :
+```
+python3 egen-contracts/tools/check_proto_compat.py
+```
+*Vérifiée le 14 novembre 2026 : elle accepte l'ajout d'un champ et refuse un numéro changé, un type changé et une méthode supprimée.*
+
+**Exemple de bout en bout** *(à rejouer contre un Kernel réel quand le serveur sera livré : vérification V12)* :
+1. `Declare` avec le manifeste de `news-service` et `idempotency-key: demo-1` → `{service_id: "news-service", generation: 1}`.
+2. `WatchStatus{service_id: "news-service"}` → un premier message `phase: "DECLARED"`, puis `REGISTERED`, `CONFIGURED`, `DEPLOYING`, `RUNNING`. Le flux reste ouvert.
+3. `Resolve{service_name: "news-service"}` → les instances saines `{instance_id, address, port}`.
+4. `Stop{service_id: "news-service"}` → réponse vide ; le flux de l'étape 2 reçoit `STOPPING`, puis `STOPPED` et se termine.
+
+Avec `grpcurl` : `grpcurl -plaintext -proto egen_control.proto -H "authorization: Bearer $TOKEN" -d '{"service_id":"news-service"}' localhost:8080 africa.civitas.egen.control.v1.ServiceControl/WatchStatus`.
 
 ## Ressources de premier niveau de l'API
 
