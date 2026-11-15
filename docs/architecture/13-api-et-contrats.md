@@ -15,7 +15,7 @@
 ## Ressources de premier niveau de l'API
 
 ```
-/api/v1/services                          # CRUD sur ServiceManifest (Declare). Un Declare sur un service FAILED ou STOPPED le relance (09, « Relance par Declare »)
+/api/v1/services                          # CRUD sur ServiceManifest (Declare). Un Declare sur un service FAILED ou STOPPED le relance (09, « Relance par Declare ») ; sur un service STOPPING il est refusé avec `409` (09, « Déclarer pendant un arrêt »)
 /api/v1/services/{id}/status              # lecture du ServiceStatus (Observe)
 /api/v1/services/{id}/history             # historique des générations — NON LIVRÉ
 /api/v1/services/{id}/configuration      # publication/lecture de la configuration technique d'un service (évolution A3)

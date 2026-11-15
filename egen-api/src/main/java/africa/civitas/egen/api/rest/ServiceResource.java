@@ -13,6 +13,7 @@ import africa.civitas.egen.application.port.TraceContext;
 import africa.civitas.egen.application.port.TraceSpan;
 import africa.civitas.egen.application.usecase.DeclareResult;
 import africa.civitas.egen.application.usecase.DeploymentAdapterChangeException;
+import africa.civitas.egen.application.usecase.ServiceStoppingException;
 import africa.civitas.egen.application.usecase.DeployServiceUseCase;
 import africa.civitas.egen.application.usecase.GetServiceStatusUseCase;
 import africa.civitas.egen.application.usecase.ReadServiceManifestUseCase;
@@ -131,6 +132,9 @@ public class ServiceResource {
                     throw new BadRequestException(e.getMessage());
                 } catch (DeploymentAdapterChangeException e) {
                     // L'adapter d'un service existant est immuable (07, « Sélection et routage »).
+                    throw new ClientErrorException(e.getMessage(), Response.Status.CONFLICT);
+                } catch (ServiceStoppingException e) {
+                    // Declare pendant STOPPING : refuse (09, « Declare pendant un arret », ecart I19).
                     throw new ClientErrorException(e.getMessage(), Response.Status.CONFLICT);
                 }
                 String statusUrl = "/api/v1/services/" + result.serviceId().value() + "/status";
