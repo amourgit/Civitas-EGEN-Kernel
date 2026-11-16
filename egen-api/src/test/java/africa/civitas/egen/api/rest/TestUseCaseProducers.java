@@ -1,6 +1,8 @@
 package africa.civitas.egen.api.rest;
 
 import africa.civitas.egen.application.port.DiscoveryPort;
+import africa.civitas.egen.application.port.IdempotencyStorePort;
+import africa.civitas.egen.application.registry.InMemoryIdempotencyStore;
 import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import africa.civitas.egen.application.port.WorkflowStorePort;
@@ -126,6 +128,13 @@ public class TestUseCaseProducers {
     @ApplicationScoped
     RegistryStorePort registryStorePort() {
         return registryStorePort;
+    }
+
+    /** Reponses rejouables en memoire : les tests n'ont qu'un exemplaire du Kernel (phase P0, etape P0-3). */
+    @Produces
+    @ApplicationScoped
+    IdempotencyStorePort idempotencyStorePort() {
+        return new InMemoryIdempotencyStore();
     }
 
     @Produces

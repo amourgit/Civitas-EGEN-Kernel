@@ -111,7 +111,7 @@ Chaque constat a été vérifié dans le code du dépôt (branche `main`, 29 oct
 | `runtime.type` (`container`, `binary`, `external`, `vm`) est conservé mais **non différencié** : tout déploiement passe par le Deployment Adapter | Une application déjà exploitée hors du Kernel n'est pas gérée par lui | D15 ; déclencheur **A-X1** ([19](19-feuille-de-route.md)) |
 | L'adapter Nomad **ne gère pas** les namespaces Nomad ; `TargetEnvironment` est un nom d'environnement, pas une frontière de tenant | Aucune isolation d'infrastructure par tenant via le Kernel | Isolation par les données ou par instance dédiée ; déclencheur **A-X2** |
 | Le RBAC de l'API n'a que deux niveaux : lire (tout appelant authentifié) et modifier (rôle administrateur) ; `metadata.team` est informatif | Il ne représente ni équipe, ni hiérarchie de cellules ; le Kernel ne sépare pas une équipe d'une autre | Volontaire : l'autorisation métier n'est pas dans le Kernel |
-| La clé d'idempotence et les liens de traces sont gardés en mémoire du processus | Un seul exemplaire du Kernel | Voir la phase proposée P0 dans [19](19-feuille-de-route.md) |
+| Les liens de traces entre un `Declare` et son premier cycle de réconciliation sont gardés en mémoire du processus ; la clé d'idempotence est partagée dans PostgreSQL depuis le 16 novembre 2026 (phase P0, étape P0-3) | Avec plusieurs exemplaires, ce lien de trace peut manquer quand le cycle se déroule sur un autre exemplaire que le `Declare` : la trace est coupée, rien ne change au comportement | [19](19-feuille-de-route.md), phase P0 |
 
 ## 22.10 — Où lire la suite
 

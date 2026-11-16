@@ -49,7 +49,6 @@
 | `403` | `PERMISSION_DENIED` |
 | `404` | `NOT_FOUND` |
 | `409` (par exemple `Declare` pendant `STOPPING`, adapter immuable) | `FAILED_PRECONDITION` |
-| `422` (clé d'idempotence rejouée avec un autre corps) | `ALREADY_EXISTS` |
 | `503` | `UNAVAILABLE` |
 
 **Le flux `WatchStatus`.** Le serveur envoie un message au début, puis un message **à chaque changement** de phase, de Condition ou de génération, en lisant le statut chaque seconde. Il termine le flux après le dernier message quand le service atteint `STOPPED`, `FAILED` ou `REMOVED`, et le client peut l'annuler à tout moment. Un service inconnu donne `NOT_FOUND`. Le nombre de flux simultanés par appelant et la durée maximale d'un flux sont bornés (`RESOURCE_EXHAUSTED` au-delà).
@@ -224,10 +223,39 @@ Cette API expose `ConfigurationPort.publish` ([07](07-ports-et-adapters.md#confi
   l'appelant** : la clé de cache combine l'appelant authentifié, la méthode, le
   chemin et la valeur de l'en-tête. Deux appelants qui choisissent la même
   valeur ne partagent donc jamais une entrée (sinon le second recevrait la
-  réponse du premier et sa requête ne serait jamais exécutée). Le cache vit en
-  mémoire du processus, expire après 10 minutes et garde au plus 10 000
-  réponses ; au-delà, les nouvelles réponses ne sont plus rejouables, mais les
-  requêtes sont traitées normalement.
+  réponse du premier et sa requête ne serait jamais exécutée). **Les réponses
+  mémorisées sont gardées dans PostgreSQL, la même base que le Registry** (phase
+  P0, étape P0-3, 16 novembre 2026) : une requête rejouée peut donc arriver sur
+  un **autre exemplaire** du Kernel et recevoir la même réponse. Une réponse
+  est gardée **10 minutes** et seulement si elle est un `2xx` ; la base en garde
+  au plus **10 000** (au-delà, les nouvelles réponses ne sont plus rejouables,
+  mais les requêtes sont traitées normalement) ; une réponse rejouée porte
+  l'en-tête `Idempotency-Replayed: true`.
+
+  *Quatre règles précises.* (1) La clé de cache est réduite à son empreinte
+  SHA-256 avant d'être stockée : une valeur d'en-tête très longue ne peut pas
+  faire échouer l'enregistrement. (2) La première réponse est conservée : une
+  seconde écriture de la même clé ne la remplace jamais. (3) Si la base est
+  inaccessible au moment de **lire** la clé, la mutation est **refusée avec
+  `503`** : le Kernel ne peut pas savoir si elle a déjà eu lieu et préfère ne
+  pas risquer de la refaire. (4) Si la base est inaccessible au moment
+  d'**écrire** la réponse après une mutation réussie, la mutation n'échoue pas
+  (elle a eu lieu) : une ligne `WARN` est écrite et seul son rejeu n'est plus
+  possible.
+
+  *Limite connue, inchangée.* Deux requêtes **simultanées** portant la même
+  clé, avant que la première réponse ne soit gardée, sont toutes deux
+  traitées. Sur un `Declare`, la génération augmente alors deux fois. Réserver
+  la clé au début du traitement exigerait un protocole de réservation, non
+  décidé.
+
+  *Exemple de bout en bout.* Deux exemplaires `kernel-a` et `kernel-b` partagent
+  la base. Une CI envoie `POST /api/v1/services` avec `Idempotency-Key: deploy-42`
+  à `kernel-a` : `202`, génération 1, la réponse est écrite dans PostgreSQL. La
+  connexion tombe avant que la CI ne lise la réponse ; elle réessaie avec la même
+  clé et un répartiteur de charge l'envoie à `kernel-b` : `kernel-b` lit la
+  réponse dans la base et la rejoue (`202`, génération 1, `Idempotency-Replayed:
+  true`) sans rien exécuter. Un seul service existe, à la génération 1.
 - **Limites d'entrée**, explicites et testées (constat K10 de
   [24](24-revue-de-securite-externe.md)). Un manifeste ou une définition de
   workflow fait quelques Ko ; les valeurs par défaut des bibliothèques sont
