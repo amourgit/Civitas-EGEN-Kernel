@@ -28,3 +28,5 @@ docker-compose.override.yml
 
 # Environment
 .env
+# Fichiers de variables reels du job Nomad (contiennent un mot de passe) : jamais versionnes.
+deploy/nomad/*.vars.hcl
