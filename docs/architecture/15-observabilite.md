@@ -41,3 +41,15 @@ disponibilité de l'API de contrôle, temps de détection d'une dégradation
 (délai entre la panne réelle et le passage en phase `DEGRADED`). Ces SLO
 sont suivis dès les premiers environnements de test, pas ajoutés a
 posteriori.
+
+## Export vers un collecteur (écart I6)
+
+*Décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude) ; codé et testé le même jour.*
+
+L'adresse du collecteur OpenTelemetry (protocole OTLP sur gRPC) se règle par `egen.otel.endpoint`, que l'on alimente par la variable d'environnement `OTEL_EXPORTER_OTLP_ENDPOINT`. Sa valeur par défaut est **vide**.
+- **Adresse renseignée** : le Kernel exporte ses traces et ses métriques vers ce collecteur.
+- **Adresse vide** : le Kernel n'exporte **rien** et ne tente aucune connexion. Les spans existent quand même et le `traceparent` continue de se propager entre les appels, mais rien ne part sur le réseau. Une ligne `INFO` au démarrage le dit : « aucun point de collecte configuré ».
+
+*Avant cette règle*, la valeur par défaut était `http://localhost:4317` : sans collecteur, le Kernel écrivait environ 35 lignes d'erreur (`SEVERE`, « Failed to export spans ») toutes les 60 secondes.
+
+**Exemple de bout en bout.** Sur le poste de développement, personne ne lance de collecteur : le journal du Kernel reste silencieux sur ce sujet. En production, le déploiement positionne `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317` et les traces arrivent dans l'outil d'observation.

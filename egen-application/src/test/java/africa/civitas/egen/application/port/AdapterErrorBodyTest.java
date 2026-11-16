@@ -61,4 +61,22 @@ class AdapterErrorBodyTest {
         assertEquals("a".repeat(MAX - 1) + AdapterErrorBody.TRUNCATION_MARK, bounded);
         assertFalse(Character.isHighSurrogate(bounded.charAt(MAX - 2)));
     }
+
+    @Test
+    void aMultiLineBodyBecomesASingleLine() {
+        String body = "{\n  \"kind\": \"Status\",\n\t\"code\": 403\r\n}";
+        assertEquals("{ \"kind\": \"Status\", \"code\": 403 }", AdapterErrorBody.bounded(body));
+    }
+
+    @Test
+    void aBodyOfOnlyBlanksBecomesAnEmptyString() {
+        assertEquals("", AdapterErrorBody.bounded(" \n\t "));
+    }
+
+    @Test
+    void theBoundAppliesAfterTheLineIsCollapsed() {
+        String body = ("a\n").repeat(400); // 800 caracteres, 400 apres reduction a un seul espace
+        assertEquals(("a ").repeat(199) + "a", AdapterErrorBody.bounded(body).substring(0, 399));
+        assertFalse(AdapterErrorBody.bounded(body).contains("\n"));
+    }
 }

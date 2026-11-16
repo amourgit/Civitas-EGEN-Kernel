@@ -136,4 +136,61 @@ class ServiceManifestRoundTripTest {
 
         assertEquals(original, parse(YAML.writeValueAsString(ServiceManifestMapper.toDto(original))));
     }
+
+    // ---- deployment.security (docs/architecture/06, constat K9) --------------------------------------------
+
+    private static String withSecurity(String block) {
+        return FULL.replace("  replicas: { min: 2, max: 6 }\n", "  replicas: { min: 2, max: 6 }\n  security: " + block + "\n");
+    }
+
+    @Test
+    void aSecurityBlockSurvivesDomainToDtoToYamlAndBack() throws Exception {
+        ServiceManifest original = parse(withSecurity(
+                "{ runAsNonRoot: true, runAsUser: 10001, readOnlyRootFilesystem: true, dropAllCapabilities: true }"));
+
+        assertEquals(new africa.civitas.egen.domain.model.SecuritySpec(true, 10001, true, true),
+                original.deployment().security());
+        assertEquals(original, parse(YAML.writeValueAsString(ServiceManifestMapper.toDto(original))));
+    }
+
+    @Test
+    void aManifestWithoutASecurityBlockHasNone() throws Exception {
+        ServiceManifest original = parse(FULL);
+        assertNull(original.deployment().security());
+        assertNull(ServiceManifestMapper.toDto(original).deployment.security);
+    }
+
+    @Test
+    void anExplicitFalseAndAnAbsentFieldStayDistinct() throws Exception {
+        ServiceManifest original = parse(withSecurity("{ runAsNonRoot: false }"));
+        africa.civitas.egen.domain.model.SecuritySpec security = original.deployment().security();
+
+        assertEquals(Boolean.FALSE, security.runAsNonRoot());
+        assertNull(security.readOnlyRootFilesystem());
+        assertEquals(original, parse(YAML.writeValueAsString(ServiceManifestMapper.toDto(original))));
+    }
+
+    @Test
+    void anEmptySecurityBlockEqualsNoBlock() throws Exception {
+        assertEquals(parse(FULL), parse(withSecurity("{}")));
+    }
+
+    @Test
+    void aUserIdOfZeroIsRefusedNamingTheField() {
+        IllegalArgumentException error = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> parse(withSecurity("{ runAsUser: 0 }")));
+        assertTrue(error.getMessage().contains("deployment.security.runAsUser"), error.getMessage());
+    }
+
+    @Test
+    void anUnknownFieldInTheSecurityBlockIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(com.fasterxml.jackson.core.JsonProcessingException.class,
+                () -> parse(withSecurity("{ runAsRoot: true }")));
+    }
+
+    @Test
+    void aWrongTypeInTheSecurityBlockIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(com.fasterxml.jackson.core.JsonProcessingException.class,
+                () -> parse(withSecurity("{ runAsNonRoot: oui }")));
+    }
 }

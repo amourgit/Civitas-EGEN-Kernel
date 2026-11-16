@@ -101,17 +101,25 @@ public final class OtelObservabilityAdapter implements ObservabilityPort, AutoCl
                 AttributeKey.stringKey("service.namespace"), serviceNamespace,
                 AttributeKey.stringKey("deployment.environment"), deploymentEnvironment)));
 
-        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
-                .setResource(resource)
-                .addSpanProcessor(BatchSpanProcessor.builder(
-                        OtlpGrpcSpanExporter.builder().setEndpoint(otlpEndpoint).build()).build())
-                .build();
+        // Ecart I6 (decide le 14 novembre 2026, docs/architecture/15) : sans point de collecte configure, rien n'est
+        // exporte (les spans et les metriques existent et le traceparent se propage, mais aucun appel reseau ne part).
+        boolean export = otlpEndpoint != null && !otlpEndpoint.isBlank();
+        if (!export) {
+            System.getLogger(OtelObservabilityAdapter.class.getName()).log(System.Logger.Level.INFO,
+                    "OpenTelemetry : aucun point de collecte configure (egen.otel.endpoint vide) : traces et "
+                            + "metriques ne sont pas exportees");
+        }
 
-        SdkMeterProvider meterProvider = SdkMeterProvider.builder()
-                .setResource(resource)
-                .registerMetricReader(PeriodicMetricReader.builder(
-                        OtlpGrpcMetricExporter.builder().setEndpoint(otlpEndpoint).build()).build())
-                .build();
+        var tracerProviderBuilder = SdkTracerProvider.builder().setResource(resource);
+        var meterProviderBuilder = SdkMeterProvider.builder().setResource(resource);
+        if (export) {
+            tracerProviderBuilder.addSpanProcessor(BatchSpanProcessor.builder(
+                    OtlpGrpcSpanExporter.builder().setEndpoint(otlpEndpoint).build()).build());
+            meterProviderBuilder.registerMetricReader(PeriodicMetricReader.builder(
+                    OtlpGrpcMetricExporter.builder().setEndpoint(otlpEndpoint).build()).build());
+        }
+        SdkTracerProvider tracerProvider = tracerProviderBuilder.build();
+        SdkMeterProvider meterProvider = meterProviderBuilder.build();
 
         this.sdk = OpenTelemetrySdk.builder()
                 .setTracerProvider(tracerProvider)

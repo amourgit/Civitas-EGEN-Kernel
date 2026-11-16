@@ -21,7 +21,7 @@ FAILED / STOPPED ──▶ DECLARED       (un nouveau Declare du même service l
 | `CONFIGURED` | Configuration et secrets prêts à être injectés. | Passe à `DEPLOYING` dès que le plan d'exécution (voir [04](04-moteur-de-reconciliation.md), étape Compose) est prêt et que les dépendances **required** sont elles-mêmes `RUNNING`. |
 | `DEPLOYING` | `DeploymentPort.create/update` a été appelé, en attente de convergence. | `RUNNING` si `ObservedState.deployment.healthyCount >= desiredCount` **et** `DiscoveryObservation` confirme des instances saines. `FAILED` si le déploiement échoue au-delà du seuil de retry. |
 | `RUNNING` | État nominal — désiré et observé convergent. | `DEGRADED` si une partie des instances devient malsaine ; `UPDATING` sur nouvelle génération du manifeste ; `STOPPING` sur demande d'arrêt. |
-| `DEGRADED` | Convergence partielle (ex. 3 instances saines sur 5 désirées). | Retour `RUNNING` si la convergence se rétablit ; `FAILED` si aucune amélioration après un délai configurable. |
+| `DEGRADED` | Convergence partielle (ex. 3 instances saines sur 5 désirées). | Retour `RUNNING` si la convergence se rétablit ; `FAILED` après `egen.reconciliation.degraded-timeout` (10 minutes par défaut, « DEGRADED depuis trop longtemps »). |
 | `FAILED` | Le Kernel ne parvient pas à converger malgré les retries. | Ne se corrige pas seul : **jamais de retry infini silencieux**, le compteur d'échecs est plafonné et visible. Un nouveau `Declare` du même identifiant (manifeste identique ou corrigé) le relance depuis `DECLARED` ([Relance par Declare](#relance-par-declare)) ; sinon il reste en `FAILED` avec alerting actif, ou passe en `STOPPING`. |
 | `UPDATING` | Nouvelle génération en cours de déploiement par-dessus une version `RUNNING`/`DEGRADED`. | `RUNNING` sur succès ; `ROLLED_BACK` puis `RUNNING` si `updateStrategy.autoRevert` déclenche un retour arrière automatique (mappé sur le mécanisme natif de rollback Nomad, voir [07.1](07-ports-et-adapters.md#deployment-port)). |
 | `STOPPING` | Arrêt gracieux en cours (deregister Consul avant arrêt Nomad — ordre important, voir plus bas). | `STOPPED` une fois toutes les instances arrêtées. |
@@ -68,6 +68,28 @@ Le Moteur de Réconciliation compte les échecs consécutifs d'un adapter (Nomad
 4. Un passage de réconciliation qui réussit remet aussi le compteur à zéro.
 5. Le dé-enregistrement d'un arrêt a son propre compteur (voir « Quand le dé-enregistrement échoue »).
 
+### DEGRADED depuis trop longtemps
+
+*Décidé par Samuel le 14 novembre 2026 (point ouvert 4, option a) ; codé et testé le même jour.*
+
+**Les termes.** `DEGRADED` : le service tourne mais n'a plus toutes ses instances saines (par exemple 3 sur 5). Le **délai de dégradation** est la durée maximale pendant laquelle le Kernel tolère cet état avant de conclure que le service ne se rétablira pas seul.
+
+**Le contrat.**
+1. La propriété `egen.reconciliation.degraded-timeout` (durée ISO-8601) fixe ce délai. Valeur par défaut : **10 minutes** (`PT10M`). `PT0S` désactive la règle : un service peut alors rester `DEGRADED` sans fin.
+2. Le délai se compte depuis le moment où le Moteur de Réconciliation voit le service passer `DEGRADED`. Si le service redevient `RUNNING` entre-temps, le délai repart de zéro à la dégradation suivante.
+3. Le délai est tenu **en mémoire** : un redémarrage du Kernel le fait repartir de zéro (aucune date n'est enregistrée dans le Registry).
+4. Quand le délai est écoulé, le service passe `FAILED` avec la Condition `DeploymentReady = False`, `reason = DegradedTimeout`, `message = « DEGRADED depuis plus de PT10M (egen.reconciliation.degraded-timeout) ; desired=… healthy=… »`. Comme tout service `FAILED`, il n'est plus réconcilié : un nouveau `Declare` le relance (« Relance par Declare »).
+
+**Pourquoi 10 minutes.** Nomad ou Kubernetes replanifient normalement une instance perdue en quelques secondes à quelques minutes. Un délai trop court déclarerait en échec un service que l'orchestrateur est en train de réparer ; l'absence de délai laisserait un service amputé sans que personne ne soit alerté.
+
+**Exemple de bout en bout.** `news` demande 5 instances, 3 sont saines à 10 h 00 : `RUNNING → DEGRADED`, Condition `AllocationLost`. À 10 h 04 Nomad a replanifié, 5 instances saines : `RUNNING`. À 11 h 00 une panne de disque en perd 2 et Nomad ne peut pas les replacer : `DEGRADED`. À 11 h 10 le délai est écoulé : `FAILED`, Condition `DegradedTimeout`. L'opérateur lit la cause, corrige le cluster, puis relance `news` par `Declare`.
+
+### Déclarer pendant un arrêt (`STOPPING`)
+
+*Écart I19 du [document 19](19-feuille-de-route.md), décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude) ; codé et testé le même jour.*
+
+Un `Declare` sur un service qui est en `STOPPING` est **refusé avec `409`** (« en cours d'arrêt : attendre `STOPPED`, puis le déclarer à nouveau »), avant toute écriture : la génération n'est pas créée et le statut n'est pas touché. Raison : une nouvelle génération enregistrée pendant l'arrêt n'aurait aucun effet défini, puisque l'arrêt va se terminer en `STOPPED`, phase d'où seul un `Declare` relance. Un `Declare` sur un service `STOPPED` ou `FAILED` reste accepté et le relance (« Relance par `Declare` »).
+
 ## Conditions
 
 En complément de la phase (état macro), chaque `ServiceStatus` porte une
@@ -103,9 +125,10 @@ d'événements — jamais une valeur de configuration ni de secret.
 | `ManifestValid` | à `DECLARED` → `REGISTERED` | `Valid` | jamais `False` en pratique : un manifeste invalide est refusé en `400` avant toute persistance |
 | `ConfigResolved` | à `REGISTERED`, avant `CONFIGURED` | `NothingToResolve` (aucune configuration ni secret déclarés), `Resolved` | le service **reste `REGISTERED`** et la résolution est retentée — avec un **délai croissant** (2, 4, 8, 16, 32 secondes, puis 60 secondes au plus entre deux tentatives ; écart E3, décidé le 14 novembre 2026) — ce n'est pas un échec du service : un secret ou une clé manquants peuvent être fournis plus tard sans toucher au manifeste. `reason` : `SecretUnresolved`, `RequiredKeyMissing`, `InvalidConfigurationValue`, `ConfigurationUnavailable`, `PortNotConfigured` |
 | `DiscoveryDeregistered` | à `STOPPING`, au dé-enregistrement | `Deregistered` (réussi ; le message dit après combien d'échecs s'il y en a eu) | `DeregistrationRetrying` (nouvelle tentative prévue, le message donne `tentative n/5` et la cause), `DeregistrationIncomplete` (cinq échecs : l'arrêt continue, voir « Quand le dé-enregistrement échoue ») |
+| `DeploymentStopped` | à `STOPPING`, à l'arrêt du déploiement | — | `StopFailed` (l'arrêt a échoué et est retenté, le message donne `tentative n/5` et la cause, voir « Quand l'arrêt lui-même échoue ») |
 | `DependenciesSatisfied` | à `CONFIGURED` | `AllSatisfied`, `OptionalDependencyUnavailable` | le service reste `CONFIGURED` (voir [10](10-gestion-des-dependances.md)) |
 | `MessagingBindingsReady` | à `CONFIGURED` avant le déploiement, puis à **chaque cycle** | `NoEventsDeclared`, `StreamsEnsured` | à `CONFIGURED` : le service **n'est pas déployé** tant que ses flux ne sont pas garantis (publier dans un flux inexistant perdrait les premiers événements). Une fois `RUNNING` : la Condition passe à `False` mais **le service n'est jamais dégradé** pour autant. `reason` : `MessagingUnavailable`, `PortNotConfigured` |
-| `DeploymentReady`, `DiscoveryReady` | de `DEPLOYING` à `RUNNING`/`DEGRADED` | convergence atteinte | voir ci-dessus |
+| `DeploymentReady`, `DiscoveryReady` | de `DEPLOYING` à `RUNNING`/`DEGRADED` | convergence atteinte | voir ci-dessus ; `DeploymentReady` peut aussi porter `DegradedTimeout` (« DEGRADED depuis trop longtemps ») |
 
 Une Condition qui passe à `False` pour une raison **externe** (secret absent,
 broker injoignable) ne fait jamais passer le service en `FAILED` : seul un
@@ -160,9 +183,23 @@ compte :
 
 **Pourquoi « au mieux ».** Un arrêt qui ne s'exécute pas pendant un incident est plus grave qu'une entrée Consul périmée : ses contrôles de santé la retirent d'eux-mêmes. Le prix : pendant ce délai, des clients peuvent encore recevoir l'adresse d'une instance en cours d'arrêt.
 
-**Ce que cette règle ne couvre pas.** Un échec de `DeploymentPort.stop()` (Nomad ou Kubernetes refuse la suppression) n'est pas concerné : il suit toujours le chemin d'échec d'adapter existant.
+**Ce que cette règle ne couvre pas.** Un échec de `DeploymentPort.stop()` (Nomad ou Kubernetes refuse l'arrêt) a sa propre règle : « Quand l'arrêt lui-même échoue ».
 
 **Exemple de bout en bout.** L'opérateur demande l'arrêt de `news`. Consul est arrêté. T+0 : échec 1, Condition `tentative 1/5 : …`, nouvelle tentative dans 2 s. T+2 s, T+6 s, T+14 s : échecs 2, 3, 4. T+30 s : échec 5, la Condition passe à `DeregistrationIncomplete`. Après le délai de grâce du manifeste, l'arrêt est exécuté dans le moteur de déploiement et `news` est `STOPPED`. L'opérateur lit `GET …/status` : phase `STOPPED`, Condition `DiscoveryDeregistered = False` avec la cause, et sait qu'une entrée de `news` peut rester dans Consul.
+
+### Quand l'arrêt lui-même échoue
+
+*Écart I18 du [document 19](19-feuille-de-route.md), décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude) ; codé et testé le même jour.*
+
+**Le problème.** `DeploymentPort.stop()` (Kubernetes : mettre le Deployment à 0 réplica ; Nomad : arrêter le job) peut échouer, par exemple avec un `401` quand le jeton du Kernel a expiré. Un service `STOPPING` ne peut pas passer `FAILED` (transition interdite), et il ne peut pas non plus passer `STOPPED` tant que l'arrêt n'a pas eu lieu.
+
+**Le contrat.**
+1. Le service **reste `STOPPING`**. L'arrêt est retenté : après 2, 4, 8 puis 16 secondes pour les quatre premiers échecs, puis **toutes les 60 secondes** sans fin.
+2. Le compteur d'échecs est **plafonné à 5/5** : le journal n'écrit jamais `(6/5)`.
+3. La Condition `DeploymentStopped = False`, `reason = StopFailed`, `message = « tentative n/5 : <cause> »` dit pourquoi l'arrêt n'avance pas.
+4. Dès qu'une tentative réussit, le service passe `STOPPED`.
+
+**Exemple de bout en bout.** Le jeton Kubernetes du Kernel a expiré. L'opérateur demande l'arrêt de `news` : le dé-enregistrement réussit, puis `stop()` répond `401`. `GET …/status` : phase `STOPPING`, Condition `DeploymentStopped = False / StopFailed / « tentative 5/5 : Kubernetes a rejete scale(news) : HTTP 401 … »`. L'opérateur renouvelle le jeton et redémarre le Kernel ; la tentative suivante réussit et `news` passe `STOPPED`.
 
 Inverser cet ordre (arrêter Nomad avant de désenregistrer Consul) provoque
 des erreurs 502/connexions refusées côté clients pendant la fenêtre de

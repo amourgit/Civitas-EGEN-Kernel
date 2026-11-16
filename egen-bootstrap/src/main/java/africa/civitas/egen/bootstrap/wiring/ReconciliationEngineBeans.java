@@ -1,5 +1,6 @@
 package africa.civitas.egen.bootstrap.wiring;
 
+import java.time.Duration;
 import africa.civitas.egen.application.port.ConfigurationPort;
 import africa.civitas.egen.application.port.DeploymentPort;
 import africa.civitas.egen.application.port.DiscoveryPort;
@@ -58,6 +59,10 @@ public class ReconciliationEngineBeans {
     @ConfigProperty(name = "egen.reconciliation.max-concurrent-reconciles", defaultValue = "4")
     int maxConcurrentReconciles;
 
+    /** Delai maximal en DEGRADED avant FAILED (docs/architecture/09) ; PT0S le desactive. */
+    @ConfigProperty(name = "egen.reconciliation.degraded-timeout", defaultValue = "PT10M")
+    Duration degradedTimeout;
+
     private ReconciliationEngine engine;
 
     @Produces
@@ -67,7 +72,8 @@ public class ReconciliationEngineBeans {
             engine = new ReconciliationEngine(workQueue, registryStorePort, deploymentPort, discoveryPort,
                     observabilityPort, pendingDeclareTraces,
                     ServiceBindings.of(secretsPort, configurationPort, messagingPort),
-                    maxConcurrentReconciles);
+                    maxConcurrentReconciles)
+                    .degradedTimeout(degradedTimeout);
         }
         return engine;
     }

@@ -8,6 +8,7 @@ import africa.civitas.egen.application.port.DeploymentHandle;
 import africa.civitas.egen.application.port.DeploymentPort;
 import africa.civitas.egen.domain.model.DeploymentObservation;
 import africa.civitas.egen.domain.model.DeploymentSpec;
+import africa.civitas.egen.domain.model.SecuritySpec;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceVersion;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -248,12 +249,39 @@ public final class NomadDeploymentAdapter implements DeploymentPort {
     // ------------------------------------------------------------------
 
     private void submitJob(ServiceId id, DeploymentSpec spec) {
+        rejectSecurityBlock(spec);
         ObjectNode job = buildJobJson(id, spec);
         ObjectNode body = mapper.createObjectNode();
         body.set("Job", job);
 
         HttpResponse<String> response = send(putJson("/v1/jobs", body));
         requireSuccess(response, "create/update(" + id + ")");
+    }
+
+    /**
+     * Le bloc {@code deployment.security} n'est supporte par aucun champ en V1 : refuse, jamais ignore en silence
+     * (docs/architecture/06, « deployment.security », regle 5).
+     */
+    private static void rejectSecurityBlock(DeploymentSpec spec) {
+        SecuritySpec security = spec.security();
+        if (security == null) {
+            return;
+        }
+        List<String> fields = new ArrayList<>();
+        if (security.runAsNonRoot() != null) {
+            fields.add("runAsNonRoot");
+        }
+        if (security.runAsUser() != null) {
+            fields.add("runAsUser");
+        }
+        if (security.readOnlyRootFilesystem() != null) {
+            fields.add("readOnlyRootFilesystem");
+        }
+        if (security.dropAllCapabilities() != null) {
+            fields.add("dropAllCapabilities");
+        }
+        throw new DeploymentException("L'adapter nomad ne supporte pas deployment.security (champs demandes : "
+                + String.join(", ", fields) + ")");
     }
 
     private ObjectNode buildJobJson(ServiceId id, DeploymentSpec spec) {

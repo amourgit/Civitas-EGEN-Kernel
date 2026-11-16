@@ -10,11 +10,22 @@ package africa.civitas.egen.domain.model;
  * <p>{@code cpu} et {@code memory} restent des chaines brutes telles que
  * declarees dans le manifeste (ex. "500m", "512Mi") : leur interpretation en
  * unites du moteur cible est une responsabilite d'adapter, jamais du domaine.</p>
+ *
+ * <p>{@code security} est facultatif ({@code null} = le socle de l'adapter, rien de plus strict ;
+ * docs/architecture/06, « deployment.security »).</p>
  */
 public record DeploymentSpec(String adapter, String image, String cpu, String memory,
-                              ReplicaRange replicas) {
+                              ReplicaRange replicas, SecuritySpec security) {
+
+    /** Sans durcissement demande : le socle de l'adapter s'applique, rien de plus strict. */
+    public DeploymentSpec(String adapter, String image, String cpu, String memory, ReplicaRange replicas) {
+        this(adapter, image, cpu, memory, replicas, null);
+    }
 
     public DeploymentSpec {
+        if (security != null && security.isEmpty()) {
+            security = null; // un bloc vide equivaut a son absence : deux manifestes equivalents sont egaux
+        }
         if (adapter == null || adapter.isBlank()) {
             throw new IllegalArgumentException(
                     "DeploymentSpec.adapter est obligatoire (ex. \"nomad\")");

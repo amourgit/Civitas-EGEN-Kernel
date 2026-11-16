@@ -115,3 +115,23 @@ Le jeton porte aussi `iss`, `azp`, `sub`, `jti`, `iat`, `exp`, `preferred_userna
 
 **Qui porte le rôle** se vérifie dans Keycloak : voir [23](23-runbooks-operateur.md), « Vérifier qui porte le rôle egen-admin ».
 
+### Audience du jeton (constat K2)
+
+*Décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude).*
+
+**Les termes.** L'*audience* (`aud`) d'un jeton dit **à quel service il est destiné**. Sans vérification d'audience, un jeton émis pour un autre service du même fournisseur d'identité serait accepté par le Kernel.
+
+**La décision.** La vérification d'audience du Kernel est **facultative et désactivée par défaut**, parce que la rendre obligatoire refuserait tous les appelants tant que Keycloak n'émet pas `aud` pour chacun d'eux (le jeton de test du 10 novembre 2026 n'en porte pas). Pour l'activer :
+1. dans Keycloak, ajouter à **chaque client appelant** un mapper « Audience » dont la valeur est `egen-kernel` ;
+2. positionner sur le Kernel la variable d'environnement standard MicroProfile `MP_JWT_VERIFY_AUDIENCES=egen-kernel` ;
+3. redémarrer le Kernel et vérifier qu'un jeton sans cette audience reçoit `401`.
+
+Aucune ligne de configuration n'est ajoutée au code : la propriété standard `mp.jwt.verify.audiences` suffit, et une valeur vide écrite par erreur rejetterait tous les jetons.
+
+### Surface HTTP : tout refuser hors de `/api/v1/` (constat K3)
+
+*Décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude) ; configuré le même jour, `mvn verify` vert le 16 novembre 2026 (03:38) ; **reste l'essai sur un vrai Kernel** (vérification V16 du [19](19-feuille-de-route.md)).*
+
+**La règle.** Tout chemin HTTP qui n'est pas sous `/api/v1/` est refusé par défaut, quelles que soient les extensions Quarkus ajoutées plus tard (tableau de bord, métriques, documentation d'API) : elles ne deviennent pas accessibles par accident. Dans `application.properties` : `quarkus.http.auth.permission.deny-others.paths=/*` avec la politique `deny`. Quarkus applique la règle la plus spécifique : `/api/v1/health` reste public et `/api/v1/*` reste réservé aux appelants authentifiés.
+
+**Exemple.** Une extension ajoute `/q/dev` : sans cette règle il serait ouvert ; avec elle, il répond `403`. Pour exposer volontairement un nouveau chemin, on ajoute une règle explicite à côté de `deny-others`.

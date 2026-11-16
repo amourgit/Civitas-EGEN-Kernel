@@ -8,6 +8,7 @@ import africa.civitas.egen.application.port.DeploymentException;
 import africa.civitas.egen.domain.model.DeploymentObservation;
 import africa.civitas.egen.domain.model.DeploymentSpec;
 import africa.civitas.egen.domain.model.ReplicaRange;
+import africa.civitas.egen.domain.model.SecuritySpec;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceVersion;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -385,5 +386,55 @@ class KubernetesDeploymentAdapterTest {
                 () -> adapter.rollback(NEWS, ServiceVersion.parse("1.0.0")));
         assertTrue(e.getMessage().contains("1.0.0"));
         assertEquals(1, api.requests().size());
+    }
+
+    private static DeploymentSpec specWithSecurity(SecuritySpec security) {
+        return new DeploymentSpec("kubernetes", "registry/news:1.0.0", "500m", "512Mi", new ReplicaRange(2, 4), security);
+    }
+
+    private JsonNode createdContainerSecurity(SecuritySpec security) throws IOException {
+        adapter.create(NEWS, specWithSecurity(security));
+        return body(only()).path("spec").path("template").path("spec").path("containers").get(0).path("securityContext");
+    }
+
+    @Test
+    void withoutASecurityBlockNothingStricterThanTheSafeDefaultsIsSet() throws IOException {
+        JsonNode containerSecurity = createdContainerSecurity(null);
+        assertFalse(containerSecurity.has("runAsNonRoot"));
+        assertFalse(containerSecurity.has("runAsUser"));
+        assertFalse(containerSecurity.has("readOnlyRootFilesystem"));
+        assertFalse(containerSecurity.has("capabilities"));
+        assertFalse(containerSecurity.path("allowPrivilegeEscalation").asBoolean());
+    }
+
+    @Test
+    void theRequestedSecurityFieldsAreSetAsGivenOnTopOfTheSafeDefaults() throws IOException {
+        JsonNode containerSecurity = createdContainerSecurity(new SecuritySpec(true, 10001, true, true));
+        assertTrue(containerSecurity.path("runAsNonRoot").asBoolean());
+        assertEquals(10001, containerSecurity.path("runAsUser").asInt());
+        assertTrue(containerSecurity.path("readOnlyRootFilesystem").asBoolean());
+        assertEquals(1, containerSecurity.path("capabilities").path("drop").size());
+        assertEquals("ALL", containerSecurity.path("capabilities").path("drop").get(0).asText());
+        assertFalse(containerSecurity.path("allowPrivilegeEscalation").asBoolean(), "le socle reste pose");
+        JsonNode podSpec = body(only()).path("spec").path("template").path("spec");
+        assertEquals("RuntimeDefault", podSpec.path("securityContext").path("seccompProfile").path("type").asText());
+    }
+
+    @Test
+    void anExplicitFalseIsSetAsFalseAndDropAllCapabilitiesFalseSetsNothing() throws IOException {
+        JsonNode containerSecurity = createdContainerSecurity(new SecuritySpec(false, null, false, false));
+        assertTrue(containerSecurity.path("runAsNonRoot").isBoolean());
+        assertFalse(containerSecurity.path("runAsNonRoot").asBoolean());
+        assertTrue(containerSecurity.path("readOnlyRootFilesystem").isBoolean());
+        assertFalse(containerSecurity.path("readOnlyRootFilesystem").asBoolean());
+        assertFalse(containerSecurity.has("capabilities"));
+        assertFalse(containerSecurity.has("runAsUser"));
+    }
+
+    @Test
+    void anEmptySecurityBlockProducesTheSameRequestAsNoBlock() {
+        adapter.create(NEWS, specWithSecurity(null));
+        adapter.create(NEWS, specWithSecurity(new SecuritySpec(null, null, null, null)));
+        assertEquals(api.requests().get(0).body(), api.requests().get(1).body());
     }
 }

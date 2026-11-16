@@ -8,6 +8,7 @@ import africa.civitas.egen.application.port.DeploymentHandle;
 import africa.civitas.egen.application.port.DeploymentPort;
 import africa.civitas.egen.domain.model.DeploymentObservation;
 import africa.civitas.egen.domain.model.DeploymentSpec;
+import africa.civitas.egen.domain.model.SecuritySpec;
 import africa.civitas.egen.domain.model.ServiceId;
 import africa.civitas.egen.domain.model.ServiceVersion;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -244,7 +245,25 @@ public final class KubernetesDeploymentAdapter implements DeploymentPort {
         ObjectNode container = podSpec.putArray("containers").addObject();
         container.put("name", id.value());
         container.put("image", spec.image());
-        container.putObject("securityContext").put("allowPrivilegeEscalation", false);
+        ObjectNode containerSecurity = container.putObject("securityContext");
+        containerSecurity.put("allowPrivilegeEscalation", false);
+        // Durcissement demande par le proprietaire du service (docs/architecture/06, « deployment.security », K9) :
+        // chaque champ present est pose tel quel, chaque champ absent n'est pas pose.
+        SecuritySpec security = spec.security();
+        if (security != null) {
+            if (security.runAsNonRoot() != null) {
+                containerSecurity.put("runAsNonRoot", security.runAsNonRoot());
+            }
+            if (security.runAsUser() != null) {
+                containerSecurity.put("runAsUser", security.runAsUser());
+            }
+            if (security.readOnlyRootFilesystem() != null) {
+                containerSecurity.put("readOnlyRootFilesystem", security.readOnlyRootFilesystem());
+            }
+            if (Boolean.TRUE.equals(security.dropAllCapabilities())) {
+                containerSecurity.putObject("capabilities").putArray("drop").add("ALL");
+            }
+        }
 
         ObjectNode port = container.putArray("ports").addObject();
         port.put("name", PORT_NAME);

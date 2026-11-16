@@ -60,7 +60,7 @@ parties prenantes non techniques.
 
 8. CLIENT — À TOUT MOMENT
    GET /api/v1/services/news-service/status
-   → { phase: "RUNNING", observedGeneration: 1, conditions: [...], instances: 2 }
+   → { phase: "RUNNING", observedGeneration: 1, conditions: [...] }
 ```
 
 ## Partie 2 — Workflow : publier un article, avec compensation volontaire

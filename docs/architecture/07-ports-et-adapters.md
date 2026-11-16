@@ -155,10 +155,11 @@ Le Deployment généré pose ces valeurs, **sans aucune configuration** :
 | Pod | `securityContext.seccompProfile.type` | `RuntimeDefault` | Filtre les appels système avec le profil par défaut du moteur de conteneurs, au lieu de les laisser tous passer. |
 | Pod | `automountServiceAccountToken` | `false` | Un service géré par le Kernel n'a pas à parler à l'API Kubernetes. Sans cette valeur, chaque pod reçoit un jeton du compte de service de son namespace, qu'un attaquant ayant pris le conteneur pourrait utiliser. |
 | Conteneur | `securityContext.allowPrivilegeEscalation` | `false` | Un processus ne peut pas obtenir plus de privilèges que son parent (par exemple par un binaire `setuid`). |
+| Conteneur | `securityContext.runAsNonRoot`, `runAsUser`, `readOnlyRootFilesystem`, `capabilities.drop: [ALL]` | **seulement si le manifeste le demande** (`deployment.security`, [06](06-service-manifest.md)) | Chaque champ présent est posé tel quel ; chaque champ absent n'est pas posé. |
 
 Le champ `privileged` n'est **jamais** posé.
 
-**Ce qui n'est volontairement pas posé** : `runAsNonRoot`, `readOnlyRootFilesystem` et le retrait des capacités (`drop: [ALL]`). Ils font échouer beaucoup d'images courantes : l'image officielle `nginx`, par exemple, démarre en root, écrit dans `/var/cache/nginx` et a besoin de changer d'utilisateur pour ses processus de travail. Les imposer exige que le propriétaire du service puisse déclarer, dans son manifeste, ce que son image supporte : c'est une décision ouverte ([19](19-feuille-de-route.md), point ouvert 6). En attendant, les règles du cluster (Pod Security Admission) restent la garde générale pour ces trois points.
+**Ce qui n'est volontairement pas posé** : `runAsNonRoot`, `readOnlyRootFilesystem` et le retrait des capacités (`drop: [ALL]`). Ils font échouer beaucoup d'images courantes : l'image officielle `nginx`, par exemple, démarre en root, écrit dans `/var/cache/nginx` et a besoin de changer d'utilisateur pour ses processus de travail. Les imposer exige que le propriétaire du service puisse déclarer, dans son manifeste, ce que son image supporte : **c'est le rôle du bloc `deployment.security` du manifeste** (décidé le 14 novembre 2026, point ouvert 6, option a ; [06](06-service-manifest.md)). Les règles du cluster (Pod Security Admission) restent une garde complémentaire, à la charge de l'administrateur du cluster. **Adapter Nomad** : il ne supporte aucun champ de `deployment.security` en V1 et refuse un manifeste qui en porte, avec un message qui nomme le champ.
 
 **Effet sur les services déjà déployés.** Ces valeurs changent le modèle de pod. Au premier cycle après la mise à jour du Kernel, Kubernetes remplace donc progressivement (rolling update) les pods de chaque service existant, sans changement de version ni d'image.
 
@@ -210,11 +211,9 @@ Niveau 1 : conversion des quantités, construction du Deployment (aucun réseau)
 
 ```java
 public interface DiscoveryPort {
-    void register(ServiceRegistration registration);   // idempotent
+    void register(ServiceInstanceRegistration registration);   // idempotent ; porte le contrôle de santé du manifeste
     void deregister(ServiceId id, String instanceId);
-    ResolvedInstances resolve(ServiceId id);            // ne retourne QUE les instances saines
-    HealthStatus health(ServiceId id, String instanceId);
-    void registerHealthCheck(ServiceId id, HealthCheckSpec spec);
+    ResolvedInstances resolve(ServiceId id);                    // ne retourne QUE les instances saines
 }
 ```
 
@@ -225,9 +224,19 @@ public interface DiscoveryPort {
 | `register(reg)` | `PUT /v1/agent/service/register` | Idempotent par construction côté Consul : un `PUT` avec le même `ID` remplace l'enregistrement. Inclure directement le bloc `Check` (HTTP/TCP/gRPC/TTL) dans le payload d'enregistrement plutôt que deux appels séparés. |
 | `deregister(id)` | `PUT /v1/agent/service/deregister/:service_id` | À appeler explicitement lors d'un arrêt gracieux (phase `STOPPING`, voir [09.3](09-cycle-de-vie.md#arret-gracieux)) — ne pas compter uniquement sur l'échec des health checks. |
 | `resolve(id)` | `GET /v1/health/service/:service?passing=true` | Le paramètre `passing=true` est **la** clé : il filtre déjà côté Consul les instances non saines. |
-| `health(id, instanceId)` | `GET /v1/health/checks/:service` ou lecture ciblée dans la réponse `health/service` | Peut aussi être dérivé directement de la réponse de `resolve()`, sans appel séparé. |
-| `registerHealthCheck` | Inclus dans `PUT /v1/agent/service/register` (bloc `Check`/`Checks`) | Consul supporte plusieurs checks simultanés par service (ex. HTTP + TTL applicatif) — mapper `HealthSpec.http` et `HealthSpec.readiness` du manifeste vers deux `Check` distincts. |
 | Watch catalogue | `GET /v1/catalog/services` avec **blocking query** (`index=<X>`) | Préférer le long-polling par blocking query pour alimenter la boucle de réconciliation plutôt qu'un polling naïf. |
+
+### Ce que `DiscoveryPort` ne contient pas, et pourquoi
+
+*Point ouvert 5 du [document 19](19-feuille-de-route.md), option (a), décidé par Samuel le 14 novembre 2026 : ce document décrit les ports tels qu'ils existent dans le code.*
+
+| Opération qu'une ancienne version de ce document listait | Pourquoi elle n'existe pas | Comment le besoin est couvert |
+|---|---|---|
+| `health(id, instanceId)` | Consul filtre déjà les instances non saines | `resolve(id)` n'appelle que `GET /v1/health/service/:service?passing=true` : les instances renvoyées sont les saines |
+| `registerHealthCheck(id, spec)` | Consul prend le contrôle de santé **dans** l'appel d'enregistrement | `register(registration)` envoie le bloc `Check` construit depuis le `HealthSpec` du manifeste, en un seul appel `PUT /v1/agent/service/register` |
+| paramètre `dc` | un seul datacenter en V1 | voir « Multi-datacenter » ci-dessous |
+
+**Exemple de bout en bout.** Pour 2 instances de `news-service`, le Moteur de Réconciliation appelle `register` deux fois (une par instance, chacune avec son contrôle de santé), puis `resolve("news-service")`. Consul répond avec les seules instances au contrôle `passing`. Aucun appel `health` séparé n'est nécessaire.
 
 ### Modèle DNS complémentaire
 
@@ -247,9 +256,7 @@ des cas simples sans passer par le SDK EGEN.
   lire une réplique légèrement en retard) vs `consistent` (lecture leader,
   plus lent). Pour la résolution de service en hot path applicatif,
   `default` est recommandé.
-- **Multi-datacenter** : anticiper `dc` comme paramètre explicite du
-  `DiscoveryPort` dès la V1, même si un seul datacenter est utilisé au
-  départ — c'est un changement d'interface coûteux à faire après coup.
+- **Multi-datacenter** : le port n'a **pas** de paramètre `dc` : la V1 n'utilise qu'un seul datacenter. Si un second datacenter est un jour utilisé, le paramètre sera ajouté avec son adapter et son test (décidé le 14 novembre 2026, point ouvert 5 : pas d'interface ajoutée par anticipation, voir [18](18-anti-patterns.md)). Le coût est assumé : ce sera un changement d'interface, mais il sera piloté par un besoin réel.
 
 ## Messaging Port
 
@@ -257,11 +264,11 @@ des cas simples sans passer par le SDK EGEN.
 
 ```java
 public interface MessagingPort {
+    void createTopicOrStream(TopicSpec spec);          // idempotent — no-op si déjà existant
     void publish(TechnicalEvent event, String subjectOrTopic);
     Subscription subscribe(String subjectOrTopic, String consumerGroup, EventHandler handler);
     void unsubscribe(Subscription subscription);
-    BindingStatus getBindingStatus(ServiceId id);
-    void createTopicOrStream(TopicSpec spec);          // idempotent — no-op si déjà existant
+    BindingStatus getBindingStatus(String subjectOrTopic, String consumerGroup);
 }
 ```
 
@@ -323,7 +330,7 @@ utilisent `MessagingPort`.
 | `createTopicOrStream(spec)` | `nats stream add` / API JetStream Manager `AddStream` | Un `type` d'événement EGEN (ou une famille) → un `Stream` avec un pattern de sujet hiérarchique (`news.article.>`). Pour le multi-tenant, filtrer par sous-sujet (`orders.<tenant>.*`) plutôt que créer un stream par tenant. |
 | `publish(event, subject)` | `js.Publish(subject, data)` | Utiliser la publication **avec accusé de réception synchrone** pour garantir la persistance avant de considérer l'événement « publié » côté EGEN. |
 | `subscribe(subject, group, handler)` | Consumer JetStream *pull* ou *push*, avec `DurableName = group` | Un consumer *durable* nommé par `consumerGroup` garantit la reprise de position après redémarrage — équivalent au `group.id` Kafka. |
-| `getBindingStatus` | `ConsumerInfo` (`NumPending`, `NumAckPending`, `NumRedelivered`) | Alimente `MessagingObservation` du modèle de domaine — permet de détecter un consommateur bloqué. |
+| `getBindingStatus` | `ConsumerInfo` (`NumPending`, `NumAckPending`, `NumRedelivered`) | Renvoyé sous forme de `BindingStatus(pendingMessages, unacknowledgedMessages, redeliveredMessages)` — permet de détecter un consommateur bloqué. `BindingStatus` est un type du port : le modèle de domaine ne le stocke pas en V1 (point ouvert 5, décidé le 14 novembre 2026). |
 
 ### Mapping vers l'API — Kafka
 
@@ -332,7 +339,7 @@ utilisent `MessagingPort`.
 | `createTopicOrStream(spec)` | Admin API `createTopics` | Idempotent : ignorer `TopicExistsException` en cas de course entre deux instances du Kernel. |
 | `publish(event, topic)` | Producer Kafka avec **producteur idempotent activé** (`enable.idempotence=true`) | Évite les doublons en cas de retry réseau — condition nécessaire à la propriété d'idempotence globale d'EGEN. |
 | `subscribe(topic, group, handler)` | Consumer Kafka avec `group.id = consumerGroup` | Kafka gère nativement le rebalance et la répartition des partitions. |
-| `getBindingStatus` | Consumer group lag via Admin API (`listConsumerGroupOffsets` vs `endOffsets`) | Le lag est **la** métrique clé à exposer dans `MessagingObservation`. |
+| `getBindingStatus` | Consumer group lag via Admin API (`listConsumerGroupOffsets` vs `endOffsets`) | Le lag est **la** métrique clé à renvoyer dans `BindingStatus`. |
 
 ### Dead-letter, retry, ordre
 
@@ -484,8 +491,8 @@ Elle fixe ce que contient le message d'une exception d'adapter quand le système
 ### Le contrat
 
 1. Quand le système externe répond hors de la famille `2xx` (et que le code n'est pas un cas prévu, comme `404` pour « absent »), l'adapter lève son exception avec un message de la forme `<Système> a rejete <contexte> : HTTP <code> — <corps>`.
-2. **Le corps est conservé** : il est ce qui permet de déboguer.
-3. **Le corps est borné à 500 caractères Java** (`String.length()`, c'est-à-dire des unités UTF-16). Au-delà, le message contient les 500 premiers caractères suivis de ` [tronque]`. Un caractère hors du plan de base, qui occupe deux unités, n'est jamais coupé en deux : la coupure recule alors d'une unité.
+2. **Le corps est conservé**, ramené sur **une seule ligne** (toute suite de blancs : espaces, tabulations, retours à la ligne, devient un seul espace ; écart I5, décidé le 14 novembre 2026) : il est ce qui permet de déboguer, et une entrée de journal occupe une seule ligne.
+3. **Le corps, une fois ramené sur une ligne, est borné à 500 caractères Java** (`String.length()`, c'est-à-dire des unités UTF-16). Au-delà, le message contient les 500 premiers caractères suivis de ` [tronque]`. Un caractère hors du plan de base, qui occupe deux unités, n'est jamais coupé en deux : la coupure recule alors d'une unité.
 4. Un corps absent est traité comme un corps vide : le mot « null » n'apparaît jamais dans un message.
 5. La borne est appliquée par **une seule classe**, `AdapterErrorBody` (`egen-application`, paquet `port`), que les quatre adapters utilisent. Aucun adapter ne dépend d'un autre.
 

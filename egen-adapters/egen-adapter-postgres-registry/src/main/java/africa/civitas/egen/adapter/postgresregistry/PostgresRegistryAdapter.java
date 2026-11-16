@@ -17,6 +17,7 @@ import africa.civitas.egen.domain.model.LifecyclePolicy;
 import africa.civitas.egen.domain.model.OwnerTeam;
 import africa.civitas.egen.domain.model.ManifestMetadata;
 import africa.civitas.egen.domain.model.ReplicaRange;
+import africa.civitas.egen.domain.model.SecuritySpec;
 import africa.civitas.egen.domain.model.ResiliencyPolicy;
 import africa.civitas.egen.domain.model.ResourceReference;
 import africa.civitas.egen.domain.model.RuntimeType;
@@ -325,6 +326,23 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
         deployment.put("memory", manifest.deployment().memory());
         deployment.put("replicasMin", manifest.deployment().replicas().min());
         deployment.put("replicasMax", manifest.deployment().replicas().max());
+        SecuritySpec security = manifest.deployment().security();
+        if (security != null) {
+            // Seuls les champs renseignes sont ecrits : « absent » et « false » restent distincts (docs/architecture/06).
+            ObjectNode securityNode = deployment.putObject("security");
+            if (security.runAsNonRoot() != null) {
+                securityNode.put("runAsNonRoot", security.runAsNonRoot());
+            }
+            if (security.runAsUser() != null) {
+                securityNode.put("runAsUser", security.runAsUser());
+            }
+            if (security.readOnlyRootFilesystem() != null) {
+                securityNode.put("readOnlyRootFilesystem", security.readOnlyRootFilesystem());
+            }
+            if (security.dropAllCapabilities() != null) {
+                securityNode.put("dropAllCapabilities", security.dropAllCapabilities());
+            }
+        }
 
         ObjectNode health = node.putObject("health");
         health.put("httpEndpoint", manifest.health().httpEndpoint());
@@ -444,7 +462,8 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
                         deployment.path("cpu").asText(),
                         deployment.path("memory").asText(),
                         new ReplicaRange(deployment.path("replicasMin").asInt(),
-                                deployment.path("replicasMax").asInt())),
+                                deployment.path("replicasMax").asInt()),
+                        securityFromJson(deployment.path("security"))),
                 new HealthSpec(
                         health.path("httpEndpoint").asText(),
                         Duration.ofSeconds(health.path("intervalSeconds").asLong()),
@@ -472,6 +491,17 @@ public final class PostgresRegistryAdapter implements RegistryStorePort {
     }
 
     /** Champ absent (lignes ecrites avant ce champ) = aucune ressource, jamais une erreur. */
+    private static SecuritySpec securityFromJson(JsonNode node) {
+        if (node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        return new SecuritySpec(
+                node.has("runAsNonRoot") ? node.get("runAsNonRoot").asBoolean() : null,
+                node.has("runAsUser") ? node.get("runAsUser").asInt() : null,
+                node.has("readOnlyRootFilesystem") ? node.get("readOnlyRootFilesystem").asBoolean() : null,
+                node.has("dropAllCapabilities") ? node.get("dropAllCapabilities").asBoolean() : null);
+    }
+
     private List<ResourceReference> resourcesFromJson(JsonNode node) {
         List<ResourceReference> resources = new ArrayList<>();
         for (JsonNode item : node.path("resources")) {
