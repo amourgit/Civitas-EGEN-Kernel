@@ -1,0 +1,11 @@
+# Contexte de construction de l'image : rien de ce qui est reconstruit ou inutile à la compilation.
+.git
+.idea
+**/target
+docs
+*.md
+!README.md
+new-directive.md
+qodana.yaml
+deploy
+docker-compose.yml
