@@ -130,7 +130,7 @@ Aucune ligne de configuration n'est ajoutée au code : la propriété standard `
 
 ### Surface HTTP : tout refuser hors de `/api/v1/` (constat K3)
 
-*Décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude) ; configuré le même jour, à valider par `mvn verify` et un essai.*
+*Décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude) ; configuré le même jour, `mvn verify` vert le 16 novembre 2026 (03:38) ; **reste l'essai sur un vrai Kernel** (vérification V16 du [19](19-feuille-de-route.md)).*
 
 **La règle.** Tout chemin HTTP qui n'est pas sous `/api/v1/` est refusé par défaut, quelles que soient les extensions Quarkus ajoutées plus tard (tableau de bord, métriques, documentation d'API) : elles ne deviennent pas accessibles par accident. Dans `application.properties` : `quarkus.http.auth.permission.deny-others.paths=/*` avec la politique `deny`. Quarkus applique la règle la plus spécifique : `/api/v1/health` reste public et `/api/v1/*` reste réservé aux appelants authentifiés.
 
