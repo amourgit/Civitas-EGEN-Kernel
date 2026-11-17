@@ -19,7 +19,7 @@ Mise à jour : 10 novembre 2026. **Reprendre par la section « Reprise de sessio
 | Phase 6 (continue) | **En cours** | Éléments 1 (adapter Kubernetes, routage par service), 2 (chaos 6a), 3 (dossier de sécurité), 4 (runbooks) et la relance par `Declare` livrés, **validés et sur `main`**. Reste : chaos 6b, relecteur externe, relecture des runbooks par un opérateur |
 | Chantier Système d'agents | **Partiel** | 1 élément fait, 4 à faire (voir le chantier) |
 | Phase A de la Plateforme (côté Kernel) | **Fait** | A2 à A5 livrés |
-| Phase P0 « production du Kernel » | **En cours** | Validée par Samuel le 14 novembre 2026 ; P0-1 et P0-2 écrites (image et job non encore essayés : V15, V17), P0-3 à P0-6 non commencées |
+| Phase P0 « production du Kernel » | **En cours** | Validée par Samuel le 14 novembre 2026 ; P0-1 et P0-2 écrites (image et job non encore essayés : V15, V17), P0-3 écrite (à valider par `mvn verify`), P0-3b à P0-6 non commencées |
 | Points ouverts du Kernel | **Tous tranchés** | Réponses de Samuel du 14 novembre 2026 ; voir la section « Points ouverts du Kernel — tranchés » |
 | Durcissement des pods Kubernetes (K9) | **En cours** | Option (a) ; K9-1 à K9-3 faites (code validé par `mvn verify` (18 modules, code 0, 16 novembre 2026, 03:38)), test de niveau 3 non écrit, K9-4 à faire |
 | Phase G « surface gRPC » | **En cours** | Décidée par Samuel le 14 novembre 2026 ; G1 (contrat) faite, G2 à G6 non commencées |
@@ -547,7 +547,7 @@ La Plateforme (voir [22](22-frontiere-avec-la-plateforme.md)) se construit au-de
 | **P0-5 — mTLS de bout en bout** | génération des certificats (script `deploy/tls/`), activation des deux lignes `quarkus.http.ssl.*` du Kernel, TLS mutuel entre le Kernel et ses clients de confiance ; rotation documentée | niveau 3 : un client sans certificat valide est refusé avant tout appel `/api/v1/` ; un client avec certificat valide et jeton valide est accepté ; documentation dans le doc 14 | P0-2 |
 | **P0-6 — Sidecar complété** | le sidecar EGEN expose la publication d'événements et parle en mTLS ([12](12-communication-fabric.md)) ; contrat inter-langages mis à jour | tests de contrat inter-langages ([17](17-strategie-de-tests.md)) : publication via le sidecar reçue par un consommateur NATS ; connexion sans certificat refusée | P0-5 |
 
-**Critère de sortie de P0** : les six étapes sont `[x]`, `mvn verify` est vert sur les 18 modules, et Samuel a rejoué de zéro les vérifications V13 (Vault) et V14 (installation neuve : Keycloak, puis Kernel dans l'image, par le job Nomad). Statut : `[ ]` P0-1 à P0-6, non commencées.
+**Critère de sortie de P0** : les étapes P0-1 à P0-6 (dont P0-3b) sont `[x]`, `mvn verify` est vert sur les 18 modules, et Samuel a rejoué de zéro les vérifications V13 (Vault) et V14 (installation neuve : Keycloak, puis Kernel dans l'image, par le job Nomad). Statut : `[ ]` P0-1 à P0-6, non commencées.
 
 ## Points ouverts du Kernel — tranchés le 14 novembre 2026
 

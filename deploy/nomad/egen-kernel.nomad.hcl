@@ -11,8 +11,8 @@
 #    essai, remplacé par Vault à l'étape P0-4 (le bloc « vault » du job y sera ajouté) ;
 #  - le conteneur utilise le réseau de l'hôte (network_mode = "host") pour atteindre PostgreSQL, Keycloak, Consul et NATS
 #    par « localhost » comme dans l'environnement d'essai ;
-#  - count supérieur à 1 exige l'étape P0-3 (idempotence et liens de traces partagés) : tant qu'elle n'est pas faite,
-#    gardez count = 1.
+#  - count doit rester à 1 : deux exemplaires ne sont pas supportés tant que l'étape P0-3b (bail des exécutions de
+#    workflow) n'est pas faite (docs/architecture/19).
 
 variable "image" {
   type        = string
@@ -28,7 +28,7 @@ variable "datacenter" {
 variable "count" {
   type        = number
   default     = 1
-  description = "Nombre d'exemplaires du Kernel. Gardez 1 tant que l'étape P0-3 n'est pas faite."
+  description = "Nombre d'exemplaires du Kernel. Gardez 1 tant que l'étape P0-3b n'est pas faite."
 }
 
 variable "oidc_issuer_url" {
