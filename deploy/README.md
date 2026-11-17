@@ -68,5 +68,5 @@ nomad service info egen-kernel              # donne l'adresse et le port : curl 
 **Limites connues de cette étape**
 - Les mots de passe passent par les variables du job et sont **visibles dans sa spécification** : acceptable pour un essai ; l'étape P0-4 les remplace par Vault et ajoute le bloc `vault` du job.
 - Le conteneur utilise le réseau de l'hôte (`network_mode = "host"`) pour joindre PostgreSQL, Keycloak, Consul et NATS par `localhost`, comme dans l'environnement d'essai. Une installation avec réseau isolé et adresses réelles est à faire avec l'étape P0-5.
-- `count` doit rester à `1`. L'étape P0-3 (terminée et validée par `mvn verify` le 17 novembre 2026) partage les clés d'idempotence entre exemplaires, mais **deux exemplaires ne sont pas encore supportés** : le moteur de workflow ne coordonne pas ses exécutions entre exemplaires (étape P0-3b du document 19).
+- `count` doit rester à `1` jusqu'à la validation de l'étape P0-3b (bail des exécutions de workflow, écrite le 17 novembre 2026) **et** son essai réel à deux Kernels (vérification V18 du document 19). Les clés d'idempotence sont déjà partagées entre exemplaires (étape P0-3, validée le 17 novembre 2026).
 - Le fichier n'a **jamais été validé par Nomad** (vérification V17 du [document 19](../docs/architecture/19-feuille-de-route.md)).

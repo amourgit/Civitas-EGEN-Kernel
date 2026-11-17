@@ -228,12 +228,69 @@ public final class PostgresWorkflowStoreAdapter implements WorkflowStorePort {
     // Schema
     // ------------------------------------------------------------------
 
+    /**
+     * Une seule instruction atomique : insere le bail s'il n'existe pas, ou le prend si le bail existant est expire
+     * ({@code lease_expires_at <= now}) ou deja a ce pilote. Zero ligne touchee = un autre pilote le detient.
+     */
+    @Override
+    public boolean tryClaim(ExecutionId id, String driverId, Instant now, Instant leaseExpiresAt) {
+        String sql = "INSERT INTO egen_workflow_lease (execution_id, driver_id, lease_expires_at) VALUES (?, ?, ?) "
+                + "ON CONFLICT (execution_id) DO UPDATE SET driver_id = EXCLUDED.driver_id, "
+                + "lease_expires_at = EXCLUDED.lease_expires_at "
+                + "WHERE egen_workflow_lease.lease_expires_at <= ? OR egen_workflow_lease.driver_id = EXCLUDED.driver_id";
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, id.value());
+            statement.setString(2, driverId);
+            statement.setTimestamp(3, Timestamp.from(leaseExpiresAt));
+            statement.setTimestamp(4, Timestamp.from(now));
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new WorkflowStoreException("Echec de prise du bail de l'execution " + id, e);
+        }
+    }
+
+    /** Seul le detenteur dont le bail n'a pas expire peut le prolonger. */
+    @Override
+    public boolean renew(ExecutionId id, String driverId, Instant now, Instant leaseExpiresAt) {
+        String sql = "UPDATE egen_workflow_lease SET lease_expires_at = ? "
+                + "WHERE execution_id = ? AND driver_id = ? AND lease_expires_at > ?";
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setTimestamp(1, Timestamp.from(leaseExpiresAt));
+            statement.setString(2, id.value());
+            statement.setString(3, driverId);
+            statement.setTimestamp(4, Timestamp.from(now));
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new WorkflowStoreException("Echec de renouvellement du bail de l'execution " + id, e);
+        }
+    }
+
+    @Override
+    public void release(ExecutionId id, String driverId) {
+        String sql = "DELETE FROM egen_workflow_lease WHERE execution_id = ? AND driver_id = ?";
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, id.value());
+            statement.setString(2, driverId);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new WorkflowStoreException("Echec de remise du bail de l'execution " + id, e);
+        }
+    }
+
     private void createSchemaIfAbsent() {
         String[] ddl = {
                 "CREATE TABLE IF NOT EXISTS egen_workflow_definition ("
                         + "workflow_id VARCHAR(255) PRIMARY KEY, "
                         + "definition_json TEXT NOT NULL, "
                         + "updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+                // Bail de pilotage d'une execution (phase P0, etape P0-3b ; docs/architecture/11, « Bail d'execution »).
+                "CREATE TABLE IF NOT EXISTS egen_workflow_lease ("
+                        + "execution_id VARCHAR(255) PRIMARY KEY, "
+                        + "driver_id VARCHAR(255) NOT NULL, "
+                        + "lease_expires_at TIMESTAMPTZ NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS egen_workflow_execution ("
                         + "execution_id VARCHAR(255) PRIMARY KEY, "
                         + "workflow_id VARCHAR(255) NOT NULL, "
