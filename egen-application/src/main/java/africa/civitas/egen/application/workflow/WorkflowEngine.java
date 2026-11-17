@@ -1,5 +1,11 @@
 package africa.civitas.egen.application.workflow;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.UUID;
 import africa.civitas.egen.application.port.DiscoveryPort;
 import africa.civitas.egen.application.port.InvocationResult;
 import africa.civitas.egen.application.port.MessagingPort;
@@ -84,6 +90,29 @@ public final class WorkflowEngine implements WorkflowEnginePort {
     private final Object[] locks = new Object[LOCK_STRIPES];
     private final Set<String> driving = ConcurrentHashMap.newKeySet();
 
+    // Bail de pilotage (phase P0, etape P0-3b ; docs/architecture/11, « Bail d'execution »).
+    static final Duration DEFAULT_LEASE_DURATION = Duration.ofSeconds(60);
+    private volatile String driverId = UUID.randomUUID().toString();
+    private volatile Duration leaseDuration = DEFAULT_LEASE_DURATION;
+    private final ScheduledExecutorService renewals = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "egen-workflow-lease-renewal");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    /** Bail d'une execution en cours de pilotage : perdu quand le renouvellement echoue parce qu'un autre pilote l'a repris. */
+    private static final class Lease {
+        final AtomicBoolean lost = new AtomicBoolean();
+        volatile ScheduledFuture<?> renewal;
+
+        void stop() {
+            ScheduledFuture<?> task = renewal;
+            if (task != null) {
+                task.cancel(false);
+            }
+        }
+    }
+
     /** Constructeur historique : politique de resilience par defaut pour toutes les cibles. */
     public WorkflowEngine(WorkflowStorePort store, DiscoveryPort discovery, ServiceInvocationPort invocation,
                           MessagingPort messaging, Clock clock, Sleeper sleeper, Executor executor,
@@ -126,6 +155,30 @@ public final class WorkflowEngine implements WorkflowEnginePort {
     // ------------------------------------------------------------------
     // WorkflowEnginePort
     // ------------------------------------------------------------------
+
+    /**
+     * Fixe l'identite de ce Kernel comme pilote et la duree du bail ({@code egen.workflow.lease-duration},
+     * 60 secondes par defaut). Le bail est renouvele toutes les tiers de duree. Sans cet appel, le moteur prend un
+     * identifiant aleatoire et la duree par defaut.
+     *
+     * @return ce moteur, pour le chainage a la construction
+     */
+    public WorkflowEngine lease(String driverId, Duration duration) {
+        if (driverId == null || driverId.isBlank()) {
+            throw new IllegalArgumentException("driverId ne peut pas etre vide");
+        }
+        if (duration == null || duration.isZero() || duration.isNegative()) {
+            throw new IllegalArgumentException("la duree du bail doit etre strictement positive (recu : " + duration + ")");
+        }
+        this.driverId = driverId;
+        this.leaseDuration = duration;
+        return this;
+    }
+
+    /** Arrete le renouvellement des baux (arret du Kernel). Les baux non rendus expirent d'eux-memes. */
+    public void shutdown() {
+        renewals.shutdownNow();
+    }
 
     @Override
     public ExecutionId start(WorkflowDefinition definition, WorkflowInput input) {
@@ -238,15 +291,57 @@ public final class WorkflowEngine implements WorkflowEnginePort {
                 return;
             }
             boolean finishedCleanly;
+            boolean claimed = false;
+            Lease lease = null;
             try {
-                finishedCleanly = runLoop(id);
+                Instant now = clock.instant();
+                claimed = store.tryClaim(id, driverId, now, now.plus(leaseDuration));
+                if (!claimed) {
+                    // Un autre Kernel pilote cette execution : on ne la touche pas (il la reprendra, ou elle sera
+                    // reprise ici quand son bail aura expire).
+                    LOG.log(Level.DEBUG, "Execution {0} : pilotee par un autre Kernel, ignoree", id);
+                    return;
+                }
+                lease = startRenewal(id);
+                finishedCleanly = runLoop(id, lease);
             } finally {
+                if (lease != null) {
+                    lease.stop();
+                }
+                if (claimed) {
+                    try {
+                        store.release(id, driverId);
+                    } catch (RuntimeException e) {
+                        LOG.log(Level.WARNING, "Execution " + id + " : bail non rendu (il expirera de lui-meme)", e);
+                    }
+                }
                 driving.remove(id.value());
             }
             if (!finishedCleanly || !needsDriving(id)) {
                 return;
             }
         }
+    }
+
+    private Lease startRenewal(ExecutionId id) {
+        Lease lease = new Lease();
+        long periodMillis = Math.max(1, leaseDuration.toMillis() / 3);
+        try {
+            lease.renewal = renewals.scheduleAtFixedRate(() -> {
+                try {
+                    Instant now = clock.instant();
+                    if (!store.renew(id, driverId, now, now.plus(leaseDuration))) {
+                        lease.lost.set(true);
+                    }
+                } catch (RuntimeException e) {
+                    // Base inaccessible : on reessaie au prochain tour ; le bail expire si cela dure.
+                    LOG.log(Level.WARNING, "Execution " + id + " : renouvellement du bail impossible", e);
+                }
+            }, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            LOG.log(Level.WARNING, "Execution {0} : renouvellement du bail arrete (moteur en arret)", id);
+        }
+        return lease;
     }
 
     private boolean needsDriving(ExecutionId id) {
@@ -257,8 +352,12 @@ public final class WorkflowEngine implements WorkflowEnginePort {
     }
 
     /** @return false si le thread a ete interrompu (l'execution reste reprenable) */
-    private boolean runLoop(ExecutionId id) {
+    private boolean runLoop(ExecutionId id, Lease lease) {
         while (true) {
+            if (lease.lost.get()) {
+                LOG.log(Level.WARNING, "Execution {0} : bail perdu, pilotage abandonne", id);
+                return false;
+            }
             WorkflowExecution execution = store.findById(id).orElse(null);
             if (execution == null) {
                 return true;

@@ -35,6 +35,22 @@ public final class ObservedWorkflowStorePort implements WorkflowStorePort {
         return instrumentation.call("workflow.findById", () -> delegate.findById(id));
     }
 
+    // Le bail se delegue tel quel : il ne fait pas partie des appels instrumentes (docs/architecture/15).
+    @Override
+    public boolean tryClaim(ExecutionId id, String driverId, java.time.Instant now, java.time.Instant leaseExpiresAt) {
+        return delegate.tryClaim(id, driverId, now, leaseExpiresAt);
+    }
+
+    @Override
+    public boolean renew(ExecutionId id, String driverId, java.time.Instant now, java.time.Instant leaseExpiresAt) {
+        return delegate.renew(id, driverId, now, leaseExpiresAt);
+    }
+
+    @Override
+    public void release(ExecutionId id, String driverId) {
+        delegate.release(id, driverId);
+    }
+
     @Override
     public List<ExecutionId> findRunningExecutions() {
         return instrumentation.call("workflow.findRunningExecutions", delegate::findRunningExecutions);

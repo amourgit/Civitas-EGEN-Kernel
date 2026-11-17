@@ -11,8 +11,8 @@
 #    essai, remplacé par Vault à l'étape P0-4 (le bloc « vault » du job y sera ajouté) ;
 #  - le conteneur utilise le réseau de l'hôte (network_mode = "host") pour atteindre PostgreSQL, Keycloak, Consul et NATS
 #    par « localhost » comme dans l'environnement d'essai ;
-#  - count doit rester à 1 : deux exemplaires ne sont pas supportés tant que l'étape P0-3b (bail des exécutions de
-#    workflow) n'est pas faite (docs/architecture/19).
+#  - count doit rester à 1 : deux exemplaires ne sont supportés qu'après la validation de l'étape P0-3b (bail des
+#    exécutions de workflow) et son essai réel V18 (docs/architecture/19).
 
 variable "image" {
   type        = string
