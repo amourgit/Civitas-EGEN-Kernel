@@ -47,3 +47,26 @@ docker run --rm --network host \
 **Lancer avec un système de fichiers en lecture seule** (le Kernel doit pouvoir écrire dans `/tmp`) : ajouter `--read-only --tmpfs /tmp` à la commande ci-dessus.
 
 **Statut au 14 novembre 2026** : le `Dockerfile` est écrit mais **jamais construit ni lancé** (vérification V15 du [document 19](../docs/architecture/19-feuille-de-route.md)).
+
+## Job Nomad du Kernel (étape P0-2)
+
+Le fichier `deploy/nomad/egen-kernel.nomad.hcl` décrit le Kernel comme un job Nomad : un groupe `kernel` (nombre d'exemplaires réglé par `count`), un port HTTP choisi par Nomad, un contrôle de santé sur `GET /api/v1/health` toutes les 10 secondes, une mise à jour progressive (un exemplaire à la fois, retour automatique à la version précédente si le nouvel exemplaire ne devient pas sain) et un arrêt gracieux de 30 secondes.
+
+**Les variables du job** (voir les `variable` du fichier) : les trois obligatoires sont `oidc_issuer_url`, `oidc_jwks_url` et `registry_db_password` ; toutes les autres ont une valeur par défaut. Copiez `deploy/nomad/egen-kernel.vars.example.hcl` en `deploy/nomad/mon-env.vars.hcl`, remplacez les valeurs, et ne versionnez jamais ce fichier réel (le dépôt ignore `deploy/nomad/*.vars.hcl`).
+
+**Essai sur le Nomad de développement** (Keycloak, PostgreSQL et le reste déjà démarrés ; l'image `egen-kernel:dev` construite sur la même machine) :
+
+```
+bash deploy/nomad-dev.sh                    # dans un terminal à part : Nomad en mode développement
+nomad job validate -var-file=deploy/nomad/mon-env.vars.hcl deploy/nomad/egen-kernel.nomad.hcl
+nomad job plan     -var-file=deploy/nomad/mon-env.vars.hcl deploy/nomad/egen-kernel.nomad.hcl
+nomad job run      -var-file=deploy/nomad/mon-env.vars.hcl deploy/nomad/egen-kernel.nomad.hcl
+nomad job status egen-kernel                # attendu : une allocation « running », un contrôle « passing »
+nomad service info egen-kernel              # donne l'adresse et le port : curl http://<adresse>:<port>/api/v1/health → 200
+```
+
+**Limites connues de cette étape**
+- Les mots de passe passent par les variables du job et sont **visibles dans sa spécification** : acceptable pour un essai ; l'étape P0-4 les remplace par Vault et ajoute le bloc `vault` du job.
+- Le conteneur utilise le réseau de l'hôte (`network_mode = "host"`) pour joindre PostgreSQL, Keycloak, Consul et NATS par `localhost`, comme dans l'environnement d'essai. Une installation avec réseau isolé et adresses réelles est à faire avec l'étape P0-5.
+- `count` doit rester à `1`. L'étape P0-3 (terminée et validée par `mvn verify` le 17 novembre 2026) partage les clés d'idempotence entre exemplaires, mais **deux exemplaires ne sont pas encore supportés** : le moteur de workflow ne coordonne pas ses exécutions entre exemplaires (étape P0-3b du document 19).
+- Le fichier n'a **jamais été validé par Nomad** (vérification V17 du [document 19](../docs/architecture/19-feuille-de-route.md)).

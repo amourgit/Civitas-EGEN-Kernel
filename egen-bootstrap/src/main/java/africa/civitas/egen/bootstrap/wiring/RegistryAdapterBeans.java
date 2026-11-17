@@ -1,7 +1,9 @@
 package africa.civitas.egen.bootstrap.wiring;
 
+import africa.civitas.egen.adapter.postgresregistry.PostgresIdempotencyStoreAdapter;
 import africa.civitas.egen.adapter.postgresregistry.PostgresRegistryAdapter;
 import africa.civitas.egen.application.observability.ObservedRegistryStorePort;
+import africa.civitas.egen.application.port.IdempotencyStorePort;
 import africa.civitas.egen.application.port.ObservabilityPort;
 import africa.civitas.egen.application.port.RegistryStorePort;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -35,5 +37,15 @@ public class RegistryAdapterBeans {
     public RegistryStorePort registryStorePort() {
         PostgresRegistryAdapter adapter = new PostgresRegistryAdapter(dataSource);
         return new ObservedRegistryStorePort(adapter, observabilityPort, "postgres-registry");
+    }
+
+    /**
+     * Reponses rejouables des mutations, dans la meme base que le Registry : plusieurs exemplaires du Kernel
+     * partagent ainsi leurs cles d'idempotence (docs/architecture/13, « Idempotence » ; phase P0, etape P0-3).
+     */
+    @Produces
+    @ApplicationScoped
+    public IdempotencyStorePort idempotencyStorePort() {
+        return new PostgresIdempotencyStoreAdapter(dataSource);
     }
 }

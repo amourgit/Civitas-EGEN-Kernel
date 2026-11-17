@@ -214,8 +214,7 @@ exécution `RUNNING`/`COMPENSATING` renvoyée par
 **Limites connues de cet incrément** (à lever explicitement, jamais en
 silence) : définition non versionnée (une exécution en cours utilise la
 définition stockée la plus récente) ; un seul Kernel pilote une exécution à la
-fois (aucun verrou distribué — cohérent avec l'`Idempotency-Key` en mémoire de
-[13](13-api-et-contrats.md)) ; une seule métrique propre au moteur,
+fois (aucun verrou distribué aujourd'hui : l'idempotence partagée de [13](13-api-et-contrats.md) ne couvre que les requêtes de l'API, pas le pilotage des exécutions ; le bail décrit à l'étape P0-3b de [19](19-feuille-de-route.md) le remplacera) ; une seule métrique propre au moteur,
 `egen_workflow_executions_total{workflow, status}` ([15](15-observabilite.md)),
 comptée une fois quand une exécution entre dans un statut terminal (les appels
 de ports sont par ailleurs instrumentés par les décorateurs `Observed*Port`).
