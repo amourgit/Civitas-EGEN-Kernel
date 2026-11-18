@@ -70,3 +70,25 @@ nomad service info egen-kernel              # donne l'adresse et le port : curl 
 - Le conteneur utilise le réseau de l'hôte (`network_mode = "host"`) pour joindre PostgreSQL, Keycloak, Consul et NATS par `localhost`, comme dans l'environnement d'essai. Une installation avec réseau isolé et adresses réelles est à faire avec l'étape P0-5.
 - `count` doit rester à `1` jusqu'à la validation de l'étape P0-3b (bail des exécutions de workflow, écrite le 17 novembre 2026) **et** son essai réel à deux Kernels (vérification V18 du document 19). Les clés d'idempotence sont déjà partagées entre exemplaires (étape P0-3, validée le 17 novembre 2026).
 - Le fichier n'a **jamais été validé par Nomad** (vérification V17 du [document 19](../docs/architecture/19-feuille-de-route.md)).
+
+## Vault hors mode développement (étape P0-4)
+
+Le Vault du `docker-compose.yml` de la racine est **réservé au développement** (jeton racine fixe, stockage en mémoire). Pour un Vault durable :
+
+```
+docker compose -f deploy/vault/docker-compose.yml up -d
+bash deploy/vault/vault-bootstrap.sh
+```
+
+Le script est rejouable. Il initialise Vault (5 parts de clé, seuil 3), le descelle, active le moteur de secrets `secret/` (KV version 2), écrit la politique `egen-kernel` (lecture de `secret/metadata/*` seulement : le Kernel ne vérifie que l'existence d'un secret) et crée le jeton du Kernel (30 jours) dans `deploy/vault/vault-kernel-token.txt`.
+
+**À faire à la main après le script** (le script les rappelle) :
+1. Déplacer `deploy/vault/vault-init.json` (parts de clé et jeton racine) **hors de la machine**, puis le supprimer ici. Le dépôt ignore ce fichier et le jeton du Kernel : ils ne doivent jamais être versionnés.
+2. Révoquer le jeton racine quand vous n'en avez plus besoin.
+3. Donner le contenu de `vault-kernel-token.txt` au Kernel comme variable `VAULT_TOKEN`.
+4. **Avant 30 jours**, créer un nouveau jeton et redémarrer le Kernel (il ne relit pas son jeton). En cas de `403` ou de Vault scellé, voir le [runbook](../docs/architecture/23-runbooks-operateur.md), « Vault : jeton expiré ou Vault scellé ».
+
+**Après chaque redémarrage de Vault**, il est scellé : fournir 3 parts de clé avec `vault operator unseal` (trois fois).
+
+**Limites connues** : le port 8200 est en HTTP clair jusqu'à l'étape P0-5 (TLS) ; la politique propre à chaque service n'est pas créée par ce script ; le script et le `docker-compose.yml` n'ont **jamais été exécutés** (vérification V13 du [document 19](../docs/architecture/19-feuille-de-route.md)).
+
