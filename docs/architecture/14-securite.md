@@ -115,3 +115,42 @@ Le jeton porte aussi `iss`, `azp`, `sub`, `jti`, `iat`, `exp`, `preferred_userna
 
 **Qui porte le rôle** se vérifie dans Keycloak : voir [23](23-runbooks-operateur.md), « Vérifier qui porte le rôle egen-admin ».
 
+### Audience du jeton (constat K2)
+
+*Décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude).*
+
+**Les termes.** L'*audience* (`aud`) d'un jeton dit **à quel service il est destiné**. Sans vérification d'audience, un jeton émis pour un autre service du même fournisseur d'identité serait accepté par le Kernel.
+
+**La décision.** La vérification d'audience du Kernel est **facultative et désactivée par défaut**, parce que la rendre obligatoire refuserait tous les appelants tant que Keycloak n'émet pas `aud` pour chacun d'eux (le jeton de test du 10 novembre 2026 n'en porte pas). Pour l'activer :
+1. dans Keycloak, ajouter à **chaque client appelant** un mapper « Audience » dont la valeur est `egen-kernel` ;
+2. positionner sur le Kernel la variable d'environnement standard MicroProfile `MP_JWT_VERIFY_AUDIENCES=egen-kernel` ;
+3. redémarrer le Kernel et vérifier qu'un jeton sans cette audience reçoit `401`.
+
+Aucune ligne de configuration n'est ajoutée au code : la propriété standard `mp.jwt.verify.audiences` suffit, et une valeur vide écrite par erreur rejetterait tous les jetons.
+
+### Surface HTTP : tout refuser hors de `/api/v1/` (constat K3)
+
+*Décidé par Samuel le 14 novembre 2026 (décision déléguée à Claude) ; configuré le même jour, `mvn verify` vert le 16 novembre 2026 (03:38) ; **reste l'essai sur un vrai Kernel** (vérification V16 du [19](19-feuille-de-route.md)).*
+
+**La règle.** Tout chemin HTTP qui n'est pas sous `/api/v1/` est refusé par défaut, quelles que soient les extensions Quarkus ajoutées plus tard (tableau de bord, métriques, documentation d'API) : elles ne deviennent pas accessibles par accident. Dans `application.properties` : `quarkus.http.auth.permission.deny-others.paths=/*` avec la politique `deny`. Quarkus applique la règle la plus spécifique : `/api/v1/health` reste public et `/api/v1/*` reste réservé aux appelants authentifiés.
+
+**Exemple.** Une extension ajoute `/q/dev` : sans cette règle il serait ouvert ; avec elle, il répond `403`. Pour exposer volontairement un nouveau chemin, on ajoute une règle explicite à côté de `deny-others`.
+
+### Vault hors mode développement (étape P0-4)
+
+*Étape P0-4 de la [phase P0](19-feuille-de-route.md). Écrit le 17 novembre 2026.*
+
+**Les termes.** Un Vault *scellé* est un Vault démarré mais chiffré : il refuse tout appel tant que 3 des 5 *parts de clé de descellage* n'ont pas été fournies. Le *jeton racine* est le jeton qui peut tout faire. Une *politique* est la liste de ce qu'un jeton a le droit de faire.
+
+**Ce qui change par rapport au Vault de développement du `docker-compose.yml`** (jeton racine fixe `egen-dev-root-token`, stockage en mémoire) :
+1. Le stockage est **persistant** (Raft, volume Docker) : un redémarrage ne perd plus les secrets.
+2. Il n'y a **aucun jeton racine connu d'avance**. À la première initialisation Vault produit 5 parts de clé (seuil : 3) et un jeton racine. Ils sont écrits dans `deploy/vault/vault-init.json`, que l'opérateur doit **déplacer hors de la machine** puis supprimer.
+3. Vault démarre **scellé** et doit être descellé après chaque redémarrage.
+
+**La politique du Kernel** (`deploy/vault/policy-egen-kernel.hcl`). Le Kernel ne vérifie que l'**existence** d'un secret (`GET secret/metadata/<chemin>`, voir plus haut : il ne lit jamais une valeur). La politique `egen-kernel` donne donc **uniquement** le droit de lire `secret/metadata/*` : aucun droit sur `secret/data/*`, aucune écriture, aucune administration (`sys/*`). Un jeton du Kernel qui fuit ne révèle aucun secret. Cette politique est prouvée contre un vrai Vault par `VaultKernelPolicyIT` (lecture d'une valeur, écriture et administration : `403`).
+
+**Le jeton du Kernel.** Créé par `deploy/vault/vault-bootstrap.sh` avec la politique `egen-kernel`, sans politique par défaut, pour **720 heures (30 jours)**. Le Kernel ne le renouvelle pas et ne le relit pas après son démarrage (constat K7) : **avant l'expiration, l'opérateur crée un nouveau jeton et redémarre le Kernel**. Un jeton expiré fait répondre `403` à Vault : la Condition `ConfigResolved` des services concernés porte « Vault a rejete la verification de … : HTTP 403 » (voir le [runbook](23-runbooks-operateur.md), « Vault : jeton expiré ou Vault scellé »).
+
+**Ce que ce lot ne livre pas.** La politique de **chaque service** (accès à son seul `secret/data/<service-name>/*`, voir plus haut) n'est pas créée par ce script : elle relève du déploiement du service. Le port 8200 est en HTTP clair jusqu'à l'étape P0-5 (TLS).
+
+**Exemple de bout en bout.** L'opérateur lance `docker compose -f deploy/vault/docker-compose.yml up -d` puis `bash deploy/vault/vault-bootstrap.sh` : Vault est initialisé, descellé, le moteur `secret/` est activé, la politique `egen-kernel` écrite et le jeton du Kernel produit dans `vault-kernel-token.txt`. L'opérateur crée le secret du service : `vault kv put secret/news-service/db password=…` (avec le jeton racine). Le Kernel, lancé avec `VAULT_TOKEN=<le jeton>`, reçoit la déclaration de `news-service` dont `secretsRefs` contient `secret/data/news-service/db` : il appelle `GET /v1/secret/metadata/news-service/db`, reçoit `200`, et la Condition `ConfigResolved` passe à `True`. La valeur du mot de passe n'a jamais transité par le Kernel.

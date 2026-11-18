@@ -32,6 +32,48 @@ public final class InMemoryWorkflowStore implements WorkflowStorePort {
     private final Map<String, WorkflowDefinition> definitions = new LinkedHashMap<>();
     int droppedConflictingResults;
 
+    private record LeaseEntry(String driverId, java.time.Instant expiresAt) {
+    }
+
+    private final Map<String, LeaseEntry> leases = new LinkedHashMap<>();
+
+    /** Meme regle que PostgresWorkflowStoreAdapter : libre, expire (expiration atteinte) ou deja a ce pilote. */
+    @Override
+    public synchronized boolean tryClaim(ExecutionId id, String driverId, java.time.Instant now,
+                                         java.time.Instant leaseExpiresAt) {
+        LeaseEntry current = leases.get(id.value());
+        if (current == null || !current.expiresAt().isAfter(now) || current.driverId().equals(driverId)) {
+            leases.put(id.value(), new LeaseEntry(driverId, leaseExpiresAt));
+            return true;
+        }
+        return false;
+    }
+
+    /** Seul le detenteur dont le bail n'a pas expire peut le prolonger. */
+    @Override
+    public synchronized boolean renew(ExecutionId id, String driverId, java.time.Instant now,
+                                      java.time.Instant leaseExpiresAt) {
+        LeaseEntry current = leases.get(id.value());
+        if (current == null || !current.driverId().equals(driverId) || !current.expiresAt().isAfter(now)) {
+            return false;
+        }
+        leases.put(id.value(), new LeaseEntry(driverId, leaseExpiresAt));
+        return true;
+    }
+
+    @Override
+    public synchronized void release(ExecutionId id, String driverId) {
+        LeaseEntry current = leases.get(id.value());
+        if (current != null && current.driverId().equals(driverId)) {
+            leases.remove(id.value());
+        }
+    }
+
+    /** Pilote qui detient le bail (expire ou non), vide si aucun : pour les tests. */
+    synchronized Optional<String> leaseHolder(ExecutionId id) {
+        return Optional.ofNullable(leases.get(id.value())).map(LeaseEntry::driverId);
+    }
+
     @Override
     public synchronized WorkflowExecution save(WorkflowExecution execution) {
         String id = execution.executionId().value();

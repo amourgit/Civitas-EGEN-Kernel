@@ -81,4 +81,37 @@ class DeployServiceUseCaseImplTest {
                 new HealthSpec("/health", Duration.ofSeconds(10), Duration.ofSeconds(2), 3),
                 LifecyclePolicy.defaultPolicy(), dependencies);
     }
+
+    @Test
+    void aDeclareDuringAStopIsRefusedAndLeavesTheRegistryUntouched() {
+        InMemoryRegistryStore registry = new InMemoryRegistryStore();
+        WorkQueue workQueue = new WorkQueue();
+        DeployServiceUseCase useCase = new DeployServiceUseCaseImpl(registry, workQueue);
+        ServiceId id = ServiceId.of("news-service");
+        useCase.declare(aManifest(id, List.of()), TargetEnvironment.of("test"));
+        registry.saveStatus(id, new africa.civitas.egen.domain.lifecycle.ServiceStatus(
+                africa.civitas.egen.domain.lifecycle.Phase.STOPPING, List.of(), 1L));
+
+        assertThrows(ServiceStoppingException.class,
+                () -> useCase.declare(aManifest(id, List.of()), TargetEnvironment.of("test")));
+
+        assertEquals(1L, registry.findById(id).orElseThrow().generation());
+        assertEquals(africa.civitas.egen.domain.lifecycle.Phase.STOPPING,
+                registry.findStatus(id).orElseThrow().phase());
+    }
+
+    @Test
+    void aDeclareOnAStoppedServiceIsStillAcceptedAndRelaunchesIt() {
+        InMemoryRegistryStore registry = new InMemoryRegistryStore();
+        DeployServiceUseCase useCase = new DeployServiceUseCaseImpl(registry, new WorkQueue());
+        ServiceId id = ServiceId.of("news-service");
+        useCase.declare(aManifest(id, List.of()), TargetEnvironment.of("test"));
+        registry.saveStatus(id, new africa.civitas.egen.domain.lifecycle.ServiceStatus(
+                africa.civitas.egen.domain.lifecycle.Phase.STOPPED, List.of(), 1L));
+
+        DeclareResult result = useCase.declare(aManifest(id, List.of()), TargetEnvironment.of("test"));
+
+        assertEquals(2L, result.generation());
+        assertEquals(africa.civitas.egen.domain.lifecycle.Phase.DECLARED, registry.findStatus(id).orElseThrow().phase());
+    }
 }

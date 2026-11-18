@@ -101,6 +101,9 @@ class DeployServiceRelaunchTest {
             if (phase == Phase.FAILED || phase == Phase.STOPPED) {
                 continue;
             }
+            if (phase == Phase.STOPPING) {
+                continue; // refuse (409), voir aDeclareDuringAStopIsRefusedAndLeavesTheRegistryUntouched (ecart I19)
+            }
             force(phase, 1L);
             ServiceStatus before = status();
 

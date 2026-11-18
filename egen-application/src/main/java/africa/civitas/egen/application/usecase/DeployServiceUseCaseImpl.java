@@ -68,6 +68,7 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
     @Override
     public DeclareResult declare(ServiceManifest manifest, TargetEnvironment targetEnvironment,
                                   TraceContext triggeringTrace) {
+        assertNotStopping(manifest.id());
         assertAdapterIsEnabledAndUnchanged(manifest);
         assertNoCycleIntroduced(manifest);
 
@@ -76,6 +77,15 @@ public final class DeployServiceUseCaseImpl implements DeployServiceUseCase {
         pendingDeclareTraces.record(saved.serviceId(), saved.generation(), triggeringTrace);
         workQueue.enqueue(saved.serviceId());
         return new DeclareResult(saved.serviceId(), saved.generation());
+    }
+
+    /** Ecart I19 : refuse avant toute persistance, comme les autres validations. */
+    private void assertNotStopping(ServiceId id) {
+        registryStorePort.findStatus(id)
+                .filter(status -> status.phase() == Phase.STOPPING)
+                .ifPresent(status -> {
+                    throw new ServiceStoppingException(id);
+                });
     }
 
     /**

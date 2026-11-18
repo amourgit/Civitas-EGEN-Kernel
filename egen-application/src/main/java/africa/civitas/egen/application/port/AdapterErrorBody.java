@@ -6,7 +6,8 @@ package africa.civitas.egen.application.port;
  * docs/architecture/07-ports-et-adapters.md, « Messages d'erreur des adapters HTTP »).
  *
  * <p>Le corps est conserve : il dit souvent exactement ce qui est refuse (un champ invalide, un droit manquant) et
- * c'est ce qui permet de deboguer. Il est seulement borne a {@link #MAX_LENGTH} caracteres Java, car un corps non
+ * c'est ce qui permet de deboguer. Il est ramene sur UNE ligne (toute suite de blancs, retours a la ligne compris,
+ * devient un seul espace : une entree de journal = une ligne, ecart I5, docs/architecture/07), puis borne a {@link #MAX_LENGTH} caracteres Java, car un corps non
  * borne (une page HTML renvoyee par un mandataire, par exemple) entrerait en entier dans le journal et dans la
  * Condition du service.
  */
@@ -31,6 +32,7 @@ public final class AdapterErrorBody {
         if (body == null) {
             return "";
         }
+        body = body.replaceAll("\\s+", " ").strip();
         if (body.length() <= MAX_LENGTH) {
             return body;
         }

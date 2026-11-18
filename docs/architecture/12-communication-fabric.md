@@ -91,7 +91,7 @@ tiret bas (les proxies courants, nginx en tête, les suppriment).
 **mTLS.** Le SDK accepte un `SSLContext` (Java) / `ssl.SSLContext` (Python)
 et le transmet tel quel à son client HTTP ; **lorsqu'un contexte est fourni,
 les services cibles sont adressés en `https`** (sans contexte, en `http`). Le
-sidecar n'expose pas encore cette option : il parle `http` aux cibles tant que
+sidecar n'expose pas cette option en V1 (sidecar complété : livrable de la phase P0, proposée, non validée, [19](19-feuille-de-route.md)) : il parle `http` aux cibles tant que
 leur terminaison TLS est assurée par le maillage (Consul Connect) hors du
 processus. Aucun des deux ne gère de certificats lui-même
 (voir [14](14-securite.md)).
@@ -166,7 +166,7 @@ vers le Messaging Port. D'où :
   publication mais n'est pas observable par ce contrat (qui ne voit que le
   résultat de chaque tentative) : elle est vérifiée par des tests de même nom
   dans chaque SDK. L'étape 3 de la spécification est donc sans objet.
-- **Sidecar** : il n'expose pas encore la publication.
+- **Sidecar** : il n'expose pas la publication en V1 (sidecar complété : livrable de la phase P0, proposée, non validée, [19](19-feuille-de-route.md)).
 
 ## SDK léger
 
@@ -272,4 +272,4 @@ contrat a été livré dans cet ordre :
    publication n'a été retenue (voir la section normative) ; aucun scénario n'est
    ajouté à `sdk/contract/resiliency-contract.json`.
 
-Le sidecar de référence n'expose pas encore la publication.
+Le sidecar de référence n'expose pas la publication en V1 (livrable de la phase P0, proposée, non validée, [19](19-feuille-de-route.md)).

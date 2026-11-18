@@ -195,4 +195,69 @@ class PostgresWorkflowStoreAdapterIT {
         PostgresWorkflowStoreAdapter adapter = adapter();
         assertTrue(adapter.findById(ExecutionId.of("never-saved-execution")).isEmpty());
     }
+
+    // ------------------------------------------------------------------ bail de pilotage (etape P0-3b)
+
+    private static final java.time.Instant T0 = java.time.Instant.parse("2026-11-17T10:00:00Z");
+
+    private static ExecutionId aFreshExecutionId() {
+        return ExecutionId.of("it-lease-" + java.util.UUID.randomUUID());
+    }
+
+    /** Test central de P0-3b : deux adapters, comme deux exemplaires du Kernel, se disputent un meme bail. */
+    @Test
+    void onlyOneOfTwoInstancesSharingTheDatabaseObtainsTheLease() {
+        PostgresWorkflowStoreAdapter instanceA = adapter();
+        PostgresWorkflowStoreAdapter instanceB = adapter();
+        ExecutionId id = aFreshExecutionId();
+
+        assertTrue(instanceA.tryClaim(id, "kernel-a", T0, T0.plusSeconds(60)));
+        assertFalse(instanceB.tryClaim(id, "kernel-b", T0.plusSeconds(10), T0.plusSeconds(70)),
+                "le bail de kernel-a est valide : kernel-b ne doit pas piloter");
+    }
+
+    @Test
+    void anExpiredLeaseIsTakenOverByAnotherInstance() {
+        PostgresWorkflowStoreAdapter store = adapter();
+        ExecutionId id = aFreshExecutionId();
+        store.tryClaim(id, "kernel-a", T0, T0.plusSeconds(60)); // kernel-a meurt sans rendre son bail
+
+        assertTrue(store.tryClaim(id, "kernel-b", T0.plusSeconds(60), T0.plusSeconds(120)));
+        assertFalse(store.renew(id, "kernel-a", T0.plusSeconds(61), T0.plusSeconds(121)),
+                "kernel-a a perdu son bail : son renouvellement doit echouer");
+    }
+
+    @Test
+    void theHolderRenewsItsLeaseAndTheSameHolderCanClaimAgain() {
+        PostgresWorkflowStoreAdapter store = adapter();
+        ExecutionId id = aFreshExecutionId();
+        store.tryClaim(id, "kernel-a", T0, T0.plusSeconds(60));
+
+        assertTrue(store.renew(id, "kernel-a", T0.plusSeconds(20), T0.plusSeconds(80)));
+        assertTrue(store.tryClaim(id, "kernel-a", T0.plusSeconds(30), T0.plusSeconds(90)));
+        assertFalse(store.tryClaim(id, "kernel-b", T0.plusSeconds(85), T0.plusSeconds(145)),
+                "le bail a ete prolonge jusqu'a +90 s : toujours valide a +85 s");
+    }
+
+    @Test
+    void aLeaseCannotBeRenewedOnceExpired() {
+        PostgresWorkflowStoreAdapter store = adapter();
+        ExecutionId id = aFreshExecutionId();
+        store.tryClaim(id, "kernel-a", T0, T0.plusSeconds(60));
+
+        assertFalse(store.renew(id, "kernel-a", T0.plusSeconds(60), T0.plusSeconds(120)));
+    }
+
+    @Test
+    void onlyTheHolderReleasesTheLease() {
+        PostgresWorkflowStoreAdapter store = adapter();
+        ExecutionId id = aFreshExecutionId();
+        store.tryClaim(id, "kernel-a", T0, T0.plusSeconds(60));
+
+        store.release(id, "kernel-b"); // sans effet
+        assertFalse(store.tryClaim(id, "kernel-b", T0.plusSeconds(10), T0.plusSeconds(70)));
+
+        store.release(id, "kernel-a");
+        assertTrue(store.tryClaim(id, "kernel-b", T0.plusSeconds(10), T0.plusSeconds(70)));
+    }
 }

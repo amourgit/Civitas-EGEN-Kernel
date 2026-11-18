@@ -31,6 +31,11 @@ final class FakeDeploymentPort implements DeploymentPort {
     private int cyclesToConverge = 1;
     private int desiredCount = 2;
     private boolean alwaysThrowOnCreate = false;
+    private boolean alwaysThrowOnStop = false;
+
+    void setAlwaysThrowOnStop(boolean value) {
+        this.alwaysThrowOnStop = value;
+    }
     private Integer healthyOverride = null;
 
     void setCyclesToConverge(int cycles) {
@@ -88,6 +93,9 @@ final class FakeDeploymentPort implements DeploymentPort {
 
     @Override
     public void stop(ServiceId id) {
+        if (alwaysThrowOnStop) {
+            throw new africa.civitas.egen.application.port.DeploymentException("panne simulee de l'arret du deploiement");
+        }
     }
 
     @Override

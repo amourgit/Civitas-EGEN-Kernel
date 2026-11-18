@@ -77,4 +77,17 @@ class OtelObservabilityAdapterTest {
                     new Condition("DeploymentReady", ConditionStatus.TRUE, "Converged", "ok", Instant.now()));
         });
     }
+
+    /** Ecart I6 : sans point de collecte, l'adapter fonctionne et n'exporte rien. */
+    @Test
+    void withoutACollectorEndpointTheAdapterStillCreatesSpansAndExportsNothing() {
+        OtelObservabilityAdapter adapter = new OtelObservabilityAdapter("", "egen-kernel-test");
+        try {
+            try (africa.civitas.egen.application.port.TraceSpan span = adapter.startSpan("operation", null)) {
+                org.junit.jupiter.api.Assertions.assertNotNull(span.context());
+            }
+        } finally {
+            adapter.close();
+        }
+    }
 }

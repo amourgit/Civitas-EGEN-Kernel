@@ -86,6 +86,12 @@ public final class ReconciliationEngine implements AutoCloseable {
     // l'orchestration, jamais persiste comme etat desire/observe.
     private final ConcurrentHashMap<ServiceId, Instant> stoppingDeregisteredAt =
             new ConcurrentHashMap<>();
+    /** Delai par defaut au-dela duquel un service reste DEGRADED avant de passer FAILED (docs/architecture/09). */
+    static final Duration DEFAULT_DEGRADED_TIMEOUT = Duration.ofMinutes(10);
+    private volatile Duration degradedTimeout = DEFAULT_DEGRADED_TIMEOUT;
+    // Instant ou un service est devenu DEGRADED (transitoire, jamais persiste : un redemarrage du Kernel
+    // fait repartir le delai de zero).
+    private final ConcurrentHashMap<ServiceId, Instant> degradedSince = new ConcurrentHashMap<>();
     // Ecart E3 (docs/architecture/09) : refus consecutifs de resolution de configuration/secrets par service,
     // pour espacer les tentatives (delai croissant). Bookkeeping transitoire, jamais persiste.
     private final ConcurrentHashMap<ServiceId, AtomicInteger> configurationRefusals =
@@ -387,14 +393,18 @@ public final class ReconciliationEngine implements AutoCloseable {
             return;
         }
 
+        // Ecart I16 : les Conditions calculees ci-dessus sont enregistrees AVANT l'appel au moteur de deploiement ;
+        // si cet appel echoue jusqu'a FAILED, le statut garde ce que l'on savait deja du service.
+        List<Condition> conditionsBeforeDeploy =
+                mergeConditions(current.conditions(), List.of(dependenciesCondition, messagingCondition));
+        saveStatus(id, Phase.CONFIGURED, conditionsBeforeDeploy, desired.generation());
         withChildSpan(parent, "deployment.create",
                 () -> deploymentPort.create(id, desired.manifest().deployment()));
         // Premier appel reseau reel effectue pour cette generation : le lien
         // de trace avec l'appel Declare d'origine a rempli son role (voir
         // docs/architecture/15-observabilite.md et PendingDeclareTraces).
         pendingDeclareTraces.clear(id);
-        advanceTo(id, current, Phase.DEPLOYING, desired.generation(),
-                mergeConditions(current.conditions(), List.of(dependenciesCondition, messagingCondition)));
+        advanceTo(id, current, Phase.DEPLOYING, desired.generation(), conditionsBeforeDeploy);
         workQueue.requeueAfter(id, POLL_DELAY_WHILE_CONVERGING);
     }
 
@@ -513,6 +523,23 @@ public final class ReconciliationEngine implements AutoCloseable {
         reportCondition(id, messagingCondition);
         List<Condition> conditions = mergeConditions(current.conditions(),
                 List.of(deploymentCondition, discoveryCondition, messagingCondition));
+
+        if (nextPhase == Phase.DEGRADED) {
+            Instant since = degradedSince.computeIfAbsent(id, ignored -> Instant.now());
+            Duration timeout = degradedTimeout;
+            if (!timeout.isZero() && Duration.between(since, Instant.now()).compareTo(timeout) >= 0) {
+                // Decide le 14 novembre 2026 (docs/architecture/09, « DEGRADED depuis trop longtemps »).
+                Condition timedOut = new Condition("DeploymentReady", ConditionStatus.FALSE, "DegradedTimeout",
+                        "DEGRADED depuis plus de " + timeout + " (egen.reconciliation.degraded-timeout) ; "
+                                + deploymentCondition.message(), Instant.now());
+                reportCondition(id, timedOut);
+                advanceTo(id, current, Phase.FAILED, desired.generation(), mergeConditions(conditions, timedOut));
+                degradedSince.remove(id);
+                return;
+            }
+        } else {
+            degradedSince.remove(id);
+        }
 
         if (current.phase() == nextPhase) {
             saveStatus(id, nextPhase, conditions, desired.generation());
@@ -658,6 +685,21 @@ public final class ReconciliationEngine implements AutoCloseable {
         return List.copyOf(byType.values());
     }
 
+    /**
+     * Fixe le delai au-dela duquel un service reste {@code DEGRADED} avant de passer {@code FAILED}
+     * ({@code egen.reconciliation.degraded-timeout}, docs/architecture/09). {@link Duration#ZERO} le desactive :
+     * un service peut alors rester {@code DEGRADED} indefiniment. Valeur par defaut : 10 minutes.
+     *
+     * @return ce moteur, pour le chainage a la construction
+     */
+    public ReconciliationEngine degradedTimeout(Duration timeout) {
+        if (timeout == null || timeout.isNegative()) {
+            throw new IllegalArgumentException("degradedTimeout doit etre une duree positive ou nulle (recu : " + timeout + ")");
+        }
+        this.degradedTimeout = timeout;
+        return this;
+    }
+
     /** Delai croissant entre deux tentatives : 2, 4, 8, 16, 32 secondes, puis 60 secondes au plus. */
     static Duration growingDelay(int attempts) {
         return Duration.ofSeconds(Math.min(60L, 1L << Math.min(Math.max(attempts, 1), 6)));
@@ -673,18 +715,37 @@ public final class ReconciliationEngine implements AutoCloseable {
         int failures = consecutiveFailures
                 .computeIfAbsent(id, ignored -> new AtomicInteger(0))
                 .incrementAndGet();
+        String cause = ErrorText.of(failure);
+        // Les Conditions sont lues a nouveau : le cycle qui vient d'echouer a pu en enregistrer avant l'erreur (I16).
+        ServiceStatus latest = registryStorePort.findStatus(id).orElse(current);
+        if (current.phase() == Phase.STOPPING && failures > MAX_CONSECUTIVE_FAILURES) {
+            // Ecart I18 : STOPPING -> FAILED est interdit ; le compteur reste plafonne a 5/5 au lieu de croitre.
+            consecutiveFailures.get(id).set(MAX_CONSECUTIVE_FAILURES);
+            failures = MAX_CONSECUTIVE_FAILURES;
+        }
         LOG.log(Level.WARNING, "Echec d''adapter pour {0} ({1}/{2}) : {3}",
-                id, failures, MAX_CONSECUTIVE_FAILURES, failure.getMessage());
+                id, failures, MAX_CONSECUTIVE_FAILURES, cause);
         observabilityPort.incrementCounter("egen_reconcile_failures_total",
                 Map.of("service", id.value(), "reason", failure.getClass().getSimpleName()));
 
+        if (current.phase() == Phase.STOPPING) {
+            // Ecart I18 (decide le 14 novembre 2026, docs/architecture/09) : un echec de l'arret lui-meme ne peut pas
+            // mener a FAILED ; la Condition dit pourquoi l'arret n'avance pas et l'arret est retente.
+            Condition stopFailed = new Condition("DeploymentStopped", ConditionStatus.FALSE, "StopFailed",
+                    "tentative " + failures + "/" + MAX_CONSECUTIVE_FAILURES + " : " + cause, Instant.now());
+            reportCondition(id, stopFailed);
+            saveStatus(id, Phase.STOPPING, mergeConditions(latest.conditions(), stopFailed), desired.generation());
+            workQueue.requeueAfter(id, failures >= MAX_CONSECUTIVE_FAILURES
+                    ? Duration.ofSeconds(60) : growingDelay(failures));
+            return;
+        }
         if (failures >= MAX_CONSECUTIVE_FAILURES
                 && stateMachine.isTransitionAllowed(current.phase(), Phase.FAILED)) {
             Condition failedCondition = new Condition("DeploymentReady", ConditionStatus.FALSE,
-                    "AdapterFailureThresholdExceeded", failure.getMessage(), Instant.now());
+                    "AdapterFailureThresholdExceeded", cause, Instant.now());
             reportCondition(id, failedCondition);
             advanceTo(id, current, Phase.FAILED, desired.generation(),
-                    mergeConditions(current.conditions(), failedCondition));
+                    mergeConditions(latest.conditions(), failedCondition));
             consecutiveFailures.remove(id);
             return;
         }

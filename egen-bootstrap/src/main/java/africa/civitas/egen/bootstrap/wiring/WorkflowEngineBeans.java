@@ -61,7 +61,23 @@ public class WorkflowEngineBeans {
     @ConfigProperty(name = "egen.workflow.retry.max-backoff-millis", defaultValue = "30000")
     long maxBackoffMillis;
 
+    /** Duree du bail de pilotage d'une execution (durée ISO-8601), docs/architecture/11, « Bail d'execution ». */
+    @ConfigProperty(name = "egen.workflow.lease-duration", defaultValue = "PT60S")
+    Duration leaseDuration;
+
+    /** Identite de ce Kernel comme pilote ; par defaut le nom de la machine et un identifiant aleatoire. */
+    @ConfigProperty(name = "egen.kernel.id")
+    java.util.Optional<String> kernelId;
+
+    /**
+     * Intervalle de la recherche des executions a reprendre (duree ISO-8601). Sans elle, un Kernel qui meurt laisse ses
+     * executions orphelines tant qu'un autre Kernel ne redemarre pas ; {@code PT0S} la desactive.
+     */
+    @ConfigProperty(name = "egen.workflow.recovery-interval", defaultValue = "PT30S")
+    Duration recoveryInterval;
+
     private ExecutorService executor;
+    private java.util.concurrent.ScheduledExecutorService recoveryScheduler;
     private WorkflowEngine engine;
 
     @Produces
@@ -77,16 +93,49 @@ public class WorkflowEngineBeans {
                     Clock.systemUTC(), Sleeper.threadSleep(), executor,
                     new WorkflowEngineSettings(Duration.ofMillis(baseBackoffMillis),
                             Duration.ofMillis(maxBackoffMillis)),
-                    resiliencyPolicyProvider, observabilityPort);
+                    resiliencyPolicyProvider, observabilityPort)
+                    .lease(kernelId.orElseGet(WorkflowEngineBeans::defaultKernelId), leaseDuration);
         }
         return engine;
     }
 
+    private static String defaultKernelId() {
+        String host;
+        try {
+            host = java.net.InetAddress.getLocalHost().getHostName();
+        } catch (java.io.IOException e) {
+            host = "kernel";
+        }
+        return host + "-" + java.util.UUID.randomUUID();
+    }
+
     void onStart(@Observes StartupEvent event) {
         engine().recoverInterruptedExecutions();
+        if (!recoveryInterval.isZero() && !recoveryInterval.isNegative()) {
+            recoveryScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(task -> {
+                Thread thread = new Thread(task, "egen-workflow-recovery");
+                thread.setDaemon(true);
+                return thread;
+            });
+            long millis = recoveryInterval.toMillis();
+            recoveryScheduler.scheduleWithFixedDelay(() -> {
+                try {
+                    engine().recoverInterruptedExecutions();
+                } catch (RuntimeException e) {
+                    System.getLogger(WorkflowEngineBeans.class.getName()).log(System.Logger.Level.WARNING,
+                            "Recherche des executions a reprendre impossible : " + e.getMessage(), e);
+                }
+            }, millis, millis, java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
     }
 
     void onStop(@Observes ShutdownEvent event) {
+        if (recoveryScheduler != null) {
+            recoveryScheduler.shutdownNow();
+        }
+        if (engine != null) {
+            engine.shutdown();
+        }
         if (executor != null) {
             executor.shutdownNow();
         }

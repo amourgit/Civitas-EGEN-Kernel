@@ -42,6 +42,11 @@ deployment:
       target: 70
   updateStrategy:
     type: rolling                 # rolling | blue-green | canary
+  security:                       # facultatif (K9) : durcissement du conteneur, voir « deployment.security »
+    runAsNonRoot: true
+    runAsUser: 10001
+    readOnlyRootFilesystem: true
+    dropAllCapabilities: true
     maxUnavailable: 1
     healthyDeadline: 120s
   placement:
@@ -139,6 +144,39 @@ lifecycle:
   manualApprovalRequired: false      # true en prod pour certains domaines sensibles
 ```
 
+## `deployment.security` — durcissement du conteneur (constat K9)
+
+*Décidé par Samuel le 14 novembre 2026 (point ouvert 6, option a).*
+
+**Les termes.** Le *contexte de sécurité* (`securityContext`) d'un conteneur Kubernetes est l'ensemble des restrictions que le moteur lui impose. Le bloc facultatif `deployment.security` laisse **le propriétaire du service**, qui connaît son image, demander des restrictions que le Kernel ne peut pas imposer à toutes les images sans les casser.
+
+| Champ | Type | Effet demandé à l'adapter Kubernetes | Défaut (champ absent) |
+|---|---|---|---|
+| `runAsNonRoot` | booléen | Kubernetes refuse de démarrer le conteneur si son programme tourne en administrateur (root) | non posé |
+| `runAsUser` | entier, de `1` à `2147483647` | le programme du conteneur tourne sous ce numéro d'utilisateur | non posé |
+| `readOnlyRootFilesystem` | booléen | le conteneur ne peut plus écrire sur son propre disque | non posé |
+| `dropAllCapabilities` | booléen | quand il vaut `true`, le conteneur perd tous ses privilèges Linux (`capabilities.drop: [ALL]`) | non posé |
+
+**Règles.**
+1. Le bloc est **facultatif**. Sans bloc, ou avec un bloc vide (`security: {}`), l'adapter pose seulement le socle décrit dans [07](07-ports-et-adapters.md) (`seccompProfile`, `automountServiceAccountToken`, `allowPrivilegeEscalation`) : rien de plus strict qu'avant.
+2. Chaque champ présent est posé **tel quel**, y compris `false`. Chaque champ absent n'est pas posé. Exception : `dropAllCapabilities: false` ne pose rien (il n'existe pas de valeur « ne pas retirer » à poser : c'est le comportement sans le champ).
+3. Validation à `Declare` (refus `400`, avec le nom du champ) : `runAsUser` doit être un entier compris entre `1` et `2147483647` (jamais `0`, qui est root) ; un champ inconnu dans le bloc est refusé (schéma strict, étape 1 de la validation) ; un type incorrect (par exemple `runAsNonRoot: "oui"`) est refusé.
+4. **Le Kernel n'ajoute aucun volume.** Avec `readOnlyRootFilesystem: true`, un service qui écrit sur son disque (même dans `/tmp`) échoue : c'est au propriétaire de choisir une image qui n'écrit pas, ou de ne pas demander ce champ. Le manifeste ne déclare pas de volumes en V1.
+5. **Un adapter qui ne sait pas appliquer le bloc ne l'ignore jamais en silence.** L'adapter Nomad ne supporte aucun de ces champs en V1 : à la création ou à la mise à jour du service, il refuse avec le message « L'adapter nomad ne supporte pas deployment.security (champs demandes : <liste des champs présents>) » ; le service suit alors le chemin d'échec d'adapter habituel et la Condition `DeploymentReady` porte ce message.
+
+**Exemple de bout en bout.** L'équipe `content-platform` déclare `news-service` avec une image dont le programme tourne sous l'utilisateur 10001 et n'écrit pas sur son disque :
+```yaml
+deployment:
+  adapter: kubernetes
+  image: registry.civitas.africa/news-service:2.4.0
+  security:
+    runAsNonRoot: true
+    runAsUser: 10001
+    readOnlyRootFilesystem: true
+    dropAllCapabilities: true
+```
+Le Kernel crée le Deployment avec ces quatre restrictions en plus du socle, et le pod démarre durci. Une autre équipe déclare un service avec l'image `nginx` d'origine **sans** bloc `security` : son pod démarre comme avant. Si cette équipe ajoute `runAsNonRoot: true` à l'image `nginx` d'origine, Kubernetes refuse de démarrer le conteneur (il tourne en root) : la Condition `DeploymentReady` du service dit pourquoi, et l'équipe corrige l'image ou retire le champ.
+
 ## Labels réservés posés par la plateforme
 
 Le préfixe `platform.civitas.africa/` est **réservé** à la Plateforme ([22](22-frontiere-avec-la-plateforme.md#224--les-labels-réservés)). Seul `platform-operator-service` pose ces clés ; le Kernel les stocke et les restitue comme n'importe quel label, **sans jamais s'en servir** pour décider, router ou autoriser (garde-fou n°1). Ils servent à la traçabilité et au diagnostic ; la source de vérité reste le catalogue.
@@ -180,7 +218,7 @@ de façon déterministe à partir du type
 ([12](12-communication-fabric.md#flux-dévénements)) : l'ordre de déclaration
 entre publieur et consommateur n'a ainsi aucune importance. `schemaRef`,
 `subscriptionGroup` et `deadLetter` sont conservés tels quels ;
-`deadLetter` n'est **pas encore appliqué** par le Kernel (il décrit la
+`deadLetter` n'est **pas appliqué** par le Kernel (il décrit la
 consommation, que le service réalise via son SDK).
 
 **`configuration`.** Aucune valeur n'y figure jamais, et EGEN ne stocke jamais
@@ -267,7 +305,8 @@ normative dans [12](12-communication-fabric.md#sémantique-normative-de-la-rési
    silencieuse).
 2. Cohérence sémantique : SemVer valide, pas de cycle dans
    `dependencies.services` **au niveau de l'écosystème entier** (le graphe
-   global, pas seulement local à ce manifeste), noms d'endpoints uniques.
+   global, pas seulement local à ce manifeste), noms d'endpoints uniques, et les
+   règles propres à `deployment.security` (voir « `deployment.security` »).
 3. Vérification que l'`adapter` déclaré dans `deployment.adapter` est bien
    activé dans le Kernel (voir [07](07-ports-et-adapters.md#sélection-et-routage--un-moteur-par-service)).
    Sinon : refus (HTTP 400). Si le service existe déjà avec un **autre**

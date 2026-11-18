@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # V4/V5 : cree un cluster Kubernetes de test (k3s dans Docker), le compte de service du Kernel avec ses droits minimaux,
-# son jeton (2 h) et le certificat de l'autorite, puis ecrit /tmp/v45/env.sh (variables du Kernel).
+# son jeton (8 h par defaut) et le certificat de l'autorite, puis ecrit /tmp/v45/env.sh (variables du Kernel).
 # Reprend exactement la configuration du test de niveau 3 (KubernetesDeploymentAdapterIT, valide chez Samuel).
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

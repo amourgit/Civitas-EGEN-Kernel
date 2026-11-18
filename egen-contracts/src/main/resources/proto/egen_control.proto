@@ -1,0 +1,132 @@
+// Contrat gRPC de l'API de contrôle du Kernel EGEN, version 1.
+// Texte normatif : docs/architecture/13-api-et-contrats.md, section « Surface gRPC ».
+//
+// Règles de ce fichier :
+//  - le paquet porte la version (africa.civitas.egen.control.v1) ; une évolution incompatible crée un paquet v2 ;
+//  - on ajoute des champs avec de nouveaux numéros, on ne change jamais le numéro ni le type d'un champ existant ;
+//  - les valeurs de phase et de Condition sont des chaînes, exactement comme en REST (docs/architecture/09) ;
+//  - l'authentification et la trace passent par les métadonnées d'appel : « authorization: Bearer <jeton> »,
+//    « idempotency-key » (Declare, Stop) et « traceparent » ; aucun champ de message ne les porte.
+syntax = "proto3";
+
+package africa.civitas.egen.control.v1;
+
+option java_multiple_files = true;
+option java_package = "africa.civitas.egen.api.grpc.v1";
+option java_outer_classname = "EgenControlProto";
+
+// Cycle de vie d'un service : déclarer, lire, lister, arrêter, découvrir, suivre le statut.
+service ServiceControl {
+  // Déclare (ou redéclare) un service. Équivalent de POST /api/v1/services. Rôle egen-admin.
+  // Le manifeste est le même document YAML qu'en REST, validé par les mêmes règles.
+  rpc Declare(DeclareRequest) returns (DeclareResponse);
+
+  // Lit le manifeste déclaré. Équivalent de GET /api/v1/services/{id}. Tout appelant authentifié.
+  rpc Get(GetRequest) returns (ServiceManifest);
+
+  // Liste les manifestes déclarés, par identifiant. Équivalent de GET /api/v1/services. Tout appelant authentifié.
+  rpc List(ListRequest) returns (ListResponse);
+
+  // Demande l'arrêt gracieux. Équivalent de POST /api/v1/services/{id}/actions/stop. Rôle egen-admin.
+  rpc Stop(StopRequest) returns (StopResponse);
+
+  // Résout les instances saines d'un service. Équivalent de GET /api/v1/discover/{nom}. Tout appelant authentifié.
+  rpc Resolve(ResolveRequest) returns (ResolveResponse);
+
+  // Suit le statut d'un service en flux continu : un message au début, puis un message à chaque changement de
+  // phase, de Condition ou de génération. Le flux se termine quand le service atteint STOPPED, FAILED ou REMOVED,
+  // ou quand le client l'annule. Tout appelant authentifié.
+  rpc WatchStatus(WatchStatusRequest) returns (stream ServiceStatus);
+}
+
+message DeclareRequest {
+  // Manifeste complet au format YAML (docs/architecture/06). Obligatoire.
+  string manifest_yaml = 1;
+  // Environnement cible ; vide = valeur par défaut du Kernel (paramètre « environment » en REST).
+  string environment = 2;
+}
+
+message DeclareResponse {
+  string service_id = 1;
+  // Génération enregistrée : elle augmente à chaque Declare accepté.
+  int64 generation = 2;
+}
+
+message GetRequest {
+  string service_id = 1;
+}
+
+message ServiceManifest {
+  string service_id = 1;
+  // Le manifeste lu, au format YAML : exactement ce qui a été déclaré (docs/architecture/13).
+  string manifest_yaml = 2;
+}
+
+message ListRequest {}
+
+message ListResponse {
+  repeated ServiceManifest services = 1;
+}
+
+message StopRequest {
+  string service_id = 1;
+}
+
+message StopResponse {}
+
+message ResolveRequest {
+  string service_name = 1;
+}
+
+message ResolveResponse {
+  string service_id = 1;
+  repeated Instance instances = 2;
+  // Absent quand le service ne déclare aucune résilience (docs/architecture/06).
+  Resiliency resiliency = 3;
+}
+
+message Instance {
+  string instance_id = 1;
+  string address = 2;
+  int32 port = 3;
+}
+
+message Resiliency {
+  int64 timeout_millis = 1;
+  Retry retry = 2;
+  CircuitBreaker circuit_breaker = 3;
+}
+
+message Retry {
+  int32 max_attempts = 1;
+  string backoff = 2;
+  int64 base_delay_millis = 3;
+}
+
+message CircuitBreaker {
+  int32 failure_threshold = 1;
+  int64 open_duration_millis = 2;
+}
+
+message WatchStatusRequest {
+  string service_id = 1;
+}
+
+message ServiceStatus {
+  string service_id = 1;
+  // DECLARED, REGISTERED, CONFIGURED, DEPLOYING, RUNNING, DEGRADED, UPDATING, ROLLED_BACK, STOPPING, STOPPED,
+  // FAILED ou REMOVING (docs/architecture/09).
+  string phase = 2;
+  int64 observed_generation = 3;
+  repeated Condition conditions = 4;
+}
+
+message Condition {
+  string type = 1;
+  // "True", "False" ou "Unknown", comme en REST.
+  string status = 2;
+  string reason = 3;
+  string message = 4;
+  // Horodatage ISO-8601 (UTC) du dernier changement de statut de la Condition.
+  string last_transition_time = 5;
+}

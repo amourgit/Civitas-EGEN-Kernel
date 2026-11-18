@@ -26,7 +26,7 @@ DesiredState
 ObservedState (reconstruit, non persisté comme vérité)
 ├── DeploymentObservation  (statut Nomad : allocations, santé des tâches)
 ├── DiscoveryObservation   (instances Consul, statut de santé)
-├── MessagingObservation   (statut des bindings, lag éventuel)
+├── (BindingStatus : renvoyé par le Messaging Port, jamais stocké dans le modèle de domaine en V1)
 └── ObservedGeneration (long)
 
 ServiceStatus

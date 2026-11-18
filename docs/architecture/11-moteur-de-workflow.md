@@ -214,11 +214,33 @@ exécution `RUNNING`/`COMPENSATING` renvoyée par
 **Limites connues de cet incrément** (à lever explicitement, jamais en
 silence) : définition non versionnée (une exécution en cours utilise la
 définition stockée la plus récente) ; un seul Kernel pilote une exécution à la
-fois (aucun verrou distribué — cohérent avec l'`Idempotency-Key` en mémoire de
-[13](13-api-et-contrats.md)) ; une seule métrique propre au moteur,
+fois (aucun verrou distribué aujourd'hui : l'idempotence partagée de [13](13-api-et-contrats.md) ne couvre que les requêtes de l'API, pas le pilotage des exécutions ; le bail décrit à l'étape P0-3b de [19](19-feuille-de-route.md) le remplacera) ; une seule métrique propre au moteur,
 `egen_workflow_executions_total{workflow, status}` ([15](15-observabilite.md)),
 comptée une fois quand une exécution entre dans un statut terminal (les appels
 de ports sont par ailleurs instrumentés par les décorateurs `Observed*Port`).
+
+## Bail d'exécution : plusieurs exemplaires du Kernel
+
+*Étape P0-3b de la [phase P0](19-feuille-de-route.md). Écrit le 17 novembre 2026.*
+
+**Les termes.** Un *bail* (*lease*) est le droit, limité dans le temps, de piloter une exécution. Le *pilote* est le Kernel qui détient ce bail.
+
+**Le problème.** Chaque Kernel garde en mémoire l'ensemble des exécutions qu'il pilote et, au démarrage, reprend **toutes** les exécutions `RUNNING` ou `COMPENSATING` du Registry. Avec deux Kernels, le second reprendrait des exécutions que le premier est en train de piloter, et les appels de leurs étapes seraient faits deux fois.
+
+**Le contrat.**
+1. Une exécution est pilotée par **un seul Kernel à la fois**. Pour la piloter, un Kernel doit détenir son bail : une ligne de la table `egen_workflow_lease` (`execution_id`, `driver_id`, `lease_expires_at`) dans PostgreSQL.
+2. **Obtention** (une seule instruction atomique) : le bail est accordé s'il n'existe pas, s'il est **expiré** (`lease_expires_at` atteinte) ou s'il appartient déjà à ce Kernel. Sinon le Kernel **ne touche pas** l'exécution.
+3. **Renouvellement** : tant qu'il pilote, le Kernel prolonge son bail **toutes les durées/3** (20 secondes pour 60), y compris pendant une étape longue. Si la base répond qu'il n'est plus détenteur, il **cesse de piloter** dès la fin de l'étape en cours (une étape déjà lancée ne peut pas être interrompue).
+4. **Remise** : le bail est rendu quand le pilotage se termine (exécution terminée, en pause ou abandonnée). Un Kernel qui meurt ne le rend pas : il **expire** de lui-même.
+5. **Reprise** : chaque Kernel cherche les exécutions à reprendre **au démarrage, puis toutes les 30 secondes** (`egen.workflow.recovery-interval`, `PT0S` = seulement au démarrage). Une exécution dont le bail est libre ou expiré est prise par le premier Kernel qui la trouve : après la mort d'un pilote, elle est reprise au plus tard **durée du bail + intervalle de recherche** après son dernier renouvellement (90 secondes avec les valeurs par défaut).
+6. **Réglages** : `egen.workflow.lease-duration` (`PT60S` par défaut), `egen.workflow.recovery-interval` (`PT30S`) et `egen.kernel.id` (variable `EGEN_KERNEL_ID` ; par défaut le nom de la machine suivi d'un identifiant aléatoire, donc **différent à chaque démarrage**).
+
+**Limites connues, écrites pour ne rien laisser d'implicite.**
+- Les horloges des Kernels doivent être **synchronisées à quelques secondes près** (NTP) : la date d'expiration est écrite par le Kernel qui prend le bail et comparée par les autres.
+- Si la base est inaccessible plus longtemps que la durée du bail, un Kernel ne peut pas renouveler : son bail expire, un autre Kernel peut reprendre l'exécution, et l'**étape en cours peut être appelée deux fois**. Les opérations d'étape doivent donc rester idempotentes, comme l'exige déjà ce document pour les reprises.
+- Les Kernels ne s'échangent pas de messages : la coordination passe uniquement par la base.
+
+**Exemple de bout en bout.** `kernel-a` et `kernel-b` partagent la base. Une exécution démarre sur `kernel-a` à 10:00:00 : il prend le bail (expiration à 10:01:00) et le renouvelle à 10:00:20 et 10:00:40 (expiration à 10:01:40). À 10:00:30 `kernel-b` fait sa recherche périodique : il trouve l'exécution `RUNNING`, tente le bail, le refuse (valide chez `kernel-a`) et passe. À 10:00:45 `kernel-a` est tué. Les recherches de `kernel-b` à 10:01:00 et 10:01:30 refusent encore le bail ; celle de 10:02:00 le trouve expiré, le prend, relit l'état dans le Registry et continue après la dernière étape réussie : aucune étape réussie n'est refaite.
 
 ## Compensation — le cœur de la robustesse Saga
 

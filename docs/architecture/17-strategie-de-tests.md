@@ -161,7 +161,7 @@ laquelle repose toute l'architecture (voir
 
 ### Niveau 6b — Injection de pannes sur l'infrastructure réelle (à faire)
 
-Les trois scénarios cités plus haut : latence réseau vers Consul, coupure de NATS pendant une rafale de publications, redémarrage brutal d'un vrai processus Kernel en plein cycle. Ils demandent une infrastructure réelle et un outil d'injection de pannes réseau, à choisir et à valider avant de l'écrire.
+Les trois scénarios cités plus haut : latence réseau vers Consul, coupure de NATS pendant une rafale de publications, redémarrage brutal d'un vrai processus Kernel en plein cycle. Ils demandent une infrastructure réelle et un outil d'injection de pannes réseau. **Outil retenu le 14 novembre 2026 (décision déléguée à Claude) : Toxiproxy**, un mandataire TCP qui s'intercale entre le Kernel et Consul ou NATS et y injecte latence, coupure ou perte de paquets ; il se pilote depuis les tests par le module Testcontainers `toxiproxy`, déjà cohérent avec les tests de niveau 3. Raison : il agit au niveau du réseau (ce que le chaos doit prouver) sans modifier le Kernel ni les services testés. Les trois scénarios restent **à écrire** (vérification V7).
 
 ## Tests de contrat inter-langages (Communication Fabric)
 

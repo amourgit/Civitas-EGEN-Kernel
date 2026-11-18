@@ -138,6 +138,27 @@
               "minimum": 0
             }
           }
+        },
+        "security": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Facultatif (constat K9, docs/architecture/06) : durcissement du conteneur demande par le proprietaire du service. Un champ absent n'est pas pose.",
+          "properties": {
+            "runAsNonRoot": {
+              "type": "boolean"
+            },
+            "runAsUser": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "readOnlyRootFilesystem": {
+              "type": "boolean"
+            },
+            "dropAllCapabilities": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },
