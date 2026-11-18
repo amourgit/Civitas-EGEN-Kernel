@@ -203,3 +203,17 @@ curl -s -H "$A" $KC/admin/realms/$REALM/roles/default-roles-$REALM/composites | 
 - **Limite** : la première liste montre les attributions directes. Un rôle qui contient `egen-admin` (rôle composite) ou un groupe qui le porte donne le droit à tous ses membres : vérifier aussi les groupes de la deuxième liste et les rôles composites du realm dans la console d'administration.
 - *Observé le 11 novembre 2026* sur le realm d'essai (Keycloak 26.8.2, bac à sable de Claude) : première liste `service-account-deploy-pipeline`, `service-account-platform-operator-service` (et `service-account-sans-mapper`, client temporaire de l'essai) ; deuxième liste vide ; rôles par défaut `manage-account`, `offline_access`, `uma_authorization`, `view-profile`.
 
+## Vault : jeton expiré ou Vault scellé
+
+*Ajouté le 17 novembre 2026 (étape P0-4 de [19](19-feuille-de-route.md) ; [14](14-securite.md), « Vault hors mode développement »).*
+
+**Symptôme.** Un service reste `REGISTERED` et sa Condition `ConfigResolved` est `False` avec un message `Vault a rejete la verification de "<chemin>" : HTTP 403 …` ou `HTTP 503 …`, ou `Appel Vault impossible (…)`.
+
+| Message | Cause | Que faire |
+|---|---|---|
+| `HTTP 403` | le jeton du Kernel a **expiré** (durée : 720 h) ou ne porte pas la politique `egen-kernel` | créer un nouveau jeton (`vault token create -policy=egen-kernel -no-default-policy -ttl=720h -field=token`, avec un jeton qui a le droit de le faire), le donner au Kernel comme `VAULT_TOKEN`, **redémarrer le Kernel** (il ne relit pas son jeton) |
+| `HTTP 503` | Vault est **scellé** (après un redémarrage de Vault) | desceller Vault avec 3 des 5 parts de clé (`vault operator unseal`, trois fois) ; le Kernel réessaie seul, sans redémarrage |
+| `Appel Vault impossible (…) : java.net.ConnectException …` | Vault est arrêté ou injoignable | relancer Vault (`docker compose -f deploy/vault/docker-compose.yml up -d`), puis le desceller |
+| `Aucun secret Vault a l'emplacement "<chemin>"` | le secret n'a jamais été créé | `vault kv put <mount>/<chemin> clé=valeur`, avec un jeton qui a le droit d'écrire |
+
+**Vérifier qu'il n'y a qu'un problème de secret.** `GET /api/v1/services/<id>/status` : seule la Condition `ConfigResolved` est `False` ; les autres Conditions du service sont inchangées.
