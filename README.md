@@ -10,8 +10,8 @@ remplacer. Le **Kernel EGEN** est l'implémentation de référence d'un Control 
 
 ## État du dépôt
 
-Le dépôt ne contient **aucun code** pour l'instant : seulement la documentation d'architecture et le plan
-de développement. Le premier code (contrats et kit de conformité) est la phase R1.
+Le dépôt contient la documentation d'architecture et le plan de développement ; le code arrive phase par phase,
+à commencer par les contrats et le kit de conformité (phase R1).
 L'état exact de chaque phase est dans [docs/00-etat-et-reprise.md](docs/00-etat-et-reprise.md) :
 c'est le seul endroit où figure un statut.
 
@@ -38,7 +38,7 @@ Les deux documents fondateurs (vision et inventaire des questions) sont dans
 - La documentation précède le code : le contrat s'écrit avant l'implémentation.
 - Adopter avant de coder : une solution éprouvée existante prime sur du code écrit ici (décision D-07).
 - Aucun secret (jeton, mot de passe, clé) dans un fichier, un commit ou un document.
-- `main` ne reçoit que de l'état validé par Samuel.
+- `main` ne reçoit que des étapes vérifiées par des tests ; il est toujours à jour et vérifié.
 
 Licence : à définir (point ouvert PO-09 dans [docs/16-risques-et-verifications.md](docs/16-risques-et-verifications.md)).
 

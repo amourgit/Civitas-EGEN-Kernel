@@ -62,8 +62,10 @@ individuellement à l'étape d'introduction).
 | D-09 | 2026-10-28 | **Keycloak** pour l'identité des personnes ; **SpiceDB** pour les droits fins. | Maintenue |
 | D-10 | 2026-10-28 | Les connecteurs vers les logiciels tiers sont des **services séparés** basés sur **Apache Camel**, hors du Kernel. | Maintenue |
 | D-11 | 2026-11-19 | Les contrats C1 à C6 sont indépendants de toute technologie (P-03, G-04). | Verrouillée |
-| D-12 | 2026-11-19 | Briques acceptées avec l'option C, à confirmer à leur étape : **SPIFFE/SPIRE** (identité des charges de travail, R3), **NATS JetStream + CloudEvents** (événements, R2.7), **OpenBao** (secrets, R3.4), **OpenTelemetry** (traces et métriques, R2.7), **Dapr** en capacité optionnelle offerte aux services (R5). | Retenue avec l'option C |
+| D-12 | 2026-11-19 | Briques acceptées avec l'option C : **SPIFFE/SPIRE** (identité des charges de travail, R3), **NATS JetStream + CloudEvents** (événements, R2.7), **OpenBao** (secrets, R3.4), **OpenTelemetry** (traces et métriques, R2.7), **Dapr** en capacité optionnelle offerte aux services (R5). Chaque brique reste soumise à ses vérifications (VR) avant sa mise en service. | Verrouillée (confirmée par Samuel le 2026-11-19) |
 | D-13 | 2026-11-19 | Aucune valeur de secret dans une ressource : références uniquement (P-09). | Maintenue |
+| D-14 | 2026-11-19 | **Les vérifications se font par des tests réalistes** : contre des composants réels dès qu'une étape les met en jeu. Ce qui exige des conteneurs ou un cluster est exécuté par Samuel (commandes, attendu et cas négatif fournis par Claude) ; ce qui s'exécute sans conteneur est vérifié par Claude avec de vraies requêtes réseau locales. | Verrouillée |
+| D-15 | 2026-11-19 | Le développement se fait sur `main` : chaque étape vérifiée y est poussée en avance directe. | Verrouillée |
 
 ## Comment ajouter ou changer une décision
 

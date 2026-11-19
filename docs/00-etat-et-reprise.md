@@ -15,19 +15,19 @@ ouverts (voir [16](16-risques-et-verifications.md)).
 | Dernière mise à jour | 19 novembre 2026 |
 | Code dans le dépôt | **Aucun.** Le premier code est la phase R1. |
 | Développement antérieur | **Gelé et retiré de l'arbre** (décision D-04). Rien ne se développe hors de ce plan. |
-| Phase en cours | R0 — Assainissement (reste la validation par Samuel) |
-| Prochaine phase | R1 — Contrats et kit de conformité |
+| Phase en cours | R1 — Contrats et kit de conformité |
+| Prochaine phase | R2 — Kernel de référence |
 
 ## Statut des phases
 
 | Phase | Intitulé | Statut |
 |---|---|---|
-| R0 | Assainissement | **En attente de validation par Samuel** |
+| R0 | Assainissement | Fait |
 | R0.1 | Archiver l'état antérieur | Fait |
 | R0.2 | Supprimer le code et la documentation périmés | Fait |
 | R0.3 | Écrire la documentation neuve (documents 00 à 16, fiches moteurs) | Fait |
-| R0.4 | Valider avec Samuel, puis fusionner sur `main` | **À faire (attend Samuel)** |
-| R1 | Contrats C1 à C6 et kit de conformité | À faire |
+| R0.4 | Valider avec Samuel, puis fusionner sur `main` | Fait (documentation validée par Samuel le 19 novembre 2026, fusionnée sur `main`) |
+| R1 | Contrats C1 à C6 et kit de conformité | En cours |
 | R2 | Kernel de référence : un Control Plane complet | À faire |
 | R3 | Identité, confiance et politiques | À faire |
 | R4 | Federation Plane et opérations distribuées | À faire |
@@ -47,7 +47,7 @@ sauf accord explicite de Samuel inscrit ici.
 
 ## Règles de travail
 
-- **`main` ne reçoit que de l'état validé par Samuel**, en avance directe. Une branche de travail se pousse sans fusion.
+- **Le développement se fait sur `main`** : chaque étape dont les vérifications sont passées y est poussée, en avance directe. `main` est toujours à jour **et** vérifié.
 - **La documentation d'abord** : le contrat normatif s'écrit avant le code.
 - **Commits explicites** : titre = fonctionnalité touchée ; corps = fichiers, tests, état de vérification.
 - **Relever chaque incohérence** : à chaque test, comparer le résultat obtenu à l'attendu ; tout écart, même
@@ -76,15 +76,18 @@ sauf accord explicite de Samuel inscrit ici.
 
 ## Environnement de travail de Claude
 
-Claude peut lire et écrire le dépôt, vérifier la syntaxe, valider des schémas et des liens, et consulter le web.
-Il **ne peut pas** tirer d'images de conteneurs ni lancer Docker, Kubernetes ou k3s : l'accès réseau est limité
-(GitHub, PyPI, npm, dépôts Ubuntu). Tout essai qui exige un cluster réel est donc exécuté par Samuel.
-Claude fournit alors le script, l'**attendu** ligne à ligne, et la liste de ce qu'il doit renvoyer.
+Claude peut lire et écrire le dépôt, installer des outils depuis PyPI, npm et les dépôts Ubuntu, lancer des
+programmes **et de vrais serveurs réseau sur la machine locale**, valider des schémas et des liens, et consulter le web.
+Il **ne peut pas** tirer d'images de conteneurs ni lancer Docker, Kubernetes ou k3s. Tout essai qui exige un cluster
+ou un composant conteneurisé est donc **exécuté par Samuel**, dont le poste peut installer et tester ces composants
+dans un environnement propre. Claude fournit alors le script, l'**attendu** ligne à ligne, le cas négatif, et la liste de
+ce qu'il doit renvoyer ([13](13-tests-et-conformite.md)).
 
 ## Archive
 
-Le tag git `archive/kernel-natif-2026-11-18` conserve l'arbre complet antérieur à R0. Ce n'est pas une source de
-vérité et on n'y décide rien : il sert uniquement à retrouver un fichier précis si un besoin réel l'exige.
+La branche `legacy/kernel-natif` et le tag `kernel-natif-v0.1.0` conservent l'arbre complet antérieur à R0. Ce n'est
+pas une source de vérité et on n'y décide rien : ils servent uniquement à retrouver un fichier précis si un besoin réel
+l'exige.
 
 ## Dépendances externes à ce dépôt
 

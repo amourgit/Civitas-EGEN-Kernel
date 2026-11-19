@@ -43,5 +43,6 @@ d'essai sont des secrets d'essai, nommés comme tels. Un jeton exposé dans une 
 
 ## Fusion sur main
 
-`main` ne reçoit que de l'état validé par Samuel, en avance directe (fast-forward). Une branche de travail
-se pousse sans fusion tant que Samuel n'a pas donné son accord.
+Le développement se fait sur `main`. Chaque étape dont les vérifications sont passées (tests automatiques, plus les
+commandes locales demandées à Samuel quand l'étape en exige) y est poussée en avance directe (fast-forward).
+`main` est toujours à jour **et** vérifié.
