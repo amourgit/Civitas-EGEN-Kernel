@@ -1,78 +1,0 @@
-
-ñ
-egen_control.protoafrica.civitas.egen.control.v1"W
-DeclareRequest#
-manifest_yaml (	RmanifestYaml 
-environment (	Renvironment"P
-DeclareResponse
-
-service_id (	R	serviceId
-
-generation (R
-generation"+
-
-GetRequest
-
-service_id (	R	serviceId"U
-ServiceManifest
-
-service_id (	R	serviceId#
-manifest_yaml (	RmanifestYaml"
-ListRequest"[
-ListResponseK
-services (2/.africa.civitas.egen.control.v1.ServiceManifestRservices",
-StopRequest
-
-service_id (	R	serviceId"
-StopResponse"3
-ResolveRequest!
-service_name (	RserviceName"Ä
-ResolveResponse
-
-service_id (	R	serviceIdF
-	instances (2(.africa.civitas.egen.control.v1.InstanceR	instancesJ
-
-resiliency (2*.africa.civitas.egen.control.v1.ResiliencyR
-resiliency"Y
-Instance
-instance_id (	R
-instanceId
-address (	Raddress
-port (Rport"É
-
-Resiliency%
-timeout_millis (RtimeoutMillis;
-retry (2%.africa.civitas.egen.control.v1.RetryRretryW
-circuit_breaker (2..africa.civitas.egen.control.v1.CircuitBreakerRcircuitBreaker"p
-Retry!
-max_attempts (RmaxAttempts
-backoff (	Rbackoff*
-base_delay_millis (RbaseDelayMillis"o
-CircuitBreaker+
-failure_threshold (RfailureThreshold0
-open_duration_millis (RopenDurationMillis"3
-WatchStatusRequest
-
-service_id (	R	serviceId"À
-ServiceStatus
-
-service_id (	R	serviceId
-phase (	Rphase/
-observed_generation (RobservedGenerationI
-
-conditions (2).africa.civitas.egen.control.v1.ConditionR
-conditions"›
-	Condition
-type (	Rtype
-status (	Rstatus
-reason (	Rreason
-message (	Rmessage0
-last_transition_time (	RlastTransitionTime2†
-ServiceControlj
-Declare..africa.civitas.egen.control.v1.DeclareRequest/.africa.civitas.egen.control.v1.DeclareResponseb
-Get*.africa.civitas.egen.control.v1.GetRequest/.africa.civitas.egen.control.v1.ServiceManifesta
-List+.africa.civitas.egen.control.v1.ListRequest,.africa.civitas.egen.control.v1.ListResponsea
-Stop+.africa.civitas.egen.control.v1.StopRequest,.africa.civitas.egen.control.v1.StopResponsej
-Resolve..africa.civitas.egen.control.v1.ResolveRequest/.africa.civitas.egen.control.v1.ResolveResponser
-WatchStatus2.africa.civitas.egen.control.v1.WatchStatusRequest-.africa.civitas.egen.control.v1.ServiceStatus0B5
-africa.civitas.egen.api.grpc.v1BEgenControlProtoPbproto3

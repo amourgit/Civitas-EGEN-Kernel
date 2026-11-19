@@ -1,35 +1,33 @@
-# Build
-target/
-*.class
+# Secrets : ne jamais versionner un jeton, un mot de passe ou une clé privée
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+kubeconfig*
+*.kubeconfig
 
-# IDE
+# Outils et éditeurs
 .idea/
 *.iml
 .vscode/
 .settings/
 .project
 .classpath
-bin/
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-
-# SDK Python
+# Sorties de construction et d'essai
+target/
+build/
+dist/
+node_modules/
 __pycache__/
 *.pyc
-*.egg-info/
-
-# Docker
-docker-compose.override.yml
-
-# Environment
-.env
-# Fichiers de variables reels du job Nomad (contiennent un mot de passe) : jamais versionnes.
-deploy/nomad/*.vars.hcl
-# Sorties de deploy/vault/vault-bootstrap.sh : parts de clé de descellage, jeton racine et jeton du Kernel. JAMAIS versionnés.
-deploy/vault/vault-init.json
-deploy/vault/vault-kernel-token.txt
+*.class
+.venv/
+coverage/
+*.log
+tmp/
