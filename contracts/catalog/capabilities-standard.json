@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "capabilities": [
+    {
+      "name": "workload-runtime",
+      "description": "Exécuter des charges de travail"
+    },
+    {
+      "name": "service-discovery",
+      "description": "Découvrir des services par leur nom"
+    },
+    {
+      "name": "messaging",
+      "description": "Sujets et flux de messages"
+    },
+    {
+      "name": "object-storage",
+      "description": "Stockage d'objets"
+    },
+    {
+      "name": "secrets",
+      "description": "Stockage et distribution de secrets"
+    },
+    {
+      "name": "workflow",
+      "description": "Workflows durables"
+    },
+    {
+      "name": "identity-provider",
+      "description": "Identité des personnes"
+    },
+    {
+      "name": "observability",
+      "description": "Traces, métriques, journaux"
+    }
+  ]
+}

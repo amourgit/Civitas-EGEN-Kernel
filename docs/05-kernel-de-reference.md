@@ -28,25 +28,28 @@ contrats est un membre à part entière.
 | **Delegation Management** | Choisir le moteur compétent et lui déléguer | Compositions et Providers ; choix par sélecteurs et politique |
 | **Reconciliation Management** | Rapprocher l'état réel de l'état voulu | **Délégué** : contrôleurs Kubernetes, Crossplane, moteurs |
 | **Policy Management** | Appliquer les politiques locales et fédérées | RBAC et règles d'admission Kubernetes ; SpiceDB consulté par le pont |
-| **Operation Tracking et Events** | Suivre chaque opération, publier des événements | Ressource `Operation` + opérateur EGEN + NATS (CloudEvents) |
+| **Operation Tracking et Events** | Suivre chaque opération, publier des événements | Ressource `EgenOperation` + opérateur EGEN + NATS (CloudEvents) |
 | **Administration** | Vues et outils d'exploitation | Services **séparés** qui consomment la Control API (jamais dans le cœur) |
 
 ## Types de ressources EGEN
 
-Groupe d'API : `egen.civitas.africa`. Les noms et versions ci-dessous sont **provisoires** (PO-02), figés en R2.2.
+Groupe d'API : `egen.civitas.africa`. Les noms sont figés ([04](04-contrats-egen.md), D-16) ; la version d'API
+(`v1alpha1`) évolue jusqu'à R2.2.
 
 | Type | Nature | Rôle |
 |---|---|---|
-| `Service` | Ressource composite Crossplane | Déclarer un service à exécuter (modèle ci-dessous). |
-| `Operation` | Ressource gérée par l'opérateur | Représenter une opération (C3/C4) : phase, conditions, ressources suivies. |
+| `EgenService` | Ressource composite Crossplane | Déclarer un service à exécuter (modèle ci-dessous). |
+| `EgenOperation` | Ressource gérée par l'opérateur | Représenter une opération (C3/C4) : phase, conditions, ressources suivies. |
 | `ControlPlaneConfig` | Ressource simple | Configuration d'identité du Control Plane, source du document C1. |
+
+Les préfixes évitent les collisions : Kubernetes possède déjà un type `Service`, et Crossplane 2.x un type `Operation`.
 
 Une **capacité** n'a pas de type propre : c'est une définition Crossplane portant l'étiquette
 `egen.civitas.africa/capability: <nom>`. Le pont de fédération les lit et produit C2.
 
-## Le modèle `Service`
+## Le modèle `EgenService`
 
-Un `Service` décrit **ce que le service est, ce dont il a besoin et ce qu'il publie**, sans dire quel moteur
+Un `EgenService` décrit **ce que le service est, ce dont il a besoin et ce qu'il publie**, sans dire quel moteur
 l'exécute (le moteur est un choix du Control Plane, G-06).
 
 | Bloc | Contenu | Remarque |
@@ -69,7 +72,7 @@ Exemple (forme provisoire) : l'agenda du Service RH.
 
 ```yaml
 apiVersion: egen.civitas.africa/v1alpha1
-kind: Service
+kind: EgenService
 metadata:
   name: agenda-rh
   namespace: univ-x-rh
@@ -154,11 +157,11 @@ vérification des paquets sont à définir (VR-16).
 
 Seule pièce de code applicatif du Kernel (avec le pont). Il :
 
-1. crée et fait vivre les ressources `Operation` (phases, conditions, tentatives, incertitude) ;
+1. crée et fait vivre les ressources `EgenOperation` (phases, conditions, tentatives, incertitude) ;
 2. traduit une demande C3 en ressources Crossplane et suit leur état ;
 3. publie les événements C5 (CloudEvents sur NATS) ;
 4. applique la **garde de politique** avant toute délégation (consultation de SpiceDB) ;
-5. calcule le résumé `status.phase` d'un `Service` à partir des Conditions.
+5. calcule le résumé `status.phase` d'un `EgenService` à partir des Conditions.
 
 Il **ne** réconcilie **pas** les ressources, **n'**exécute **aucun** déploiement et **ne** contient **aucun** code propre à un
 moteur. Il est idempotent, redémarrable, et élit un chef parmi ses réplicas (mécanisme standard de Kubernetes).
@@ -186,9 +189,9 @@ est lisible sur la ressource (étiquette `egen.civitas.africa/authority`).
 
 Étape C de [03](03-architecture-generale.md) : le pont de fédération du Control Plane Métier reçoit la demande
 `workload-runtime` (C3). Il vérifie le certificat de l'appelant et le jeton, consulte SpiceDB, puis l'opérateur crée
-l'`Operation` (`Accepted`) et le `Service` `agenda-rh` ci-dessus. Crossplane compose les ressources du moteur
-choisi ; Kubernetes déploie ; les Conditions passent à `Ready` ; la phase du `Service` devient `Running` ; l'opérateur
-fait passer l'`Operation` à `Succeeded` et publie `operation.succeeded.v1`.
+l'`EgenOperation` (`Accepted`) et le `EgenService` `agenda-rh` ci-dessus. Crossplane compose les ressources du moteur
+choisi ; Kubernetes déploie ; les Conditions passent à `Ready` ; la phase du `EgenService` devient `Running` ; l'opérateur
+fait passer l'`EgenOperation` à `Succeeded` et publie `operation.succeeded.v1`.
 
 ## Ce que ce Kernel ne fait pas
 

@@ -32,16 +32,16 @@ Le contenu technique des étapes (documents 04 à 12) ni les dates (on ne planif
 
 ## R1 — Contrats et kit de conformité
 
-**Objectif.** Figer C1 à C6 et disposer d'un moyen automatique de les vérifier. **Entrées** : 04, 13 ; PO-02, PO-04, PO-06 ; VR-15.
+**Objectif.** Figer C1 à C6 et disposer d'un moyen automatique de les vérifier. **Entrées** : 04, 13 ; décisions D-16, D-17, D-18 (à confirmer) ; VR-02 et VR-15 levées.
 
 | Étape | Livrable | Vérification | Dépend de |
 |---|---|---|---|
-| R1.1 | Conventions communes figées : identifiants, mots réservés, noms de types, format d'erreur, identifiant d'opération (PO-02) | Relecture ; test d'architecture « mots réservés » | R0 |
+| R1.1 | Conventions communes figées : motifs d'identifiants, mots réservés, noms de types, format d'erreur, raisons standard, format de signature de C1 | Relecture ; test d'architecture « mots réservés » | R0 |
 | R1.2 | C1 : JSON Schema du descripteur, format de signature, exemples valides et invalides | Validation automatique des exemples | R1.1 |
 | R1.3 | C2 : JSON Schema du descripteur de capacité ; registre initial des capacités standard | Validation ; relecture du registre | R1.1 |
 | R1.4 | C3/C4 : spécification OpenAPI de l'API d'opérations ; catalogue des phases, conditions et raisons ; durée de garde de la clé d'idempotence | Validation OpenAPI ; exemples | R1.1 |
 | R1.5 | C5 : schéma de chaque type d'événement ; document AsyncAPI | Validation ; exemples | R1.1 |
-| R1.6 | C6 : règles de version ; outil de détection de rupture en CI (PO-06) | Une rupture volontaire est détectée et refusée | R1.2 à R1.5 |
+| R1.6 | C6 : règles de version ; outil de détection de rupture en CI | Une rupture volontaire est détectée et refusée | R1.2 à R1.5 |
 | R1.7 | Kit de conformité : format des scénarios, exécuteur de référence, Control Plane factice, Control Planes défectueux | Le factice passe `full` ; chaque défectueux échoue sur le contrat visé | R1.2 à R1.5 |
 | R1.8 | CI : schémas, liens de documentation, tests d'architecture, kit contre le factice | Pipeline vert ; un échec volontaire est détecté | R1.6, R1.7 |
 
@@ -50,13 +50,13 @@ Le contenu technique des étapes (documents 04 à 12) ni les dates (on ne planif
 ## R2 — Kernel de référence (un seul Control Plane)
 
 **Objectif.** Un Control Plane complet qui déploie des services de bout en bout. **Entrées** : 05, 08, fiches Kubernetes et
-Crossplane ; PO-02, PO-04 ; VR-01, VR-02, VR-11, VR-12, VR-15.
+Crossplane ; PO-04 (langage de l'opérateur) ; VR-01, VR-11, VR-12.
 
 | Étape | Livrable | Vérification | Dépend de |
 |---|---|---|---|
 | R2.1 | Environnement d'essai reproductible : script k3s, Crossplane épinglé | Script lancé par Samuel ; cluster sain | R1 |
-| R2.2 | Types EGEN : ressource composite `Service` ; composition `workload-runtime` pour Kubernetes | Un service d'essai passe à `Running` | R2.1 |
-| R2.3 | Opérateur EGEN (squelette) et ressource `Operation` : phases, conditions, tentatives | Une demande crée une `Operation` qui avance | R2.2 |
+| R2.2 | Types EGEN : ressource composite `EgenService` ; composition `workload-runtime` pour Kubernetes | Un service d'essai passe à `Running` | R2.1 |
+| R2.3 | Opérateur EGEN (squelette) et ressource `EgenOperation` : phases, conditions, tentatives | Une demande crée une `Operation` qui avance | R2.2 |
 | R2.4 | Dépendances entre services, ordre de démarrage, flux d'événements garantis | Un service dont la dépendance requise n'est pas prête n'est pas déployé | R2.3 |
 | R2.5 | Cycle de vie complet : `Degraded`, `Failed`, mise à jour, retour arrière, arrêt, suppression | Chaque règle de [05](05-kernel-de-reference.md) a un test | R2.4 |
 | R2.6 | Politiques locales : RBAC, règles d'admission, normes de sécurité des pods | Une ressource non conforme est refusée | R2.2 |
@@ -110,7 +110,7 @@ PO-05, PO-07, PO-11 ; VR-07, VR-08, VR-13, VR-17.
 | Étape | Livrable | Vérification | Dépend de |
 |---|---|---|---|
 | R5.1 | Nomad : essai comparatif des mécanismes (PO-01), puis extension « workload-runtime pour Nomad » | Tests L4 contre un Nomad réel ([moteurs/nomad.md](moteurs/nomad.md)) | R2 |
-| R5.2 | Sélection par `engine` et par politique | Deux `Service` identiques, deux moteurs différents | R5.1 |
+| R5.2 | Sélection par `engine` et par politique | Deux `EgenService` identiques, deux moteurs différents | R5.1 |
 | R5.3 | Pont pour un Control Plane externe construit sur Crossplane | Il passe le kit de conformité | R2.9 |
 | R5.4 | Connecteur de référence (agenda, CalDAV) basé sur Camel | Passe par la garde de politique ; audité ; sans identifiant direct | R3 |
 | R5.5 | Dapr, si adopté (PO-07) | Service qui l'utilise sans y être obligé | R2 |

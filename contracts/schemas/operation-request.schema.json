@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/operation-request.schema.json",
+  "title": "C3 — Demande d'opération",
+  "type": "object",
+  "required": [
+    "capability",
+    "operation",
+    "parameters",
+    "scope"
+  ],
+  "properties": {
+    "capability": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "operation": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "scope": {
+      "$ref": "common.schema.json#/$defs/scope"
+    },
+    "deadline": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "parentOperationId": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

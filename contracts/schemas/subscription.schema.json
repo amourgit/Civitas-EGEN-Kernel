@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/subscription.schema.json",
+  "title": "C5 — Souscription HTTP (repli)",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "required": [
+        "endpoint"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "format": "uri"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^africa\\.civitas\\.egen\\.[a-z0-9.-]*$"
+          }
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "required": [
+        "id",
+        "endpoint",
+        "createdAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "$ref": "common.schema.json#/$defs/timestamp"
+        }
+      }
+    }
+  }
+}

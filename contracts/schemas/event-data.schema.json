@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/event-data.schema.json",
+  "title": "C5 — Données des événements (un schéma par famille)",
+  "$defs": {
+    "operationLifecycle": {
+      "type": "object",
+      "required": [
+        "operationId",
+        "capability",
+        "scope",
+        "phase"
+      ],
+      "properties": {
+        "operationId": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        "capability": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "scope": {
+          "$ref": "common.schema.json#/$defs/scope"
+        },
+        "phase": {
+          "$ref": "common.schema.json#/$defs/phase"
+        },
+        "reason": {
+          "$ref": "common.schema.json#/$defs/reason"
+        }
+      }
+    },
+    "controlPlaneLifecycle": {
+      "type": "object",
+      "required": [
+        "controlPlaneId"
+      ],
+      "properties": {
+        "controlPlaneId": {
+          "$ref": "common.schema.json#/$defs/controlPlaneId"
+        },
+        "reason": {
+          "$ref": "common.schema.json#/$defs/reason"
+        }
+      }
+    },
+    "capabilityLifecycle": {
+      "type": "object",
+      "required": [
+        "controlPlaneId",
+        "capability"
+      ],
+      "properties": {
+        "controlPlaneId": {
+          "$ref": "common.schema.json#/$defs/controlPlaneId"
+        },
+        "capability": {
+          "$ref": "common.schema.json#/$defs/name"
+        }
+      }
+    },
+    "resourceState": {
+      "type": "object",
+      "required": [
+        "ref"
+      ],
+      "properties": {
+        "operationId": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        "ref": {
+          "$ref": "common.schema.json#/$defs/resourceRef"
+        },
+        "reason": {
+          "$ref": "common.schema.json#/$defs/reason"
+        }
+      }
+    }
+  }
+}

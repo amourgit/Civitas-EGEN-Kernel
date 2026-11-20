@@ -1,0 +1,987 @@
+# Généré par egen-gen-asyncapi depuis contracts/catalog/event-types.json et contracts/schemas/.
+# Ne pas modifier à la main : relancer le générateur.
+asyncapi: 3.0.0
+info:
+  title: Contrats EGEN — événements C5
+  version: '1.0'
+  description: Événements publiés par un Control Plane (format CloudEvents 1.0, transport NATS JetStream
+    par défaut).
+defaultContentType: application/cloudevents+json
+servers:
+  nats:
+    host: nats.example:4222
+    protocol: nats
+    description: Transport par défaut (NATS JetStream)
+channels:
+  controlplaneRegistered:
+    address: africa.civitas.egen.controlplane.registered.v1
+    messages:
+      controlplaneRegistered:
+        $ref: '#/components/messages/controlplaneRegistered'
+  controlplaneSuspended:
+    address: africa.civitas.egen.controlplane.suspended.v1
+    messages:
+      controlplaneSuspended:
+        $ref: '#/components/messages/controlplaneSuspended'
+  controlplaneRevoked:
+    address: africa.civitas.egen.controlplane.revoked.v1
+    messages:
+      controlplaneRevoked:
+        $ref: '#/components/messages/controlplaneRevoked'
+  controlplaneDescriptorChanged:
+    address: africa.civitas.egen.controlplane.descriptor-changed.v1
+    messages:
+      controlplaneDescriptorChanged:
+        $ref: '#/components/messages/controlplaneDescriptorChanged'
+  capabilityPublished:
+    address: africa.civitas.egen.capability.published.v1
+    messages:
+      capabilityPublished:
+        $ref: '#/components/messages/capabilityPublished'
+  capabilityWithdrawn:
+    address: africa.civitas.egen.capability.withdrawn.v1
+    messages:
+      capabilityWithdrawn:
+        $ref: '#/components/messages/capabilityWithdrawn'
+  capabilityChanged:
+    address: africa.civitas.egen.capability.changed.v1
+    messages:
+      capabilityChanged:
+        $ref: '#/components/messages/capabilityChanged'
+  operationAccepted:
+    address: africa.civitas.egen.operation.accepted.v1
+    messages:
+      operationAccepted:
+        $ref: '#/components/messages/operationAccepted'
+  operationProgressed:
+    address: africa.civitas.egen.operation.progressed.v1
+    messages:
+      operationProgressed:
+        $ref: '#/components/messages/operationProgressed'
+  operationSucceeded:
+    address: africa.civitas.egen.operation.succeeded.v1
+    messages:
+      operationSucceeded:
+        $ref: '#/components/messages/operationSucceeded'
+  operationFailed:
+    address: africa.civitas.egen.operation.failed.v1
+    messages:
+      operationFailed:
+        $ref: '#/components/messages/operationFailed'
+  operationCompensated:
+    address: africa.civitas.egen.operation.compensated.v1
+    messages:
+      operationCompensated:
+        $ref: '#/components/messages/operationCompensated'
+  resourceReady:
+    address: africa.civitas.egen.resource.ready.v1
+    messages:
+      resourceReady:
+        $ref: '#/components/messages/resourceReady'
+  resourceDegraded:
+    address: africa.civitas.egen.resource.degraded.v1
+    messages:
+      resourceDegraded:
+        $ref: '#/components/messages/resourceDegraded'
+operations:
+  sendControlplaneRegistered:
+    action: send
+    channel:
+      $ref: '#/channels/controlplaneRegistered'
+    summary: Un Control Plane est admis dans la fédération
+  sendControlplaneSuspended:
+    action: send
+    channel:
+      $ref: '#/channels/controlplaneSuspended'
+    summary: Un Control Plane est suspendu
+  sendControlplaneRevoked:
+    action: send
+    channel:
+      $ref: '#/channels/controlplaneRevoked'
+    summary: La confiance envers un Control Plane est retirée
+  sendControlplaneDescriptorChanged:
+    action: send
+    channel:
+      $ref: '#/channels/controlplaneDescriptorChanged'
+    summary: Le document C1 d'un Control Plane a changé
+  sendCapabilityPublished:
+    action: send
+    channel:
+      $ref: '#/channels/capabilityPublished'
+    summary: Une capacité est publiée
+  sendCapabilityWithdrawn:
+    action: send
+    channel:
+      $ref: '#/channels/capabilityWithdrawn'
+    summary: Une capacité est retirée
+  sendCapabilityChanged:
+    action: send
+    channel:
+      $ref: '#/channels/capabilityChanged'
+    summary: Une capacité a changé
+  sendOperationAccepted:
+    action: send
+    channel:
+      $ref: '#/channels/operationAccepted'
+    summary: Une opération est acceptée
+  sendOperationProgressed:
+    action: send
+    channel:
+      $ref: '#/channels/operationProgressed'
+    summary: Une opération progresse
+  sendOperationSucceeded:
+    action: send
+    channel:
+      $ref: '#/channels/operationSucceeded'
+    summary: Une opération est réussie
+  sendOperationFailed:
+    action: send
+    channel:
+      $ref: '#/channels/operationFailed'
+    summary: Une opération est en échec
+  sendOperationCompensated:
+    action: send
+    channel:
+      $ref: '#/channels/operationCompensated'
+    summary: Les effets d'une opération ont été annulés
+  sendResourceReady:
+    action: send
+    channel:
+      $ref: '#/channels/resourceReady'
+    summary: Une ressource suivie est prête
+  sendResourceDegraded:
+    action: send
+    channel:
+      $ref: '#/channels/resourceDegraded'
+    summary: Une ressource suivie est dégradée
+components:
+  messages:
+    controlplaneRegistered:
+      name: africa.civitas.egen.controlplane.registered.v1
+      title: Un Control Plane est admis dans la fédération
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.controlplane.registered.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - controlPlaneId
+            properties:
+              controlPlaneId:
+                type: string
+                pattern: ^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    controlplaneSuspended:
+      name: africa.civitas.egen.controlplane.suspended.v1
+      title: Un Control Plane est suspendu
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.controlplane.suspended.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - controlPlaneId
+            properties:
+              controlPlaneId:
+                type: string
+                pattern: ^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    controlplaneRevoked:
+      name: africa.civitas.egen.controlplane.revoked.v1
+      title: La confiance envers un Control Plane est retirée
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.controlplane.revoked.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - controlPlaneId
+            properties:
+              controlPlaneId:
+                type: string
+                pattern: ^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    controlplaneDescriptorChanged:
+      name: africa.civitas.egen.controlplane.descriptor-changed.v1
+      title: Le document C1 d'un Control Plane a changé
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.controlplane.descriptor-changed.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - controlPlaneId
+            properties:
+              controlPlaneId:
+                type: string
+                pattern: ^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    capabilityPublished:
+      name: africa.civitas.egen.capability.published.v1
+      title: Une capacité est publiée
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.capability.published.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - controlPlaneId
+            - capability
+            properties:
+              controlPlaneId:
+                type: string
+                pattern: ^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+    capabilityWithdrawn:
+      name: africa.civitas.egen.capability.withdrawn.v1
+      title: Une capacité est retirée
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.capability.withdrawn.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - controlPlaneId
+            - capability
+            properties:
+              controlPlaneId:
+                type: string
+                pattern: ^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+    capabilityChanged:
+      name: africa.civitas.egen.capability.changed.v1
+      title: Une capacité a changé
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.capability.changed.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - controlPlaneId
+            - capability
+            properties:
+              controlPlaneId:
+                type: string
+                pattern: ^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+    operationAccepted:
+      name: africa.civitas.egen.operation.accepted.v1
+      title: Une opération est acceptée
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.operation.accepted.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - operationId
+            - capability
+            - scope
+            - phase
+            properties:
+              operationId:
+                type: string
+                pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+              scope:
+                type: string
+                pattern: ^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$
+              phase:
+                enum:
+                - Pending
+                - Running
+                - Succeeded
+                - Failed
+                - PartiallySucceeded
+                - Cancelled
+                - Unknown
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    operationProgressed:
+      name: africa.civitas.egen.operation.progressed.v1
+      title: Une opération progresse
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.operation.progressed.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - operationId
+            - capability
+            - scope
+            - phase
+            properties:
+              operationId:
+                type: string
+                pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+              scope:
+                type: string
+                pattern: ^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$
+              phase:
+                enum:
+                - Pending
+                - Running
+                - Succeeded
+                - Failed
+                - PartiallySucceeded
+                - Cancelled
+                - Unknown
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    operationSucceeded:
+      name: africa.civitas.egen.operation.succeeded.v1
+      title: Une opération est réussie
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.operation.succeeded.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - operationId
+            - capability
+            - scope
+            - phase
+            properties:
+              operationId:
+                type: string
+                pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+              scope:
+                type: string
+                pattern: ^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$
+              phase:
+                enum:
+                - Pending
+                - Running
+                - Succeeded
+                - Failed
+                - PartiallySucceeded
+                - Cancelled
+                - Unknown
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    operationFailed:
+      name: africa.civitas.egen.operation.failed.v1
+      title: Une opération est en échec
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.operation.failed.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - operationId
+            - capability
+            - scope
+            - phase
+            properties:
+              operationId:
+                type: string
+                pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+              scope:
+                type: string
+                pattern: ^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$
+              phase:
+                enum:
+                - Pending
+                - Running
+                - Succeeded
+                - Failed
+                - PartiallySucceeded
+                - Cancelled
+                - Unknown
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    operationCompensated:
+      name: africa.civitas.egen.operation.compensated.v1
+      title: Les effets d'une opération ont été annulés
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.operation.compensated.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - operationId
+            - capability
+            - scope
+            - phase
+            properties:
+              operationId:
+                type: string
+                pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+              capability:
+                type: string
+                pattern: ^[a-z][a-z0-9-]{1,62}$
+              scope:
+                type: string
+                pattern: ^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$
+              phase:
+                enum:
+                - Pending
+                - Running
+                - Succeeded
+                - Failed
+                - PartiallySucceeded
+                - Cancelled
+                - Unknown
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    resourceReady:
+      name: africa.civitas.egen.resource.ready.v1
+      title: Une ressource suivie est prête
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.resource.ready.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - ref
+            properties:
+              operationId:
+                type: string
+                pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+              ref:
+                type: object
+                required:
+                - kind
+                - name
+                properties:
+                  kind:
+                    type: string
+                    minLength: 1
+                    maxLength: 63
+                  name:
+                    type: string
+                    minLength: 1
+                    maxLength: 253
+                  namespace:
+                    type: string
+                    minLength: 1
+                    maxLength: 63
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$
+    resourceDegraded:
+      name: africa.civitas.egen.resource.degraded.v1
+      title: Une ressource suivie est dégradée
+      contentType: application/cloudevents+json
+      payload:
+        title: C5 — Enveloppe CloudEvents 1.0 d'un événement EGEN
+        type: object
+        required:
+        - specversion
+        - id
+        - source
+        - type
+        - subject
+        - time
+        - datacontenttype
+        - data
+        properties:
+          specversion:
+            const: '1.0'
+          id:
+            type: string
+            minLength: 1
+            maxLength: 128
+          source:
+            type: string
+            minLength: 1
+          type:
+            const: africa.civitas.egen.resource.degraded.v1
+          subject:
+            type: string
+            minLength: 1
+          time:
+            type: string
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$
+          datacontenttype:
+            const: application/json
+          traceparent:
+            type: string
+            pattern: ^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$
+          data:
+            type: object
+            required:
+            - ref
+            properties:
+              operationId:
+                type: string
+                pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+              ref:
+                type: object
+                required:
+                - kind
+                - name
+                properties:
+                  kind:
+                    type: string
+                    minLength: 1
+                    maxLength: 63
+                  name:
+                    type: string
+                    minLength: 1
+                    maxLength: 253
+                  namespace:
+                    type: string
+                    minLength: 1
+                    maxLength: 63
+              reason:
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]{2,63}$

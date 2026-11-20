@@ -33,12 +33,12 @@ par politique. Il ne gouverne jamais.
 
 ## Comment EGEN l'utilise
 
-Extension « workload-runtime pour Nomad » : une implémentation de `workload-runtime` qui traduit un `Service` en job
+Extension « workload-runtime pour Nomad » : une implémentation de `workload-runtime` qui traduit un `EgenService` en job
 Nomad et observe son état. Correspondance des opérations (**à revérifier** contre la documentation de la version retenue, VR-07) :
 
 | Opération EGEN | Point d'accès Nomad (`/v1/…`, port 4646 par défaut) | Détails |
 |---|---|---|
-| Créer / mettre à jour | `POST /v1/job/:job_id` (ou `PUT /v1/jobs`) | Un `Service` donne un job à un groupe de tâches. La mise à jour progressive se configure par le bloc `update` du job (`max_parallel`, `health_check`, `auto_revert`) : **ne pas la réimplémenter**. |
+| Créer / mettre à jour | `POST /v1/job/:job_id` (ou `PUT /v1/jobs`) | Un `EgenService` donne un job à un groupe de tâches. La mise à jour progressive se configure par le bloc `update` du job (`max_parallel`, `health_check`, `auto_revert`) : **ne pas la réimplémenter**. |
 | Changer le nombre d'instances | `POST /v1/job/:job_id/scale` | Point d'accès dédié, à préférer pour l'autoscaling fréquent. |
 | Redémarrer | `POST /v1/job/:job_id/evaluate` | Force une nouvelle évaluation par l'ordonnanceur. |
 | Arrêter | `DELETE /v1/job/:job_id` | Conserve l'historique du job (pas de purge). |
@@ -48,7 +48,7 @@ Nomad et observe son état. Correspondance des opérations (**à revérifier** c
 | Retour arrière | `POST /v1/job/:job_id/revert` | S'appuyer sur l'historique des versions de Nomad. |
 | Observer les changements | requêtes bloquantes (paramètre `index`) | Plutôt qu'une interrogation à intervalle fixe. |
 
-L'état observé est traduit en Conditions du `Service` (`Ready`, `Degraded`) ; il ne contient aucun type propre à Nomad.
+L'état observé est traduit en Conditions de l'`EgenService` (`Ready`, `Degraded`) ; il ne contient aucun type propre à Nomad.
 
 ## Pièges connus
 - **Ne jamais construire le job par concaténation de texte** : utiliser le SDK officiel ou une structure typée

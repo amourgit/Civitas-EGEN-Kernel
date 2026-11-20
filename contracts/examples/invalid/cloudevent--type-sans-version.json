@@ -1,0 +1,16 @@
+{
+  "specversion": "1.0",
+  "id": "5b1c0b0e-8f3a-4f0e-9a41-6f1f0f2d9c11",
+  "source": "spiffe://univ-x.civitas.africa/egen/cp/transversal",
+  "type": "africa.civitas.egen.operation.succeeded",
+  "subject": "operation/01JD6K3X8Q2M5N7P9R1S3T5V7W",
+  "time": "2026-11-19T14:05:40Z",
+  "datacontenttype": "application/json",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "operationId": "01JD6K3X8Q2M5N7P9R1S3T5V7W",
+    "capability": "object-storage",
+    "scope": "univ-x/rh",
+    "phase": "Succeeded"
+  }
+}

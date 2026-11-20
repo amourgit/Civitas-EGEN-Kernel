@@ -1,0 +1,7 @@
+{
+  "code": 403,
+  "reason": "PolicyDenied",
+  "message": "capacité object-storage refusée pour le périmètre univ-x/rh",
+  "retryable": false,
+  "operationId": null
+}

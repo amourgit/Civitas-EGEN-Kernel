@@ -16,7 +16,7 @@ Les réponses elles-mêmes (elles sont dans les documents cités) et le statut d
 | 3 | Protocoles et mécanismes de communication | [04](04-contrats-egen.md) (conventions : HTTPS/JSON, CloudEvents) | R1 |
 | 4 | Découverte et identification des composants | [06](06-federation-plane.md) (découverte), [04](04-contrats-egen.md) (C1, C2), [07](07-identite-confiance-securite.md) | R4 |
 | 5 | Contrats, interfaces et compatibilité | [04](04-contrats-egen.md) (C1 à C6, C6 versionnement) | R1 |
-| 6 | Intégration des services développés ou personnalisés | [05](05-kernel-de-reference.md) (modèle `Service`) | R2 |
+| 6 | Intégration des services développés ou personnalisés | [05](05-kernel-de-reference.md) (modèle `EgenService`) | R2 |
 | 7 | Intégration des solutions propriétaires et fermées | [11](11-ecosystemes-et-integrations.md) (trois modes) | R5 |
 | 8 | Connecteurs, bridges et gateways | [11](11-ecosystemes-et-integrations.md) (vocabulaire, gouvernance) | R5 |
 | 9 | Authentification et identité entre composants | [07](07-identite-confiance-securite.md) | R3 |

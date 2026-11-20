@@ -11,7 +11,7 @@ Crossplane est un **cadre pour construire des plans de contrôle déclaratifs** 
 
 | Terme | Définition en une phrase |
 |---|---|
-| **Définition de ressource composite (XRD)** | Décrit une nouvelle ressource de haut niveau (ici : une capacité ou un `Service`) : son schéma, sans dire comment elle est réalisée. |
+| **Définition de ressource composite (XRD)** | Décrit une nouvelle ressource de haut niveau (ici : une capacité ou un `EgenService`) : son schéma, sans dire comment elle est réalisée. |
 | **Composition** | Décrit **comment** une ressource composite est réalisée : quelles ressources plus basses créer. Plusieurs Compositions peuvent réaliser la même XRD : ce sont les implémentations. |
 | **Fonction de composition** | Un programme qui calcule le résultat d'une Composition (plus souple qu'un modèle statique). |
 | **Provider** | Une extension qui sait parler à un système externe (nuage, base, API) et le piloter. |
@@ -34,13 +34,12 @@ paquets, délégation = Providers. Il est **adopté**, pas recodé (D-07).
 |---|---|---|
 | Crossplane est un projet **diplômé** du CNCF (niveau de maturité le plus élevé) : statut au 28 octobre 2025, annonce du 6 novembre 2025. | [S-01](../references.md) | 2026-11-19 |
 | La version 2.0 a introduit une architecture affinée pour des plans de contrôle d'applications complets. | [S-01](../references.md) | 2026-11-19 |
+| Dans Crossplane 2.0, les compositions peuvent inclure **n'importe quelle ressource Kubernetes** ; les ressources composites et gérées sont à portée d'**espace de noms** par défaut ; les **définitions de ressources gérées** (MRD) et les **politiques d'activation** limitent le nombre de types installés. | [S-16](../references.md) | 2026-11-19 |
+| Crossplane 2.x a un type **`Operation`** (groupe `ops.crossplane.io`, version alpha) qui exécute une chaîne de fonctions jusqu'à son terme, à la manière d'un Job Kubernetes ; il s'active par l'option `--enable-operations`. | [S-17](../references.md) | 2026-11-19 |
 
 ## À vérifier
-- VR-01 : version retenue ; composition de ressources quelconques et ressources à portée d'espace de noms en 2.x ; modes
-  de gestion des ressources (dont un mode « observation seule » pour des ressources référencées) ; limitation du
-  nombre de types installés (définitions de ressources gérées et politiques d'activation).
-- VR-02 : état (alpha, bêta, stable) des « fonctions d'opération » de la 2.x et risque de collision de nom avec le type
-  `Operation` d'EGEN (PO-02).
+- VR-01 : version retenue ; modes de gestion des ressources (dont un mode « observation seule » pour des ressources
+  référencées).
 - VR-16 : signature et vérification des paquets.
 
 ## Comment EGEN l'utilise
@@ -51,7 +50,7 @@ paquets, délégation = Providers. Il est **adopté**, pas recodé (D-07).
 ## Pièges connus
 - **Nombre de types** : installer tous les types d'un Provider alourdit l'API ; n'activer que ceux utilisés.
 - **Épinglage de version** : épingler Crossplane, les Providers et les fonctions ; mettre à jour par étapes, jamais « dernière version ».
-- **Collision de noms** : éviter d'appeler `Operation` un type qui existe déjà dans l'écosystème (PO-02).
+- **Collision de noms** : un type EGEN ne reprend jamais le nom d'un type existant de Kubernetes ou de Crossplane (d'où `EgenService` et `EgenOperation`, D-16).
 
 ## Tests d'intégration attendus
 `crossplane render` (ou équivalent, à vérifier) pour tester une Composition sans cluster ; un cluster k3s réel pour la

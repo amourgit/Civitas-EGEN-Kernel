@@ -26,6 +26,22 @@ la méthode de test (voir [docs/13-tests-et-conformite.md](docs/13-tests-et-conf
 - Aucun identifiant du Kernel ne contient un mot réservé à la Plateforme (liste dans
   [docs/11-ecosystemes-et-integrations.md](docs/11-ecosystemes-et-integrations.md)).
 
+## Environnement de développement et commandes
+
+Python 3.12 ou plus ; Node 20 ou plus (validation AsyncAPI).
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]"
+(cd tools/asyncapi && npm install)      # analyseur AsyncAPI officiel
+
+pytest                                  # toute la suite de tests
+egen-check-docs                         # liens, sections, identifiants, tournures interdites, secrets
+egen-check-arch                         # mots réservés, technologies dans les contrats, code de moteur, secrets
+egen-check-breaking                     # rupture de compatibilité des contrats (règle C6)
+egen-gen-asyncapi                       # régénère contracts/asyncapi/ depuis contracts/catalog/
+```
+
 ## Commits
 
 - Un commit est atomique : une intention, un titre qui dit ce qui change.

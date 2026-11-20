@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/error.schema.json",
+  "title": "Erreur EGEN (04, Forme d'une erreur)",
+  "type": "object",
+  "required": [
+    "code",
+    "reason",
+    "message",
+    "retryable"
+  ],
+  "properties": {
+    "code": {
+      "type": "integer",
+      "minimum": 400,
+      "maximum": 599
+    },
+    "reason": {
+      "$ref": "common.schema.json#/$defs/reason"
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "operationId": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "errors": [
+    {
+      "reason": "InvalidParameters",
+      "http": 400
+    },
+    {
+      "reason": "IdempotencyKeyRequired",
+      "http": 400
+    },
+    {
+      "reason": "DeadlineInPast",
+      "http": 400
+    },
+    {
+      "reason": "PolicyDenied",
+      "http": 403
+    },
+    {
+      "reason": "UnknownCapability",
+      "http": 404
+    },
+    {
+      "reason": "UnknownOperation",
+      "http": 404
+    },
+    {
+      "reason": "IdempotencyKeyConflict",
+      "http": 409
+    },
+    {
+      "reason": "ResourceBusy",
+      "http": 409
+    },
+    {
+      "reason": "OperationTerminal",
+      "http": 409
+    },
+    {
+      "reason": "NoCommonContractVersion",
+      "http": 406
+    },
+    {
+      "reason": "TooManyRequests",
+      "http": 429
+    },
+    {
+      "reason": "Unavailable",
+      "http": 503
+    }
+  ],
+  "conditions": [
+    "PolicyAllowed",
+    "DelegatedToEngine",
+    "InProgress",
+    "Completed",
+    "CancelRequested",
+    "DeadlineExceeded",
+    "Compensated"
+  ]
+}

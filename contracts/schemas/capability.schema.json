@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/capability.schema.json",
+  "title": "C2 — Capacité",
+  "type": "object",
+  "required": [
+    "name",
+    "version",
+    "operations"
+  ],
+  "properties": {
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "version": {
+      "$ref": "common.schema.json#/$defs/contractVersion"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "idempotent",
+          "async",
+          "inputSchema"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "common.schema.json#/$defs/name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "inputSchema": {
+            "$ref": "common.schema.json#/$defs/jsonSchemaObject"
+          },
+          "outputSchema": {
+            "$ref": "common.schema.json#/$defs/jsonSchemaObject"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/reason"
+            }
+          },
+          "idempotent": {
+            "type": "boolean"
+          },
+          "async": {
+            "type": "boolean"
+          },
+          "limits": {
+            "type": "object"
+          },
+          "inverse": {
+            "$ref": "common.schema.json#/$defs/name"
+          }
+        }
+      }
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/scopePattern"
+      }
+    },
+    "stability": {
+      "enum": [
+        "alpha",
+        "beta",
+        "stable"
+      ]
+    }
+  }
+}

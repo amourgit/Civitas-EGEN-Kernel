@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/capability-list.schema.json",
+  "title": "C2 — Liste de capacités",
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "capability.schema.json"
+      }
+    },
+    "nextPageToken": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "Object-Storage",
+  "version": "1.0",
+  "description": "Stockage d'objets",
+  "stability": "beta",
+  "scopes": [
+    "univ-x/*"
+  ],
+  "operations": [
+    {
+      "name": "create-bucket",
+      "idempotent": true,
+      "async": true,
+      "inverse": "delete-bucket",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "quotaGb": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "errors": [
+        "InvalidParameters",
+        "PolicyDenied"
+      ]
+    },
+    {
+      "name": "delete-bucket",
+      "idempotent": true,
+      "async": true,
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

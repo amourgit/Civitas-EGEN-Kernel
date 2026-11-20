@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/operation-list.schema.json",
+  "title": "C3 — Liste d'opérations",
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "operation.schema.json"
+      }
+    },
+    "nextPageToken": {
+      "type": "string"
+    }
+  }
+}

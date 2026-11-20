@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/common.schema.json",
+  "title": "Définitions communes EGEN (conventions de 04)",
+  "$defs": {
+    "controlPlaneId": {
+      "type": "string",
+      "pattern": "^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,62}$"
+    },
+    "ulid": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,128}$"
+    },
+    "scope": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$"
+    },
+    "scopePattern": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*(/\\*)?$"
+    },
+    "reason": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]{2,63}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "phase": {
+      "enum": [
+        "Pending",
+        "Running",
+        "Succeeded",
+        "Failed",
+        "PartiallySucceeded",
+        "Cancelled",
+        "Unknown"
+      ]
+    },
+    "conditionStatus": {
+      "enum": [
+        "True",
+        "False",
+        "Unknown"
+      ]
+    },
+    "traceparent": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+    },
+    "contractVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "contractsMap": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^C[1-6]$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "$ref": "common.schema.json#/$defs/contractVersion"
+        }
+      }
+    },
+    "eventType": {
+      "type": "string",
+      "pattern": "^africa\\.civitas\\.egen\\.[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"
+    },
+    "resourceRef": {
+      "type": "object",
+      "required": [
+        "kind",
+        "name"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": [
+        "type",
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "common.schema.json#/$defs/reason"
+        },
+        "status": {
+          "$ref": "common.schema.json#/$defs/conditionStatus"
+        },
+        "reason": {
+          "$ref": "common.schema.json#/$defs/reason"
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "lastTransitionTime": {
+          "$ref": "common.schema.json#/$defs/timestamp"
+        }
+      }
+    },
+    "jsonSchemaObject": {
+      "type": "object"
+    }
+  }
+}

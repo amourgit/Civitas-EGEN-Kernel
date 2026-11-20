@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/controlplane-descriptor.schema.json",
+  "title": "C1 — Descripteur de Control Plane",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "owner",
+    "environment",
+    "kind",
+    "contracts",
+    "endpoints",
+    "issuedAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/controlPlaneId"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "environment": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "kind": {
+      "enum": [
+        "kernel",
+        "external",
+        "federation"
+      ]
+    },
+    "implementation": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "contracts": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/contractsMap"
+        },
+        {
+          "required": [
+            "C1"
+          ]
+        }
+      ]
+    },
+    "endpoints": {
+      "type": "object",
+      "required": [
+        "api"
+      ],
+      "properties": {
+        "api": {
+          "type": "string",
+          "format": "uri"
+        },
+        "events": {
+          "type": "string",
+          "format": "uri"
+        },
+        "trustBundle": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "required": [
+        "level"
+      ],
+      "properties": {
+        "level": {
+          "enum": [
+            "base",
+            "delegation",
+            "events",
+            "full"
+          ]
+        },
+        "suiteVersion": {
+          "type": "string"
+        },
+        "lastRun": {
+          "$ref": "common.schema.json#/$defs/timestamp"
+        }
+      }
+    },
+    "issuedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  }
+}

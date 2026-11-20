@@ -1,6 +1,6 @@
 # 04 — Les contrats EGEN (C1 à C6)
 
-**Version du document : 0.1 (brouillon normatif). Les contrats sont figés à la fin de la phase R1.**
+**Version du document : 0.2 (conventions figées en R1.1). Les contrats C1 à C6 sont figés à la fin de la phase R1.**
 
 ## À quoi sert ce document
 Spécifier les six contrats par lesquels deux Control Planes (ou un Control Plane et le Federation Plane)
@@ -16,18 +16,42 @@ des jetons ([07](07-identite-confiance-securite.md)), l'orchestration d'une opé
 
 | Sujet | Règle |
 |---|---|
-| Transport | HTTPS, corps JSON en UTF-8. Un transport gRPC peut être ajouté plus tard sans changer le modèle. |
+| Transport | HTTPS, corps JSON en UTF-8. Un transport gRPC peut être ajouté plus tard sans changer le modèle. La sécurité du transport (mTLS) est vérifiée par la famille de tests `security` du kit de conformité (phase R3) ; les familles `base`, `delegation` et `events` s'exécutent en HTTP simple. |
 | Authentification | Chaque appel porte un certificat de charge de travail (mTLS, identité de type SPIFFE) **et**, quand l'appel agit au nom d'une personne ou d'un agent, un jeton délégué à portée limitée ([07](07-identite-confiance-securite.md)). L'identité décisive vient du certificat et du jeton, **jamais** d'un champ du corps. |
 | Préfixe | `/egen/v1/…` ; le document C1 est à `/.well-known/egen/controlplane`. |
-| Identifiant de Control Plane | `spiffe://<domaine-de-confiance>/egen/cp/<nom>`. |
-| Nom de capacité | kebab-case : `[a-z][a-z0-9-]{1,62}` (ex. `object-storage`). |
-| Identifiant d'opération | Chaîne opaque produite par le Control Plane (format fixé en R1.1). |
-| Dates | RFC 3339, UTC. |
+| Dates | RFC 3339, UTC, suffixe `Z`. |
 | Trace | En-tête `traceparent` (W3C Trace Context) propagé de bout en bout. |
 | Clé d'idempotence | En-tête `Idempotency-Key` obligatoire sur toute demande qui modifie. |
+| Version de contrat | En-tête facultatif `Egen-Contract-Version` (ex. `1.0`) : version du contrat utilisée pour l'appel. Une version non supportée donne `406` `NoCommonContractVersion`. |
 | Pagination | `pageSize`, `pageToken`. |
-| Évolution | Un lecteur **ignore** les champs inconnus. |
-| Erreurs | Voir ci-dessous. |
+| Évolution | Un lecteur **ignore** les champs inconnus (corps, paramètres). |
+| Standards épinglés | JSON Schema **2020-12** ; OpenAPI **3.1.1** ; AsyncAPI **3.0.0** ; CloudEvents **1.0** (version de spécification 1.0.2, extension « Distributed Tracing » pour `traceparent`) ; W3C Trace Context. |
+
+### Motifs normatifs des identifiants
+
+| Identifiant | Motif (expression régulière) | Exemple |
+|---|---|---|
+| Identifiant de Control Plane | `^spiffe://[a-z0-9]([a-z0-9.-]*[a-z0-9])?/egen/cp/[a-z][a-z0-9-]{1,62}$` | `spiffe://univ-x.civitas.africa/egen/cp/metier` |
+| Nom de capacité, d'opération | `^[a-z][a-z0-9-]{1,62}$` | `object-storage`, `create-bucket` |
+| Identifiant d'opération | ULID : `^[0-9A-HJKMNP-TV-Z]{26}$` (trié par date de création) | `01JD6K3X8Q2M5N7P9R1S3T5V7W` |
+| Clé d'idempotence | `^[A-Za-z0-9._:-]{8,128}$` | `7c1e9a52-4d3b-4f10-9a6e-2b8d5c1f0e33` |
+| Périmètre | segments séparés par `/` : `^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$` ; dans le champ `scopes` d'une capacité, le dernier segment peut être `*` | `univ-x/rh` ; `univ-x/*` |
+| Raison (`reason`) | PascalCase : `^[A-Z][A-Za-z0-9]{2,63}$` | `PolicyDenied` |
+| Type d'événement | `^africa\.civitas\.egen\.[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*\.v[0-9]+$` | `africa.civitas.egen.operation.succeeded.v1` |
+| Version de contrat | `^[0-9]+\.[0-9]+$` | `1.0` |
+
+### Mots réservés (P-10)
+
+Aucun nom défini par EGEN (types, capacités, opérations, raisons, types d'événements, schémas, champs) ne contient, en
+minuscules, l'un des mots : `cellule`, `tenant`, `catalogue`, `affectation`, `portail`. Un test d'architecture le vérifie
+([13](13-tests-et-conformite.md)). Le Kernel **transporte** des valeurs appartenant à la Plateforme sans les interpréter.
+
+### Noms des types dans le Kernel de référence
+
+Pour éviter toute collision dans l'API Kubernetes (le type `Service` existe dans Kubernetes ; le type `Operation` existe
+dans Crossplane 2.x, groupe `ops.crossplane.io`), les types du Kernel de référence s'appellent **`EgenService`**,
+**`EgenOperation`** et **`ControlPlaneConfig`** (groupe `egen.civitas.africa`). Les contrats, eux, parlent d'« Operation » :
+c'est le nom de la ressource REST (`/egen/v1/operations`).
 
 ### Forme d'une erreur
 
@@ -45,6 +69,25 @@ des jetons ([07](07-identite-confiance-securite.md)), l'orchestration d'une opé
 - `message` est lisible par une personne, **borné à 500 caractères**, et ne cite que des **noms** (clés, chemins,
   types d'événements), jamais une valeur de configuration ni de secret (G-08).
 - `retryable` dit si rejouer la même demande a un sens.
+
+### Raisons d'erreur standard
+
+Un Control Plane peut définir d'autres raisons (PascalCase) ; celles-ci sont **obligatoires** dans les situations décrites.
+
+| Raison | HTTP | Situation |
+|---|---|---|
+| `InvalidParameters` | 400 | Corps ou paramètres non conformes au schéma |
+| `IdempotencyKeyRequired` | 400 | `Idempotency-Key` absent sur une demande qui modifie |
+| `DeadlineInPast` | 400 | `deadline` déjà dépassée |
+| `PolicyDenied` | 403 | Refus par une politique (locale ou fédérée) |
+| `UnknownCapability` | 404 | Capacité ou opération de capacité inconnue |
+| `UnknownOperation` | 404 | Identifiant d'opération inconnu |
+| `IdempotencyKeyConflict` | 409 | Même clé, contenu différent |
+| `ResourceBusy` | 409 | Une autre opération agit sur la même ressource |
+| `OperationTerminal` | 409 | Annulation d'une opération déjà terminée |
+| `NoCommonContractVersion` | 406 | Aucune version de contrat commune |
+| `TooManyRequests` | 429 | Charge ; `retryable: true` |
+| `Unavailable` | 503 | Indisponibilité ; `retryable: true` |
 
 ## C1 — Identité et description d'un Control Plane
 
@@ -64,8 +107,12 @@ des jetons ([07](07-identite-confiance-securite.md)), l'orchestration d'une opé
 | `conformance` | Niveau de conformité déclaré et version de la suite passée (voir ci-dessous). |
 | `issuedAt`, `expiresAt` | Validité courte du document, renouvelée régulièrement. |
 
-**Règles.** Le document est signé avec la clé du domaine de confiance du Control Plane (format de signature fixé
-en R1.2). Un Federation Plane refuse un document expiré ou mal signé. Un changement de C1 publie un événement (C5).
+**Format.** Le corps de la réponse est un objet `{ "descriptor": {…}, "jws": "<signature>" }`. `jws` est une signature
+JWS en sérialisation compacte (RFC 7515) dont la charge utile est le JSON du `descriptor` encodé en base64url ;
+algorithmes admis : `ES256` et `EdDSA`. Un lecteur décode la charge utile, vérifie la signature avec la clé publique du
+domaine de confiance du Control Plane, et vérifie que la charge utile **est identique** au `descriptor` fourni.
+
+**Règles.** Un Federation Plane refuse un document expiré ou mal signé. Un changement de C1 publie un événement (C5).
 
 ## C2 — Capacités
 
@@ -82,7 +129,7 @@ en R1.2). Un Federation Plane refuse un document expiré ou mal signé. Un chang
 
 **Règles.** Une capacité **ne révèle pas** le moteur qui la réalise (c'est un détail local, G-06). Plusieurs
 implémentations d'une même capacité sont possibles dans un Control Plane : il choisit selon l'opération, la
-politique et le contexte ([05](05-kernel-de-reference.md)). Liste initiale de noms proposée (figée en R1.3) :
+politique et le contexte ([05](05-kernel-de-reference.md)). Noms de capacités standard (liste figée en R1.3) :
 `workload-runtime`, `service-discovery`, `messaging`, `object-storage`, `secrets`, `workflow`,
 `identity-provider`, `observability`.
 
@@ -206,6 +253,14 @@ document AsyncAPI par Control Plane liste les types publiés.
 L'ordre est garanti **par `subject`**, pas globalement. Un événement ne contient jamais de valeur de secret ni de
 donnée métier : il désigne, il ne transporte pas (G-08). Les types sont versionnés dans leur nom (`.v1`).
 
+### Repli HTTP : souscriptions
+
+Un Control Plane sans bus expose `POST /egen/v1/subscriptions` (corps : `endpoint` — adresse qui reçoit les événements —
+et `types` — liste de préfixes de types, vide = tous). Réponse `201` avec l'identifiant de la souscription ;
+`GET /egen/v1/subscriptions/{id}` ; `DELETE /egen/v1/subscriptions/{id}` (`204`). Les événements sont livrés en
+`POST` au format **structuré** de la liaison HTTP de CloudEvents (`Content-Type: application/cloudevents+json`).
+Une livraison non acquittée (réponse non `2xx`) est rejouée : la livraison reste « au moins une fois ».
+
 ## C6 — Versionnement
 
 | Règle | Contenu |
@@ -214,7 +269,7 @@ donnée métier : il désigne, il ne transporte pas (G-08). Les types sont versi
 | Compatible | Ajouter un champ optionnel, un type d'événement, une valeur d'énumération **ignorée** par défaut → version MINEURE. |
 | Incompatible | Retirer ou renommer un champ, changer un sens, durcir une règle → version MAJEURE. |
 | Négociation | L'appelant lit C1 de la cible, prend la **plus haute version commune**. Aucune version commune → refus `NoCommonContractVersion`. |
-| Dépréciation | Annoncée dans C1 avec une date de fin ; durée minimale à fixer (PO-06). |
+| Dépréciation | Annoncée dans C1 avec une date de fin ; durée minimale : **6 mois et deux versions mineures** de contrat (D-18). |
 | Garde-fou | La CI détecte toute rupture de compatibilité (comparaison des schémas OpenAPI, JSON Schema, AsyncAPI) et la refuse sans changement de version majeure. |
 
 ## Niveaux de conformité
@@ -235,8 +290,8 @@ Federation Plane peut refuser d'admettre un Control Plane dont le niveau est ins
 |---|---|
 | C1 | Document généré à partir de la configuration du Control Plane, publié par le pont de fédération. |
 | C2 | Généré à partir des définitions de capacités Crossplane marquées comme capacités EGEN. |
-| C3 | Le pont de fédération reçoit la demande, l'opérateur crée la ressource `Operation`. |
-| C4 | Les Conditions de la ressource `Operation` et des ressources suivies. |
+| C3 | Le pont de fédération reçoit la demande, l'opérateur crée la ressource `EgenOperation`. |
+| C4 | Les Conditions de la ressource `EgenOperation` et des ressources suivies. |
 | C5 | L'opérateur publie sur NATS au format CloudEvents. |
 | C6 | Génération des schémas depuis une source unique ; contrôle de rupture en CI. |
 

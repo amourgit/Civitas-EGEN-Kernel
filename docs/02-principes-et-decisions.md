@@ -45,9 +45,9 @@ Le détail technique des décisions (documents 04 à 12) et leur statut d'avance
 
 ## Registre des décisions
 
-Statuts : **Verrouillée** (décidée par Samuel) · **Maintenue** (décision de Samuel antérieure à ce plan, compatible avec
-lui, à reconfirmer à l'étape où elle s'applique) · **Retenue avec l'option C** (acceptée en bloc, à confirmer
-individuellement à l'étape d'introduction).
+Statuts : **Verrouillée** (décidée ou confirmée par Samuel) · **Maintenue** (décision de Samuel antérieure à ce plan, compatible avec
+lui, à reconfirmer à l'étape où elle s'applique) · **Proposée** (prise par l'architecte pour avancer, appliquée en attendant
+la confirmation de Samuel ; réversible).
 
 | Id | Date | Décision | Statut |
 |---|---|---|---|
@@ -66,6 +66,9 @@ individuellement à l'étape d'introduction).
 | D-13 | 2026-11-19 | Aucune valeur de secret dans une ressource : références uniquement (P-09). | Maintenue |
 | D-14 | 2026-11-19 | **Les vérifications se font par des tests réalistes** : contre des composants réels dès qu'une étape les met en jeu. Ce qui exige des conteneurs ou un cluster est exécuté par Samuel (commandes, attendu et cas négatif fournis par Claude) ; ce qui s'exécute sans conteneur est vérifié par Claude avec de vraies requêtes réseau locales. | Verrouillée |
 | D-15 | 2026-11-19 | Le développement se fait sur `main` : chaque étape vérifiée y est poussée en avance directe. | Verrouillée |
+| D-16 | 2026-11-19 | **Conventions de nommage des contrats** : types du Kernel de référence `EgenService`, `EgenOperation`, `ControlPlaneConfig` (évite les collisions avec `Service` de Kubernetes et `Operation` de Crossplane) ; identifiant d'opération = ULID ; motifs d'identifiants, raisons standard et mots réservés de [04](04-contrats-egen.md) ; signature de C1 en JWS (`ES256` ou `EdDSA`). | Proposée |
+| D-17 | 2026-11-19 | Le **kit de conformité**, le Control Plane factice et les outils de contrôle (rupture de contrat, documentation, architecture) sont écrits en **Python 3.12 ou plus** : installable partout, exécutable sans cluster, vérifiable ici par de vraies requêtes réseau. Le langage de l'opérateur, du pont et du service Federation Plane reste ouvert (PO-04). | Proposée |
+| D-18 | 2026-11-19 | **Dépréciation d'un contrat** : au moins 6 mois et deux versions mineures de contrat entre l'annonce et le retrait. | Proposée |
 
 ## Comment ajouter ou changer une décision
 

@@ -34,7 +34,7 @@ contrats EGEN et n'ont pas à le faire. Seul un système qui expose C1 à C6 est
 |---|---|
 | **Quel niveau ?** | Niveau 3 : **moteur spécialisé**. Jamais un Control Plane, jamais le socle du Kernel. |
 | **Quelle capacité ?** | `workload-runtime` : exécution de charges de travail. Il est une **implémentation** de cette capacité, à côté de celle de Kubernetes. |
-| **Comment est-il choisi ?** | Par un sélecteur (`engine: nomad`) dans le `Service`, ou par une politique du Control Plane (ex. charges qui ne sont pas des conteneurs, sites légers). Sans sélecteur ni politique, c'est Kubernetes. |
+| **Comment est-il choisi ?** | Par un sélecteur (`engine: nomad`) dans l'`EgenService`, ou par une politique du Control Plane (ex. charges qui ne sont pas des conteneurs, sites légers). Sans sélecteur ni politique, c'est Kubernetes. |
 | **Où est-il installé ?** | Dans une **extension** « workload-runtime pour Nomad » ajoutée au Control Plane. Aucun code propre à Nomad dans le cœur (G-05). |
 | **Qui pilote le Control Plane ?** | Toujours un Kernel de référence (Kubernetes + Crossplane). Nomad exécute ; il ne gouverne pas. |
 | **Peut-il cohabiter avec Kubernetes ?** | Oui : plusieurs moteurs dans un même Control Plane sont un cas prévu (scénario A des fondations). |

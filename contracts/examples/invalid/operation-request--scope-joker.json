@@ -1,0 +1,11 @@
+{
+  "capability": "object-storage",
+  "operation": "create-bucket",
+  "parameters": {
+    "name": "rh-agenda",
+    "quotaGb": 50
+  },
+  "scope": "univ-x/*",
+  "deadline": "2026-11-19T15:00:00Z",
+  "parentOperationId": null
+}

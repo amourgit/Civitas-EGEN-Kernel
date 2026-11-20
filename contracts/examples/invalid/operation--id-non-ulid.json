@@ -1,0 +1,49 @@
+{
+  "id": "not-a-ulid",
+  "controlPlaneId": "spiffe://univ-x.civitas.africa/egen/cp/transversal",
+  "capability": "object-storage",
+  "operation": "create-bucket",
+  "scope": "univ-x/rh",
+  "generation": 1,
+  "status": {
+    "phase": "Running",
+    "conditions": [
+      {
+        "type": "Accepted",
+        "status": "True",
+        "reason": "PolicyAllowed",
+        "lastTransitionTime": "2026-11-19T14:02:10Z"
+      },
+      {
+        "type": "Progressing",
+        "status": "True",
+        "reason": "DelegatedToEngine",
+        "message": "moteur object-storage sollicité"
+      },
+      {
+        "type": "Completed",
+        "status": "False",
+        "reason": "InProgress"
+      }
+    ],
+    "resources": [
+      {
+        "ref": {
+          "kind": "Bucket",
+          "name": "rh-agenda"
+        },
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "False",
+            "reason": "Provisioning"
+          }
+        ]
+      }
+    ],
+    "attempts": 1,
+    "uncertain": false
+  },
+  "createdAt": "2026-11-19T14:02:10Z",
+  "deadline": "2026-11-19T15:00:00Z"
+}

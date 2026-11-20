@@ -13,7 +13,7 @@ ouverts (voir [16](16-risques-et-verifications.md)).
 | Élément | Valeur |
 |---|---|
 | Dernière mise à jour | 19 novembre 2026 |
-| Code dans le dépôt | **Aucun.** Le premier code est la phase R1. |
+| Code dans le dépôt | Contrats C1 à C5 (schémas JSON, OpenAPI, AsyncAPI, exemples, catalogues), outils de contrôle et leurs tests (phase R1, en cours). |
 | Développement antérieur | **Gelé et retiré de l'arbre** (décision D-04). Rien ne se développe hors de ce plan. |
 | Phase en cours | R1 — Contrats et kit de conformité |
 | Prochaine phase | R2 — Kernel de référence |
@@ -28,6 +28,14 @@ ouverts (voir [16](16-risques-et-verifications.md)).
 | R0.3 | Écrire la documentation neuve (documents 00 à 16, fiches moteurs) | Fait |
 | R0.4 | Valider avec Samuel, puis fusionner sur `main` | Fait (documentation validée par Samuel le 19 novembre 2026, fusionnée sur `main`) |
 | R1 | Contrats C1 à C6 et kit de conformité | En cours |
+| R1.1 | Conventions communes figées | Fait |
+| R1.2 | C1 : schémas du descripteur et du document signé, exemples | Fait |
+| R1.3 | C2 : schéma de capacité, registre des capacités standard | Fait |
+| R1.4 | C3/C4 : OpenAPI, phases et conditions | Fait |
+| R1.5 | C5 : schémas des événements, AsyncAPI généré et validé | Fait |
+| R1.6 | C6 : détecteur de rupture de compatibilité | Fait |
+| R1.7 | Kit de conformité, Control Plane factice et défectueux | À faire |
+| R1.8 | CI du dépôt | À faire |
 | R2 | Kernel de référence : un Control Plane complet | À faire |
 | R3 | Identité, confiance et politiques | À faire |
 | R4 | Federation Plane et opérations distribuées | À faire |

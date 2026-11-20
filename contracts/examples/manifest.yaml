@@ -1,0 +1,134 @@
+version: '1.0'
+examples:
+- file: valid/error--policy-denied.json
+  schema: error.schema.json
+  valid: true
+  note: erreur standard
+- file: valid/controlplane-descriptor--ok.json
+  schema: controlplane-descriptor.schema.json
+  valid: true
+  note: descripteur C1 complet
+- file: valid/controlplane-document--ok.json
+  schema: controlplane-document.schema.json
+  valid: true
+  note: document C1 signé (forme)
+- file: valid/capability--object-storage.json
+  schema: capability.schema.json
+  valid: true
+  note: capacité avec opération inverse
+- file: valid/operation-request--create-bucket.json
+  schema: operation-request.schema.json
+  valid: true
+  note: demande C3
+- file: valid/operation--running.json
+  schema: operation.schema.json
+  valid: true
+  note: opération en cours
+- file: valid/operation--partially-succeeded.json
+  schema: operation.schema.json
+  valid: true
+  note: opération partielle
+- file: valid/cloudevent--operation-succeeded.json
+  schema: cloudevent.schema.json
+  valid: true
+  note: événement C5 (enveloppe)
+- file: valid/subscription-request--ok.json
+  schema: subscription.schema.json#/$defs/request
+  valid: true
+  note: souscription HTTP
+- file: invalid/error--message-trop-long.json
+  schema: error.schema.json
+  valid: false
+  keyword: maxLength
+  path: message
+  note: message > 500 caractères (G-08)
+- file: invalid/error--raison-instable.json
+  schema: error.schema.json
+  valid: false
+  keyword: pattern
+  path: reason
+  note: raison non PascalCase
+- file: invalid/descriptor--sans-expiration.json
+  schema: controlplane-descriptor.schema.json
+  valid: false
+  keyword: required
+  path: ''
+  note: expiresAt manquant
+- file: invalid/descriptor--id-non-spiffe.json
+  schema: controlplane-descriptor.schema.json
+  valid: false
+  keyword: pattern
+  path: id
+  note: id qui n'est pas une identité SPIFFE EGEN
+- file: invalid/descriptor--sans-c1.json
+  schema: controlplane-descriptor.schema.json
+  valid: false
+  keyword: required
+  path: contracts
+  note: C1 doit toujours être déclaré
+- file: invalid/descriptor--contrat-inconnu.json
+  schema: controlplane-descriptor.schema.json
+  valid: false
+  keyword: pattern
+  path: contracts
+  note: contrat C9 inexistant
+- file: invalid/capability--nom-majuscules.json
+  schema: capability.schema.json
+  valid: false
+  keyword: pattern
+  path: name
+  note: nom de capacité non kebab-case
+- file: invalid/capability--sans-idempotent.json
+  schema: capability.schema.json
+  valid: false
+  keyword: required
+  path: operations/0
+  note: idempotent obligatoire
+- file: invalid/operation-request--scope-joker.json
+  schema: operation-request.schema.json
+  valid: false
+  keyword: pattern
+  path: scope
+  note: joker interdit dans une demande
+- file: invalid/operation--id-non-ulid.json
+  schema: operation.schema.json
+  valid: false
+  keyword: pattern
+  path: id
+  note: identifiant d'opération non ULID
+- file: invalid/operation--phase-inconnue.json
+  schema: operation.schema.json
+  valid: false
+  keyword: enum
+  path: status/phase
+  note: phase hors catalogue
+- file: invalid/operation--sans-condition.json
+  schema: operation.schema.json
+  valid: false
+  keyword: minItems
+  path: status/conditions
+  note: au moins une condition
+- file: invalid/cloudevent--specversion-1.0.2.json
+  schema: cloudevent.schema.json
+  valid: false
+  keyword: const
+  path: specversion
+  note: specversion doit valoir 1.0
+- file: invalid/cloudevent--type-sans-version.json
+  schema: cloudevent.schema.json
+  valid: false
+  keyword: pattern
+  path: type
+  note: type d'événement sans suffixe de version
+- file: invalid/cloudevent--heure-locale.json
+  schema: cloudevent.schema.json
+  valid: false
+  keyword: pattern
+  path: time
+  note: date non UTC
+- file: invalid/subscription-request--sans-endpoint.json
+  schema: subscription.schema.json#/$defs/request
+  valid: false
+  keyword: required
+  path: ''
+  note: endpoint manquant

@@ -37,7 +37,7 @@ connecteurs) est un ensemble de **services** qui s'exécutent dans les écosyst�
 | Règle | Contenu |
 |---|---|
 | Le Kernel ignore la Plateforme (P-10) | Aucun type, champ, identifiant ou message du Kernel ne contient un concept de la Plateforme. |
-| Mots réservés | Les identifiants du Kernel ne contiennent pas : `cellule`, `tenant`, `catalogue`, `affectation`, `portail`. Liste initiale proposée, figée en R1.1 (PO-02). Un test d'architecture la vérifie. |
+| Mots réservés | Les identifiants du Kernel ne contiennent pas : `cellule`, `tenant`, `catalogue`, `affectation`, `portail`. Liste figée en R1.1 (D-16). Un test d'architecture la vérifie. |
 | Étiquettes | Le préfixe `egen.civitas.africa/` est réservé au Kernel ; le préfixe `platform.civitas.africa/` est réservé à la Plateforme. Le Kernel **transporte** les étiquettes de la Plateforme **sans les interpréter**. |
 | Ce que le Plateforme demande au Kernel | Des capacités (C3), via l'opérateur de la Plateforme, avec un jeton à portée limitée. |
 | Ce que le Kernel ne fait jamais pour la Plateforme | Décider d'un tenant, d'une affectation, d'un droit métier ; stocker une configuration métier. |
@@ -84,7 +84,7 @@ ou moteur sollicité).
 |---|---|
 | Identité d'agent | Chaque agent a une identité de charge de travail (SPIFFE) distincte de celle de la personne qu'il sert. |
 | Chaîne « agit pour » | Jeton délégué à portée réduite ; la chaîne est conservée dans les traces et l'audit ([07](07-identite-confiance-securite.md)). |
-| Capacités exposées | Le bloc `interfaces` d'un `Service` annonce ce qu'un agent peut appeler (opaque pour le Kernel). |
+| Capacités exposées | Le bloc `interfaces` d'un `EgenService` annonce ce qu'un agent peut appeler (opaque pour le Kernel). |
 | Normes d'interface | MCP (outils) et A2A (agent à agent) sont aujourd'hui sous la gouvernance de l'Agentic AI Foundation (Linux Foundation) ([S-15](references.md)). Transparence : MCP a été créé par Anthropic ; la recommandation s'appuie sur sa gouvernance neutre actuelle. |
 | Garde de politique | Un agent passe par la même garde que toute demande ; ses droits sont des droits fins (SpiceDB). |
 

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "egen-kernel-tools"
+version = "0.1.0"
+description = "Contrats EGEN, kit de conformité, Control Plane factice et outils de contrôle"
+requires-python = ">=3.12"
+dependencies = [
+  "jsonschema>=4.21",
+  "referencing>=0.35",
+  "PyYAML>=6.0",
+  "requests>=2.31",
+  "PyJWT>=2.8",
+  "cryptography>=42",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "openapi-spec-validator>=0.7"]
+
+[project.scripts]
+egen-conformance = "egen_conformance.cli:main"
+egen-mockcp = "egen_mockcp.cli:main"
+egen-check-docs = "egen_tools.checkdocs:main"
+egen-check-arch = "egen_tools.checkarch:main"
+egen-check-breaking = "egen_tools.breaking:main"
+egen-gen-asyncapi = "egen_tools.gen_asyncapi:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

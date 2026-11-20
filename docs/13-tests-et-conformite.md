@@ -64,7 +64,7 @@ Si écart     : <ce qu'on fait>
 | Élément | Contenu |
 |---|---|
 | **Scénarios** | Fichiers déclaratifs (étapes, requêtes, réponses attendues, états attendus), indépendants du langage. |
-| **Exécuteur de référence** | Programme qui joue les scénarios contre l'adresse d'un Control Plane (langage : PO-04). |
+| **Exécuteur de référence** | Programme (Python, D-17) qui joue les scénarios contre l'adresse d'un Control Plane. |
 | **Familles de tests** | `base` (C1, C2, C6), `delegation` (C3, C4 : idempotence, états, erreurs), `events` (C5 : format, dédoublonnage), `full`. |
 | **Cas négatifs** | Pour chaque contrat, des Control Planes **défectueux** que le kit doit refuser. |
 | **Sortie** | Rapport horodaté, niveau atteint, liste des écarts. |

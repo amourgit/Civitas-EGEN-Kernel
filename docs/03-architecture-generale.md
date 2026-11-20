@@ -119,7 +119,7 @@ Capacités ................. Crossplane (interface + implémentations)
 Extensions ................ paquets Crossplane
 Délégation/réconciliation . contrôleurs + Providers Crossplane → moteurs
 Politiques ................ RBAC + règles d'admission + SpiceDB
-Suivi des opérations ...... ressource Operation + événements   ← code EGEN
+Suivi des opérations ...... ressource EgenOperation + événements ← code EGEN
 Pont de fédération ........ expose C1 à C6                      ← code EGEN
 ```
 

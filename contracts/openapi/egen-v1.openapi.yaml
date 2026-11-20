@@ -1,0 +1,234 @@
+openapi: 3.1.1
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+info:
+  title: Contrats EGEN — API d'un Control Plane (C1 à C4 et repli HTTP de C5)
+  version: "1.0"
+  description: >-
+    Interface que tout Control Plane (ou Federation Plane) expose pour participer à la fédération.
+    Normative avec docs/04-contrats-egen.md ; les schémas sont dans contracts/schemas/.
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: controlplane.example
+tags:
+  - name: C1
+  - name: C2
+  - name: C3
+  - name: C4
+  - name: C5
+paths:
+  /.well-known/egen/controlplane:
+    get:
+      tags: [C1]
+      operationId: getControlPlaneDocument
+      summary: Document signé qui décrit le Control Plane
+      responses:
+        "200":
+          description: Descripteur et signature JWS
+          content:
+            application/json:
+              schema: { $ref: "../schemas/controlplane-document.schema.json" }
+        "503": { $ref: "#/components/responses/Error" }
+  /egen/v1/capabilities:
+    get:
+      tags: [C2]
+      operationId: listCapabilities
+      summary: Capacités offertes
+      parameters:
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/PageToken"
+      responses:
+        "200":
+          description: Liste de capacités
+          content:
+            application/json:
+              schema: { $ref: "../schemas/capability-list.schema.json" }
+        "406": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /egen/v1/capabilities/{name}:
+    get:
+      tags: [C2]
+      operationId: getCapability
+      summary: Une capacité
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { $ref: "../schemas/common.schema.json#/$defs/name" }
+      responses:
+        "200":
+          description: La capacité
+          content:
+            application/json:
+              schema: { $ref: "../schemas/capability.schema.json" }
+        "404": { $ref: "#/components/responses/Error" }
+  /egen/v1/operations:
+    post:
+      tags: [C3]
+      operationId: createOperation
+      summary: Demander l'exécution d'une opération
+      description: >-
+        Acceptée n'est pas exécutée : la réponse 202 porte une Operation qui progresse. Même clé et même
+        contenu : 200 avec l'Operation existante. Même clé, contenu différent : 409 IdempotencyKeyConflict.
+        L'identité du demandeur vient du certificat et du jeton, jamais du corps.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "../schemas/operation-request.schema.json" }
+      responses:
+        "202":
+          description: Demande acceptée
+          headers:
+            Location:
+              required: true
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "../schemas/operation.schema.json" }
+        "200":
+          description: "Même clé d'idempotence et même contenu : opération existante"
+          content:
+            application/json:
+              schema: { $ref: "../schemas/operation.schema.json" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "406": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [C3, C4]
+      operationId: listOperations
+      summary: Lister les opérations
+      parameters:
+        - { name: scope, in: query, required: false, schema: { $ref: "../schemas/common.schema.json#/$defs/scope" } }
+        - { name: phase, in: query, required: false, schema: { $ref: "../schemas/common.schema.json#/$defs/phase" } }
+        - { name: capability, in: query, required: false, schema: { $ref: "../schemas/common.schema.json#/$defs/name" } }
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/PageToken"
+      responses:
+        "200":
+          description: Liste d'opérations
+          content:
+            application/json:
+              schema: { $ref: "../schemas/operation-list.schema.json" }
+        "400": { $ref: "#/components/responses/Error" }
+  /egen/v1/operations/{id}:
+    get:
+      tags: [C4]
+      operationId: getOperation
+      summary: État d'une opération
+      parameters:
+        - $ref: "#/components/parameters/OperationId"
+      responses:
+        "200":
+          description: L'opération
+          content:
+            application/json:
+              schema: { $ref: "../schemas/operation.schema.json" }
+        "404": { $ref: "#/components/responses/Error" }
+  /egen/v1/operations/{id}:cancel:
+    post:
+      tags: [C3]
+      operationId: cancelOperation
+      summary: Annuler une opération
+      parameters:
+        - $ref: "#/components/parameters/OperationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Annulation prise en compte
+          content:
+            application/json:
+              schema: { $ref: "../schemas/operation.schema.json" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /egen/v1/subscriptions:
+    post:
+      tags: [C5]
+      operationId: createSubscription
+      summary: Souscrire à des événements (repli HTTP)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "../schemas/subscription.schema.json#/$defs/request" }
+      responses:
+        "201":
+          description: Souscription créée
+          content:
+            application/json:
+              schema: { $ref: "../schemas/subscription.schema.json#/$defs/resource" }
+        "400": { $ref: "#/components/responses/Error" }
+  /egen/v1/subscriptions/{id}:
+    get:
+      tags: [C5]
+      operationId: getSubscription
+      parameters:
+        - $ref: "#/components/parameters/OperationId"
+      responses:
+        "200":
+          description: La souscription
+          content:
+            application/json:
+              schema: { $ref: "../schemas/subscription.schema.json#/$defs/resource" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [C5]
+      operationId: deleteSubscription
+      parameters:
+        - $ref: "#/components/parameters/OperationId"
+      responses:
+        "204": { description: Souscription supprimée }
+        "404": { $ref: "#/components/responses/Error" }
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { $ref: "../schemas/common.schema.json#/$defs/idempotencyKey" }
+    Traceparent:
+      name: traceparent
+      in: header
+      required: false
+      schema: { $ref: "../schemas/common.schema.json#/$defs/traceparent" }
+    ContractVersion:
+      name: Egen-Contract-Version
+      in: header
+      required: false
+      description: >-
+        Version du contrat utilisée pour cet appel (ex. 1.0). Une version que le Control Plane ne supporte pas
+        donne 406 NoCommonContractVersion.
+      schema: { $ref: "../schemas/common.schema.json#/$defs/contractVersion" }
+    OperationId:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: "../schemas/common.schema.json#/$defs/ulid" }
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 500 }
+    PageToken:
+      name: pageToken
+      in: query
+      required: false
+      schema: { type: string }
+  responses:
+    Error:
+      description: Erreur EGEN (reason stable, message borné, retryable)
+      content:
+        application/json:
+          schema: { $ref: "../schemas/error.schema.json" }

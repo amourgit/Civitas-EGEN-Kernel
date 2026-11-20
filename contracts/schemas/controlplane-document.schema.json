@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/controlplane-document.schema.json",
+  "title": "C1 — Document signé (descripteur + JWS)",
+  "type": "object",
+  "required": [
+    "descriptor",
+    "jws"
+  ],
+  "properties": {
+    "descriptor": {
+      "$ref": "controlplane-descriptor.schema.json"
+    },
+    "jws": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+    }
+  }
+}

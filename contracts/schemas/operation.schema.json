@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.civitas.africa/egen/v1/operation.schema.json",
+  "title": "C3/C4 — Operation",
+  "type": "object",
+  "required": [
+    "id",
+    "controlPlaneId",
+    "capability",
+    "operation",
+    "scope",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "controlPlaneId": {
+      "$ref": "common.schema.json#/$defs/controlPlaneId"
+    },
+    "capability": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "operation": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "scope": {
+      "$ref": "common.schema.json#/$defs/scope"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "type": "object",
+      "required": [
+        "phase",
+        "conditions"
+      ],
+      "properties": {
+        "phase": {
+          "$ref": "common.schema.json#/$defs/phase"
+        },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/$defs/condition"
+          }
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ref"
+            ],
+            "properties": {
+              "ref": {
+                "$ref": "common.schema.json#/$defs/resourceRef"
+              },
+              "conditions": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/condition"
+                }
+              }
+            }
+          }
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uncertain": {
+          "type": "boolean"
+        }
+      }
+    },
+    "createdAt": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "updatedAt": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "deadline": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  }
+}

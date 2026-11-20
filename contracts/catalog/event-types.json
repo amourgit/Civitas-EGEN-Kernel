@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "events": [
+    {
+      "type": "africa.civitas.egen.controlplane.registered.v1",
+      "dataSchema": "controlPlaneLifecycle",
+      "description": "Un Control Plane est admis dans la fédération"
+    },
+    {
+      "type": "africa.civitas.egen.controlplane.suspended.v1",
+      "dataSchema": "controlPlaneLifecycle",
+      "description": "Un Control Plane est suspendu"
+    },
+    {
+      "type": "africa.civitas.egen.controlplane.revoked.v1",
+      "dataSchema": "controlPlaneLifecycle",
+      "description": "La confiance envers un Control Plane est retirée"
+    },
+    {
+      "type": "africa.civitas.egen.controlplane.descriptor-changed.v1",
+      "dataSchema": "controlPlaneLifecycle",
+      "description": "Le document C1 d'un Control Plane a changé"
+    },
+    {
+      "type": "africa.civitas.egen.capability.published.v1",
+      "dataSchema": "capabilityLifecycle",
+      "description": "Une capacité est publiée"
+    },
+    {
+      "type": "africa.civitas.egen.capability.withdrawn.v1",
+      "dataSchema": "capabilityLifecycle",
+      "description": "Une capacité est retirée"
+    },
+    {
+      "type": "africa.civitas.egen.capability.changed.v1",
+      "dataSchema": "capabilityLifecycle",
+      "description": "Une capacité a changé"
+    },
+    {
+      "type": "africa.civitas.egen.operation.accepted.v1",
+      "dataSchema": "operationLifecycle",
+      "description": "Une opération est acceptée"
+    },
+    {
+      "type": "africa.civitas.egen.operation.progressed.v1",
+      "dataSchema": "operationLifecycle",
+      "description": "Une opération progresse"
+    },
+    {
+      "type": "africa.civitas.egen.operation.succeeded.v1",
+      "dataSchema": "operationLifecycle",
+      "description": "Une opération est réussie"
+    },
+    {
+      "type": "africa.civitas.egen.operation.failed.v1",
+      "dataSchema": "operationLifecycle",
+      "description": "Une opération est en échec"
+    },
+    {
+      "type": "africa.civitas.egen.operation.compensated.v1",
+      "dataSchema": "operationLifecycle",
+      "description": "Les effets d'une opération ont été annulés"
+    },
+    {
+      "type": "africa.civitas.egen.resource.ready.v1",
+      "dataSchema": "resourceState",
+      "description": "Une ressource suivie est prête"
+    },
+    {
+      "type": "africa.civitas.egen.resource.degraded.v1",
+      "dataSchema": "resourceState",
+      "description": "Une ressource suivie est dégradée"
+    }
+  ]
+}

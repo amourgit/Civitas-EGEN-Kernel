@@ -1,0 +1,45 @@
+{
+  "id": "spiffe://univ-x.civitas.africa/egen/cp/transversal",
+  "name": "Control Plane Transversal",
+  "owner": "Université X",
+  "environment": "univ-x",
+  "kind": "kernel",
+  "implementation": {
+    "name": "egen-kernel-reference",
+    "version": "0.1.0"
+  },
+  "contracts": {
+    "C1": [
+      "1.0"
+    ],
+    "C2": [
+      "1.0"
+    ],
+    "C3": [
+      "1.0"
+    ],
+    "C4": [
+      "1.0"
+    ],
+    "C5": [
+      "1.0"
+    ],
+    "C6": [
+      "1.0"
+    ],
+    "C9": [
+      "1.0"
+    ]
+  },
+  "endpoints": {
+    "api": "https://cp-transversal.univ-x.example/",
+    "events": "nats://nats.univ-x.example:4222"
+  },
+  "conformance": {
+    "level": "full",
+    "suiteVersion": "1.0",
+    "lastRun": "2026-11-19T14:02:10Z"
+  },
+  "issuedAt": "2026-11-19T14:02:10Z",
+  "expiresAt": "2026-11-20T14:02:10Z"
+}

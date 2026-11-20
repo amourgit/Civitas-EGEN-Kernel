@@ -1,0 +1,10 @@
+{
+  "name": "egen-asyncapi-validation",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Validation du document AsyncAPI des contrats EGEN avec l'analyseur officiel",
+  "type": "module",
+  "dependencies": {
+    "@asyncapi/parser": "^3.4.0"
+  }
+}
