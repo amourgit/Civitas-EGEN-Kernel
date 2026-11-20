@@ -1,37 +1,26 @@
 # EGEN Kernel — plateforme de gouvernance fédérée
 
-**Le Kernel gouverne, délègue et suit. Il n'exécute pas ce que des solutions éprouvées exécutent déjà.**
+**Le Kernel fédère les Control Planes, organise leurs relations et coordonne leurs interactions. Il ne remplace pas leur gouvernance autonome et n'exécute pas les opérations confiées aux moteurs spécialisés.**
 
-EGEN (CIVITAS Africa) organise les systèmes d'une organisation (par exemple une université) en
-**écosystèmes** (Métier, Transversal, Intelligence et Agents). Chaque écosystème est gouverné par un
-**Control Plane** autonome (un système qui reçoit des intentions, applique les politiques, délègue
-l'exécution et suit les résultats). Un **Federation Plane** relie plusieurs Control Planes sans les
-remplacer. Le **Kernel EGEN** est l'implémentation de référence d'un Control Plane.
+EGEN, développé par CIVITAS Africa, organise les systèmes d'une organisation (par exemple une université) en **écosystèmes** : Métier, Transversal, Intelligence et Agents.
 
-## État du dépôt
+Chaque écosystème est gouverné par un **Control Plane autonome** : un système qui reçoit les intentions de gouvernance de son périmètre, applique ses politiques, compose les capacités techniques nécessaires, délègue l'exécution aux moteurs spécialisés et suit les résultats.
 
-Le dépôt contient la documentation d'architecture et le plan de développement ; le code arrive phase par phase,
-à commencer par les contrats et le kit de conformité (phase R1).
-L'état exact de chaque phase est dans [docs/00-etat-et-reprise.md](docs/00-etat-et-reprise.md) :
-c'est le seul endroit où figure un statut.
+Le **Federation Plane** organise la fédération de plusieurs Control Planes. Il gère leurs relations fédérales, leur enregistrement, leur identité et leur confiance, la découverte de leurs capacités ainsi que la coordination des opérations qui concernent plusieurs Control Planes.
 
-## Par où commencer
+Le **EGEN Kernel**, développé par CIVITAS Africa, est l'implémentation de référence de ce **Federation Plane**. Il ne se substitue pas aux Control Planes et ne centralise pas la gouvernance de leurs écosystèmes.
 
-1. [docs/README.md](docs/README.md) : sommaire, ordre de lecture, règles de rédaction.
-2. [docs/00-etat-et-reprise.md](docs/00-etat-et-reprise.md) : où l'on en est, comment reprendre.
-3. [docs/01-vision-et-perimetre.md](docs/01-vision-et-perimetre.md) puis
-   [docs/03-architecture-generale.md](docs/03-architecture-generale.md) : le schéma d'ensemble.
-4. [docs/14-plan-de-developpement.md](docs/14-plan-de-developpement.md) : les phases et étapes.
-
-Les deux documents fondateurs (vision et inventaire des questions) sont dans
-[docs/fondations/](docs/fondations/). Ils se lisent en entier avant toute décision d'architecture.
+Les Control Planes restent libres de développer leurs propres intégrations, d'adopter des capacités techniques disponibles transversalement en déployant leurs propres instances, ou de combiner les deux approches.
 
 ## Ce que le Kernel n'est pas
 
-- Pas un moteur de déploiement, de messagerie, de workflow ou d'identité : il délègue à des moteurs spécialisés.
-- Pas une copie centrale de toutes les ressources : chaque Control Plane garde la maîtrise de ses données.
-- Pas dépendant d'une technologie unique pour **participer** à la fédération : seuls les contrats comptent.
-- Pas porteur de concepts métier (cellule, tenant, catalogue…) : il les ignore.
+- Pas un Control Plane métier ou un Control Plane d'écosystème : il fédère les Control Planes autonomes.
+- Pas un moteur de déploiement, de découverte, de messagerie ou de workflow : il s'appuie sur des solutions spécialisées.
+- Pas le point d'exécution central des opérations locales des Control Planes.
+- Pas une copie centrale des ressources et des données des écosystèmes : chaque Control Plane conserve la maîtrise de son état local et de ses ressources. Le Kernel conserve uniquement les informations nécessaires à la fédération.
+- Pas dépendant d'une technologie ou d'un langage unique pour qu'un Control Plane puisse participer à la fédération : seuls les contrats fédéraux comptent.
+- Pas porteur de concepts métier (cellule, tenant, catalogue, etc.) : il reste neutre vis-à-vis des domaines fonctionnels.
+
 
 ## Règles non négociables
 
